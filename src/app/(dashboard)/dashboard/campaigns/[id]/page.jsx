@@ -162,6 +162,13 @@ export default async function CampaignReviewPage({ params, searchParams }) {
           </div>
 
           <div>
+            <p className="text-xs text-slate-500">Body parameters configured</p>
+            <p className="mt-1 font-medium">
+              {(campaign.bodyParameters || []).filter((value) => value !== "").length} of {campaign.template?.bodyVariableCount ?? "—"}
+            </p>
+          </div>
+
+          <div>
             <p className="text-xs text-slate-500">Audience type</p>
             <p className="mt-1 font-medium">
               {campaign.audience?.type || "—"}
