@@ -86,7 +86,7 @@ This is a runnable MVP foundation, not a finished, audited commercial SaaS. Befo
 - Email verification, password reset, login/registration rate limiting and bot protection
 - CSRF/origin policy appropriate for custom domains and preview deployments
 - Admin provisioning and audited role management
-- Meta Embedded Signup and proper OAuth token lifecycle
+- Meta Tech Provider eligibility, App Review / Advanced Access, token-expiry handling and customer offboarding automation
 - Webhook signature verification using `META_APP_SECRET` (the included webhook endpoint verifies the challenge but deliberately does not trust unsigned POST events)
 - Production queue scheduling, configurable per-number pacing, lease recovery, operator review tools and monitoring for the campaign worker
 - Subscription billing, usage metering and payment webhook verification
