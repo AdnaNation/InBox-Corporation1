@@ -6,6 +6,7 @@ import { getDatabase } from "@/lib/db";
 import CampaignTemplateVerification from "@/components/campaign-template-verification";
 import CampaignQueueAction from "@/components/campaign-queue-action";
 import CampaignControls from "@/components/campaign-controls";
+import CampaignRecipientReview from "@/components/campaign-recipient-review";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -88,6 +89,7 @@ export default async function CampaignReviewPage({ params, searchParams }) {
       phone: 1,
       status: 1,
       error: 1,
+      manualReview: 1,
       createdAt: 1,
     })
     .sort({ createdAt: 1, _id: 1 })
@@ -232,7 +234,8 @@ export default async function CampaignReviewPage({ params, searchParams }) {
                 <th className="px-4 py-3">Contact</th>
                 <th className="px-4 py-3">Phone</th>
                 <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Error</th>
+                <th className="px-4 py-3">Error / review note</th>
+                <th className="px-4 py-3">Manual review</th>
               </tr>
             </thead>
 
@@ -252,7 +255,25 @@ export default async function CampaignReviewPage({ params, searchParams }) {
                     <Status value={recipient.status} />
                   </td>
                   <td className="max-w-xs truncate px-4 py-3 text-xs text-red-600">
-                    {recipient.error || "—"}
+                    {recipient.error || recipient.manualReview?.note || "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    {recipient.status === "unknown" ? (
+                      <CampaignRecipientReview
+                        campaignId={campaign._id.toString()}
+                        recipientId={recipient._id.toString()}
+                      />
+                    ) : recipient.manualReview ? (
+                      <div className="text-xs text-slate-600">
+                        <p className="font-medium">Manually marked {recipient.manualReview.outcome}</p>
+                        <p>{recipient.manualReview.note}</p>
+                        <p className="mt-1 text-slate-400">
+                          {recipient.manualReview.reviewedAt
+                            ? new Date(recipient.manualReview.reviewedAt).toLocaleString()
+                            : ""}
+                        </p>
+                      </div>
+                    ) : "—"}
                   </td>
                 </tr>
               ))}
