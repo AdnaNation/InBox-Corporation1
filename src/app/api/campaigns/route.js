@@ -33,6 +33,7 @@ export async function POST(request) {
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const audience = body.audience;
     const template = body.template;
+    const bodyParameters = body.bodyParameters ?? [];
 
     if (
       !name ||
@@ -43,7 +44,10 @@ export async function POST(request) {
       typeof template.name !== "string" ||
       !/^[a-zA-Z0-9_]+$/.test(template.name) ||
       typeof template.language !== "string" ||
-      !/^[a-zA-Z0-9_-]+$/.test(template.language)
+      !/^[a-zA-Z0-9_-]+$/.test(template.language) ||
+      !Array.isArray(bodyParameters) ||
+      bodyParameters.length > 20 ||
+      !bodyParameters.every((value) => typeof value === "string" && value.length <= 1024)
     ) {
       return NextResponse.json(
         { success: false, message: "Invalid campaign details." },
@@ -160,6 +164,7 @@ export async function POST(request) {
         id: null,
         category: null,
       },
+      bodyParameters: bodyParameters.map((value) => value.trim()),
       templateVerification: "pending",
       targetCount,
       recipientCount: 0,
