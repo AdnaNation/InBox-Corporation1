@@ -113,24 +113,87 @@ export async function PATCH(request) {
     }
 
     const body = await request.json();
-    const { conversationId, status } = body;
+    const { conversationId } = body;
 
-    if (
-      typeof conversationId !== "string" ||
-      !ObjectId.isValid(conversationId) ||
-      !["open", "closed"].includes(status)
-    ) {
+    if (typeof conversationId !== "string" || !ObjectId.isValid(conversationId)) {
       return NextResponse.json(
-        { success: false, message: "Invalid conversation status details." },
+        { success: false, message: "Invalid conversation ID." },
         { status: 400 },
       );
     }
 
     const workspaceId = new ObjectId(session.workspace.id);
     const db = await getDatabase();
+    const updates = { updatedAt: new Date() };
+
+    if (Object.prototype.hasOwnProperty.call(body, "status")) {
+      if (!["open", "closed"].includes(body.status)) {
+        return NextResponse.json(
+          { success: false, message: "Invalid conversation status." },
+          { status: 400 },
+        );
+      }
+      updates.status = body.status;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, "assigneeUserId")) {
+      if (!["owner", "admin"].includes(session.membership?.role)) {
+        return NextResponse.json(
+          { success: false, message: "Only workspace owners and admins can assign conversations." },
+          { status: 403 },
+        );
+      }
+
+      if (body.assigneeUserId === null || body.assigneeUserId === "") {
+        updates.assigneeUserId = null;
+        updates.assigneeName = null;
+        updates.assigneeEmail = null;
+      } else {
+        if (typeof body.assigneeUserId !== "string" || !ObjectId.isValid(body.assigneeUserId)) {
+          return NextResponse.json(
+            { success: false, message: "Choose a valid team member." },
+            { status: 400 },
+          );
+        }
+
+        const membership = await db.collection("memberships").findOne({
+          workspaceId,
+          userId: new ObjectId(body.assigneeUserId),
+          status: "active",
+        });
+        if (!membership) {
+          return NextResponse.json(
+            { success: false, message: "That user is not an active member of this workspace." },
+            { status: 404 },
+          );
+        }
+
+        const user = await db.collection("users").findOne({
+          _id: membership.userId,
+          status: "active",
+        }, { projection: { name: 1, email: 1 } });
+        if (!user) {
+          return NextResponse.json(
+            { success: false, message: "Team member is not active." },
+            { status: 404 },
+          );
+        }
+        updates.assigneeUserId = user._id;
+        updates.assigneeName = user.name;
+        updates.assigneeEmail = user.email;
+      }
+    }
+
+    if (Object.keys(updates).length === 1) {
+      return NextResponse.json(
+        { success: false, message: "No conversation changes supplied." },
+        { status: 400 },
+      );
+    }
+
     const result = await db.collection("conversations").updateOne(
       { _id: new ObjectId(conversationId), workspaceId },
-      { $set: { status, updatedAt: new Date() } },
+      { $set: updates },
     );
 
     if (!result.matchedCount) {
@@ -140,7 +203,13 @@ export async function PATCH(request) {
       );
     }
 
-    return NextResponse.json({ success: true, status });
+    return NextResponse.json({
+      success: true,
+      status: updates.status,
+      assigneeUserId: updates.assigneeUserId?.toString() ?? updates.assigneeUserId,
+      assigneeName: updates.assigneeName,
+      assigneeEmail: updates.assigneeEmail,
+    });
   } catch (error) {
     console.error("Update conversation status error:", error);
     return NextResponse.json(
