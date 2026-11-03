@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Send, AlertCircle, Loader2, Users, RefreshCw } from "lucide-react";
+import { Send, AlertCircle, Loader2, Users, RefreshCw, FileText, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 
 export default function CampaignClient({ contactCount, connected, campaigns }) {
@@ -9,7 +9,7 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
   const [form, setForm] = useState({
     contactId: "",
     templateName: "",
-    language: "en_US",
+    language: "",
     parameters: " ",
   });
 
@@ -28,6 +28,102 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [audiencePreview, setAudiencePreview] = useState(null);
   const [audienceError, setAudienceError] = useState("");
+  // Meta template library and campaign draft form
+  const [templates, setTemplates] = useState([]);
+  const [templatesLoading, setTemplatesLoading] = useState(true);
+  const [templatesError, setTemplatesError] = useState("");
+  const [selectedTemplateKey, setSelectedTemplateKey] = useState("");
+  const [campaignName, setCampaignName] = useState("");
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createResult, setCreateResult] = useState(null);
+
+  const selectedTemplate = templates.find(
+    (item) => `${item.name}::${item.language}` === selectedTemplateKey,
+  );
+  const approvedTemplates = templates.filter(
+    (item) => String(item.status).toUpperCase() === "APPROVED",
+  );
+
+  useEffect(() => {
+    async function loadTemplates() {
+      setTemplatesLoading(true);
+      setTemplatesError("");
+      try {
+        const response = await fetch("/api/whatsapp/templates", { cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || "Could not load Meta templates.");
+        }
+        const items = data.templates || [];
+        setTemplates(items);
+        const firstApproved = items.find(
+          (item) => String(item.status).toUpperCase() === "APPROVED",
+        );
+        if (firstApproved) {
+          const key = `${firstApproved.name}::${firstApproved.language}`;
+          setSelectedTemplateKey(key);
+          setForm((current) => ({
+            ...current,
+            templateName: firstApproved.name,
+            language: firstApproved.language,
+          }));
+        }
+      } catch (error) {
+        setTemplatesError(error.message || "Could not load templates.");
+      } finally {
+        setTemplatesLoading(false);
+      }
+    }
+    loadTemplates();
+  }, []);
+
+  function handleTemplateChange(key) {
+    setSelectedTemplateKey(key);
+    const template = templates.find(
+      (item) => `${item.name}::${item.language}` === key,
+    );
+    setForm((current) => ({
+      ...current,
+      templateName: template?.name || "",
+      language: template?.language || "",
+    }));
+  }
+
+  async function createCampaignDraft(event) {
+    event.preventDefault();
+    setCreateLoading(true);
+    setCreateResult(null);
+    try {
+      if (!selectedTemplate) throw new Error("Select a WhatsApp template first.");
+      const audience = { type: audienceType };
+      if (audienceType === "group") audience.groupId = groupId;
+      if (audienceType === "tag") audience.tag = tag;
+
+      const response = await fetch("/api/campaigns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: campaignName,
+          audience,
+          template: {
+            name: selectedTemplate.name,
+            language: selectedTemplate.language,
+          },
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Could not create campaign draft.");
+      }
+      setCreateResult({ success: true, message: data.message, campaign: data.campaign });
+      setCampaignName("");
+    } catch (error) {
+      setCreateResult({ success: false, message: error.message || "Could not create campaign draft." });
+    } finally {
+      setCreateLoading(false);
+    }
+  }
+
 
   // Load groups and available tags
   useEffect(() => {
@@ -368,6 +464,79 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
         )}
       </section>
 
+
+      {/* Create a campaign draft */}
+      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="flex items-center gap-3">
+          <div className="rounded-xl bg-green-50 p-3 text-green-600"><FileText size={22} /></div>
+          <div>
+            <h2 className="font-semibold">Create campaign draft</h2>
+            <p className="text-xs text-slate-500">Choose a Meta-approved template for the audience selected above.</p>
+          </div>
+        </div>
+
+        {templatesError && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{templatesError}</p>}
+
+        <form onSubmit={createCampaignDraft} className="mt-5 grid gap-4 lg:grid-cols-2">
+          <label className="block text-sm font-medium">
+            Campaign name
+            <input required maxLength={100} value={campaignName} onChange={(event) => setCampaignName(event.target.value)} placeholder="e.g. November Promotion" className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-green-500" />
+          </label>
+          <label className="block text-sm font-medium">
+            WhatsApp template
+            <select required value={selectedTemplateKey} onChange={(event) => handleTemplateChange(event.target.value)} disabled={templatesLoading || approvedTemplates.length === 0} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-green-500 disabled:bg-slate-50">
+              <option value="">{templatesLoading ? "Loading templates..." : "Choose an approved template"}</option>
+              {templates.map((template) => {
+                const approved = String(template.status).toUpperCase() === "APPROVED";
+                return <option key={`${template.id || template.name}-${template.language}`} value={`${template.name}::${template.language}`} disabled={!approved}>
+                  {template.name} · {template.language} · {template.status}{approved ? "" : " (not sendable)"}
+                </option>;
+              })}
+            </select>
+          </label>
+
+          {selectedTemplate && (
+            <div className="lg:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-slate-800">{selectedTemplate.name}</p>
+                <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700"><CheckCircle2 size={13} /> APPROVED</span>
+              </div>
+              <p className="mt-1 text-xs text-slate-500">{selectedTemplate.language} · {selectedTemplate.category || "Uncategorized"}</p>
+              <div className="mt-3 rounded-lg bg-white p-4">
+                {(selectedTemplate.components || []).filter((item) => ["HEADER", "BODY", "FOOTER"].includes(item.type)).map((item, index) => (
+                  <div key={`${item.type}-${index}`} className="mb-2 last:mb-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{item.type}</p>
+                    <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">{item.text || item.format || "Media header"}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!templatesLoading && templates.length > 0 && approvedTemplates.length === 0 && (
+            <p className="lg:col-span-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">Your Meta account has templates, but none are approved yet. Pending templates cannot be used for sending.</p>
+          )}
+          {!templatesLoading && templates.length === 0 && !templatesError && (
+            <p className="lg:col-span-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">No templates were found. Create one in WhatsApp Manager first.</p>
+          )}
+
+          <div className="lg:col-span-2 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-slate-500">Audience: {audiencePreview?.total ?? "Preview not run"} eligible contact(s). The server saves an opted-in recipient snapshot.</p>
+            <button type="submit" disabled={createLoading || !connected || !campaignName.trim() || !selectedTemplate || (audienceType === "group" && !groupId) || (audienceType === "tag" && !tag)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50">
+              {createLoading ? <Loader2 size={17} className="animate-spin" /> : <FileText size={17} />}
+              Create campaign draft
+            </button>
+          </div>
+        </form>
+
+        {createResult && (
+          <div className={`mt-4 rounded-xl p-4 text-sm ${createResult.success ? "bg-green-50 text-green-800" : "bg-red-50 text-red-700"}`}>
+            <p className="font-medium">{createResult.message}</p>
+            {createResult.success && createResult.campaign && <Link href={`/dashboard/campaigns/${createResult.campaign.id}`} className="mt-2 inline-flex font-semibold underline">Review campaign →</Link>}
+          </div>
+        )}
+      </section>
+
       {/* Existing single-contact sender */}
       <div className="grid gap-5 xl:grid-cols-[420px_1fr]">
         <form
@@ -402,36 +571,15 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
           </label>
 
           <label className="mt-4 block text-sm font-medium">
-            Approved template name
-            <input
-              required
-              value={form.templateName}
-              onChange={(e) =>
-                setForm({ ...form, templateName: e.target.value })
-              }
-              placeholder="hello_world"
-              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-green-500"
-            />
-          </label>
-
-          <label className="mt-4 block text-sm font-medium">
-            Language code
-            <input
-              required
-              value={form.language}
-              onChange={(e) => setForm({ ...form, language: e.target.value })}
-              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-green-500"
-            />
-          </label>
-
-          <label className="mt-4 block text-sm font-medium">
-            Body parameters (comma separated)
-            <input
-              value={form.parameters}
-              onChange={(e) => setForm({ ...form, parameters: e.target.value })}
-              placeholder="John, Order 123"
-              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-green-500"
-            />
+            Approved template
+            <select required value={selectedTemplateKey} onChange={(event) => handleTemplateChange(event.target.value)} disabled={templatesLoading || approvedTemplates.length === 0} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-green-500 disabled:bg-slate-50">
+              <option value="">Choose approved template</option>
+              {approvedTemplates.map((template) => (
+                <option key={`${template.id || template.name}-${template.language}`} value={`${template.name}::${template.language}`}>
+                  {template.name} · {template.language}
+                </option>
+              ))}
+            </select>
           </label>
 
           <button
