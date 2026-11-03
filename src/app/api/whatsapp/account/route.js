@@ -7,6 +7,103 @@ import { encryptSecret } from "@/lib/crypto";
 
 export const runtime = "nodejs";
 
+export async function GET() {
+  const session = await getSession();
+
+  if (!session) {
+    return NextResponse.json(
+      { success: false, message: "Unauthorized." },
+      { status: 401 },
+    );
+  }
+
+  const db = await getDatabase();
+  const workspaceId = new ObjectId(session.workspace.id);
+  const account = await db.collection("whatsappAccounts").findOne(
+    { workspaceId, status: "connected" },
+    {
+      projection: {
+        businessName: 1,
+        displayPhoneNumber: 1,
+        phoneNumberId: 1,
+        wabaId: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    },
+  );
+
+  return NextResponse.json({
+    success: true,
+    connected: Boolean(account),
+    account: account
+      ? {
+          businessName: account.businessName || "",
+          displayPhoneNumber: account.displayPhoneNumber || "",
+          phoneNumberId: account.phoneNumberId || "",
+          wabaId: account.wabaId || "",
+          connectedAt: account.createdAt || null,
+          updatedAt: account.updatedAt || null,
+        }
+      : null,
+  });
+}
+
+export async function DELETE(request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json(
+      { success: false, message: "Invalid origin." },
+      { status: 403 },
+    );
+  }
+
+  const session = await getSession();
+
+  if (!session) {
+    return NextResponse.json(
+      { success: false, message: "Unauthorized." },
+      { status: 401 },
+    );
+  }
+
+  const db = await getDatabase();
+  const workspaceId = new ObjectId(session.workspace.id);
+  const activeCampaign = await db.collection("campaigns").findOne({
+    workspaceId,
+    status: { $in: ["queued", "sending"] },
+  });
+
+  if (activeCampaign) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Pause or finish active campaigns before disconnecting WhatsApp.",
+      },
+      { status: 409 },
+    );
+  }
+
+  const result = await db.collection("whatsappAccounts").updateMany(
+    { workspaceId, status: "connected" },
+    {
+      $set: {
+        status: "disconnected",
+        disconnectedAt: new Date(),
+        updatedAt: new Date(),
+      },
+      $unset: { accessTokenEncrypted: "" },
+    },
+  );
+
+  return NextResponse.json({
+    success: true,
+    disconnected: result.modifiedCount > 0,
+    message: result.modifiedCount
+      ? "WhatsApp was disconnected from this workspace. Revoke the system-user token in Meta if you no longer need it."
+      : "No connected WhatsApp account was found.",
+  });
+}
+
 export async function POST(request) {
   if (!isSameOrigin(request)) {
     return NextResponse.json(
