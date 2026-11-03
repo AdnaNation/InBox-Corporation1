@@ -297,3 +297,8 @@ export async function POST(request) {
     return NextResponse.json({ success: false, message: "Worker failed; any claimed recipient must be reconciled before retry." }, { status: 500 });
   }
 }
+
+// Vercel Cron invokes route handlers with GET requests.
+export async function GET(request) {
+  return POST(request);
+}
