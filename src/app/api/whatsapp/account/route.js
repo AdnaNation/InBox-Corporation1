@@ -66,6 +66,13 @@ export async function DELETE(request) {
     );
   }
 
+  if (!["owner", "admin"].includes(session.membership?.role)) {
+    return NextResponse.json(
+      { success: false, message: "Only workspace owners and admins can manage the WhatsApp connection." },
+      { status: 403 },
+    );
+  }
+
   const db = await getDatabase();
   const workspaceId = new ObjectId(session.workspace.id);
   const activeCampaign = await db.collection("campaigns").findOne({
@@ -121,6 +128,13 @@ export async function POST(request) {
     );
   }
 
+  if (!["owner", "admin"].includes(session.membership?.role)) {
+    return NextResponse.json(
+      { success: false, message: "Only workspace owners and admins can manage the WhatsApp connection." },
+      { status: 403 },
+    );
+  }
+
   try {
     const body = await request.json();
 
@@ -131,6 +145,7 @@ export async function POST(request) {
       businessName,
       accessToken,
     } = body;
+    const replaceExisting = body.replaceExisting === true;
 
     if (
       ![
@@ -155,6 +170,40 @@ export async function POST(request) {
     const db = await getDatabase();
     const workspaceId = new ObjectId(session.workspace.id);
     const now = new Date();
+    const existingAccount = await db.collection("whatsappAccounts").findOne({
+      workspaceId,
+      status: "connected",
+    });
+    const replacingDifferentNumber = Boolean(
+      existingAccount && existingAccount.phoneNumberId !== phoneNumberId.trim(),
+    );
+
+    if (replacingDifferentNumber && !replaceExisting) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "REPLACEMENT_CONFIRMATION_REQUIRED",
+          message: "A different WhatsApp number is already connected. Confirm replacement before continuing.",
+        },
+        { status: 409 },
+      );
+    }
+
+    if (replacingDifferentNumber) {
+      const activeCampaign = await db.collection("campaigns").findOne({
+        workspaceId,
+        status: { $in: ["queued", "sending"] },
+      });
+      if (activeCampaign) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Pause or finish active campaigns before replacing the connected number.",
+          },
+          { status: 409 },
+        );
+      }
+    }
 
     // Disconnect any other number in this workspace.
     await db.collection("whatsappAccounts").updateMany(

@@ -42,6 +42,8 @@ export default function WhatsAppPage() {
 
   async function submit(e) {
     e.preventDefault();
+    const replacingDifferentNumber = Boolean(account && account.phoneNumberId !== form.phoneNumberId.trim());
+    if (replacingDifferentNumber && !window.confirm("Replace the currently connected WhatsApp number? Active campaigns must be paused or completed first.")) return;
     setLoading(true);
     setMessage("");
     setMessageError(false);
@@ -49,7 +51,7 @@ export default function WhatsAppPage() {
       const response = await fetch("/api/whatsapp/account", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, replaceExisting: replacingDifferentNumber }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Could not save account.");
