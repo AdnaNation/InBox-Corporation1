@@ -123,11 +123,11 @@ export default function WhatsAppPage() {
         )}
       </section>
 
-      <WhatsAppEmbeddedSignup connected={Boolean(account)} onConnected={loadAccount} />
+      {!loadingAccount && <WhatsAppEmbeddedSignup connected={Boolean(account)} onConnected={loadAccount} />}
 
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
         <div className="flex items-center gap-2 font-semibold"><AlertTriangle size={18} />Developer setup required</div>
-        <p className="mt-1">This version uses manually supplied Cloud API credentials. Before public customer onboarding, implement Meta Embedded Signup and token lifecycle management.</p>
+        <p className="mt-1">Meta Embedded Signup is available above once your v4 configuration is added. Manual credentials remain as a developer fallback; coexistence onboarding and automated token-expiry handling are not included yet.</p>
       </div>
 
       <form onSubmit={submit} className="mt-5 rounded-2xl border border-slate-200 bg-white p-6">
