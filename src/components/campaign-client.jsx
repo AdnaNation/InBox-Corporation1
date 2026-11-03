@@ -10,7 +10,7 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
     contactId: "",
     templateName: "",
     language: "",
-    parameters: "",
+    parameters: [],
   });
 
   const [result, setResult] = useState("");
@@ -43,6 +43,12 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
   const approvedTemplates = templates.filter(
     (item) => String(item.status).toUpperCase() === "APPROVED",
   );
+  const bodyComponent = selectedTemplate?.components?.find(
+    (component) => component.type === "BODY",
+  );
+  const bodyVariableCount = new Set(
+    (bodyComponent?.text || "").match(/\{\{\d+\}\}/g) || [],
+  ).size;
 
   useEffect(() => {
     async function loadTemplates() {
@@ -86,6 +92,7 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
       ...current,
       templateName: template?.name || "",
       language: template?.language || "",
+      parameters: [],
     }));
   }
 
@@ -225,9 +232,7 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
         },
         body: JSON.stringify({
           ...form,
-          parameters: form.parameters
-            ? form.parameters.split(",").map((value) => value.trim())
-            : [],
+          parameters: form.parameters.map((value) => value.trim()),
         }),
       });
 
@@ -581,6 +586,41 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
               ))}
             </select>
           </label>
+
+          {selectedTemplate && bodyVariableCount > 0 && (
+            <div className="mt-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Template body parameters</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Enter a value for each variable in the approved template.
+                </p>
+              </div>
+              {Array.from({ length: bodyVariableCount }, (_, index) => (
+                <label key={index} className="block text-sm font-medium">
+                  Body parameter {index + 1} {"{{" + (index + 1) + "}}"}
+                  <input
+                    required
+                    value={form.parameters[index] || ""}
+                    onChange={(event) =>
+                      setForm((current) => {
+                        const parameters = [...current.parameters];
+                        parameters[index] = event.target.value;
+                        return { ...current, parameters };
+                      })
+                    }
+                    placeholder={"Enter value for {{" + (index + 1) + "}}"}
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-green-500"
+                  />
+                </label>
+              ))}
+            </div>
+          )}
+
+          {selectedTemplate && bodyVariableCount === 0 && (
+            <p className="mt-4 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
+              This template has no body variables. Its approved message content will be sent as-is.
+            </p>
+          )}
 
           <button
             disabled={loading || !connected || contactCount === 0}
