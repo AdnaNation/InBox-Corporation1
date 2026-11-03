@@ -74,7 +74,7 @@ export async function POST(request) {
       const payload = {
         messaging_product: "whatsapp",
         recipient_type: "individual",
-        to: String(recipient.phone || "").replace(/^\+/, ""),
+        to: String(liveContact.phone).replace(/^\+/, ""),
         type: "template",
         template: {
           name: campaign.template.name,
@@ -131,7 +131,7 @@ export async function POST(request) {
             { workspaceId: campaign.workspaceId, waMessageId },
             { $setOnInsert: {
               workspaceId: campaign.workspaceId, contactId: recipient.contactId || null,
-              phoneNumberId: account.phoneNumberId, waId: String(recipient.phone || "").replace(/^\+/, ""),
+              phoneNumberId: account.phoneNumberId, waId: String(liveContact.phone).replace(/^\+/, ""),
               waMessageId, providerMessageId: waMessageId, direction: "outbound", type: "template",
               templateName: campaign.template.name, templateLanguage: campaign.template.language,
               campaignId: campaign._id, campaignRecipientId: recipient._id,
