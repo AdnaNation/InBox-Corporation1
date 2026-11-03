@@ -4,6 +4,7 @@ import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
 import { decryptSecret } from "@/lib/crypto";
+import { applyPendingWhatsAppStatus } from "@/lib/whatsapp-status";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -192,20 +193,40 @@ export async function POST(request) {
 
     const data = await response.json();
     const now = new Date();
+    const waMessageId = data.messages?.[0]?.id || null;
 
-    await db.collection("messages").insertOne({
+    const messageDocument = {
       workspaceId,
       contactId: contact._id,
+      phoneNumberId: account.phoneNumberId,
+      waId: contact.phone.replace(/^\\+/, ""),
+      waMessageId,
+      providerMessageId: waMessageId,
       direction: "outbound",
       type: "template",
       templateName,
       templateLanguage: language,
       status: response.ok ? "accepted" : "failed",
-      providerMessageId: data.messages?.[0]?.id || null,
+      statusRank: 0,
       error: response.ok ? null : data.error?.message || "Meta API error",
+      timestamp: now,
       createdAt: now,
       updatedAt: now,
-    });
+    };
+
+    if (waMessageId) {
+      await db.collection("messages").updateOne(
+        { workspaceId, waMessageId },
+        { $setOnInsert: messageDocument },
+        { upsert: true },
+      );
+
+      // A webhook can arrive before the send request finishes saving its
+      // message. Apply and clear that queued delivery event after insertion.
+      await applyPendingWhatsAppStatus(db, workspaceId, waMessageId);
+    } else {
+      await db.collection("messages").insertOne(messageDocument);
+    }
 
     if (!response.ok) {
       return NextResponse.json(
