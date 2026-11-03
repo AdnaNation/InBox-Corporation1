@@ -36,3 +36,46 @@ export async function GET() {
     return NextResponse.json({ success: false, message: "Could not load billing information." }, { status: 500 });
   }
 }
+
+export async function POST(request) {
+  try {
+    const origin = request.headers.get("origin");
+    const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
+    if (!origin || new URL(origin).host !== host) {
+      return NextResponse.json({ success: false, message: "Invalid request origin." }, { status: 403 });
+    }
+    const session = await getSession();
+    if (!session?.workspace?.id || !session?.user?.id) {
+      return NextResponse.json({ success: false, message: "Unauthorized." }, { status: 401 });
+    }
+    const body = await request.json();
+    const plan = String(body.plan || "").toLowerCase();
+    const billingCycle = String(body.billingCycle || "").toLowerCase();
+    if (!["starter", "growth", "business"].includes(plan) || !["monthly", "yearly"].includes(billingCycle)) {
+      return NextResponse.json({ success: false, message: "Choose a valid plan and billing preference." }, { status: 400 });
+    }
+    const db = await getDatabase();
+    const workspaceId = new ObjectId(session.workspace.id);
+    const existing = await db.collection("billingRequests").findOne({ workspaceId, status: "pending" }, { projection: { _id: 1 } });
+    if (existing) {
+      return NextResponse.json({ success: false, message: "You already have a pending plan request. Our team will contact you." }, { status: 409 });
+    }
+    const now = new Date();
+    await db.collection("billingRequests").insertOne({
+      workspaceId,
+      workspaceName: session.workspace.name,
+      requestedBy: new ObjectId(session.user.id),
+      requesterName: session.user.name,
+      requesterEmail: session.user.email,
+      requestedPlan: plan,
+      billingCycle,
+      status: "pending",
+      createdAt: now,
+      updatedAt: now,
+    });
+    return NextResponse.json({ success: true, message: "Your request was received. Our team will contact you about plan activation and payment." }, { status: 201 });
+  } catch (error) {
+    console.error("Plan request error:", error);
+    return NextResponse.json({ success: false, message: "Could not submit your request." }, { status: 500 });
+  }
+}
