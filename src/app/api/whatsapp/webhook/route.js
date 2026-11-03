@@ -296,12 +296,10 @@ async function processIncomingMessage(db, account, value, message) {
           lastMessageAt: timestamp,
           lastMessagePreview: content.text || `[${content.type}]`,
           updatedAt: new Date(),
+          status: "open",
         },
         $inc: {
           unreadCount: 1,
-        },
-        $set: {
-          status: "open",
         },
       },
     );
