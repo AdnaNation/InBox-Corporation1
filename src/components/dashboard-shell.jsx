@@ -58,7 +58,7 @@ export default function DashboardShell({ session, children }) {
         <span className="rounded-lg bg-green-600 p-2 text-white">
           <MessageCircle size={19} />
         </span>
-        Wavo
+        InBox Corporation
       </Link>
       <div className="px-4 py-5">
         <p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">
@@ -121,7 +121,7 @@ export default function DashboardShell({ session, children }) {
       <div className="fixed inset-x-0 top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 lg:hidden">
         <Link href="/dashboard" className="flex items-center gap-2 font-bold">
           <MessageCircle className="text-green-600" />
-          Wavo
+          InBox Corporation
         </Link>
         <button
           onClick={() => setOpen(!open)}
