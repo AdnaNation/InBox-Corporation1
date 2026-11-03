@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { ObjectId } from "mongodb";
 import clientPromise from "@/lib/mongodb";
 import { getDatabase } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { getSession, createSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
 
 export const runtime = "nodejs";
@@ -43,7 +43,8 @@ export async function POST(request) {
         },{session:transaction});
       }
     });
-    return NextResponse.json({success:true,message:"You joined the workspace. Sign in again to switch into it.",workspaceName:(await db.collection("workspaces").findOne({_id:invite.workspaceId},{projection:{name:1}}))?.name});
+    await createSession(session.user.id, invite.workspaceId);
+    return NextResponse.json({success:true,message:"You joined the workspace. Your session has switched to the invited workspace.",workspaceName:(await db.collection("workspaces").findOne({_id:invite.workspaceId},{projection:{name:1}}))?.name});
   } catch(error) {
     console.error("Accept invitation error:",error);
     const status=error.message==="INVITATION_ALREADY_USED"?409:500;
