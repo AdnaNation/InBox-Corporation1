@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import DashboardShell from "@/components/dashboard-shell";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export default async function DashboardLayout({ children }) {
   const session = await getSession();

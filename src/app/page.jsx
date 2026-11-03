@@ -3,6 +3,8 @@ import { ObjectId } from "mongodb";
 import { getSession } from "@/lib/auth";
 import { getDatabase } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const session = await getSession();
 
