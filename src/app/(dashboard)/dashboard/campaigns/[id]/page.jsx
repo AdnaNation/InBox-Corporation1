@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { getDatabase } from "@/lib/db";
 import CampaignTemplateVerification from "@/components/campaign-template-verification";
 import CampaignQueueAction from "@/components/campaign-queue-action";
+import CampaignControls from "@/components/campaign-controls";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +18,14 @@ function Status({ value }) {
     delivered: "bg-green-50 text-green-700",
     read: "bg-purple-50 text-purple-700",
     failed: "bg-red-50 text-red-700",
+    skipped: "bg-slate-100 text-slate-600",
+    unknown: "bg-orange-50 text-orange-700",
+    processing: "bg-amber-50 text-amber-700",
+    queued: "bg-blue-50 text-blue-700",
+    sending: "bg-blue-50 text-blue-700",
+    paused: "bg-amber-50 text-amber-700",
+    completed: "bg-green-50 text-green-700",
+    completed_with_issues: "bg-orange-50 text-orange-700",
   };
 
   return (
