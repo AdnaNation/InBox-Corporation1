@@ -115,10 +115,12 @@ export async function DELETE(request, { params }) {
   }
 
   const db = await getDatabase();
+  const workspaceId = new ObjectId(session.workspace.id);
+  const contactId = new ObjectId(id);
 
   const result = await db.collection("contacts").deleteOne({
-    _id: new ObjectId(id),
-    workspaceId: new ObjectId(session.workspace.id),
+    _id: contactId,
+    workspaceId,
   });
 
   if (!result.deletedCount) {
@@ -129,12 +131,10 @@ export async function DELETE(request, { params }) {
   }
 
   await db.collection("groups").updateMany(
-    {
-      workspaceId: new ObjectId(session.workspace.id),
-    },
+    { workspaceId },
     {
       $pull: {
-        contactIds: new ObjectId(id),
+        contactIds: contactId,
       },
     },
   );
