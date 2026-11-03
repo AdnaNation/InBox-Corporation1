@@ -440,6 +440,31 @@ async function processStatus(db, account, status) {
     });
   }
 
+  // Keep campaign recipient progress in sync with Meta delivery webhooks.
+  // If this event arrived before the worker saved waMessageId, the worker
+  // reconciles it after inserting the outbound message.
+  if (result.matchedCount > 0) {
+    await db.collection("campaignRecipients").updateOne(
+      {
+        workspaceId,
+        waMessageId: status.id,
+        $or: [
+          { statusRank: { $exists: false } },
+          { statusRank: { $lt: incomingRank } },
+        ],
+      },
+      {
+        $set: {
+          status: status.status,
+          statusRank: incomingRank,
+          statusUpdatedAt: statusDate,
+          updatedAt: new Date(),
+          ...(updateData.error ? { error: updateData.error } : {}),
+        },
+      },
+    );
+  }
+
   console.log(
     result.matchedCount > 0
       ? `Message status updated: ${status.status}`

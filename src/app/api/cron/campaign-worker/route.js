@@ -1,0 +1,178 @@
+import { NextResponse } from "next/server";
+import { ObjectId } from "mongodb";
+import { getDatabase } from "@/lib/db";
+import { decryptSecret } from "@/lib/crypto";
+import { applyPendingWhatsAppStatus } from "@/lib/whatsapp-status";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export async function POST(request) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || secret.length < 32 || request.headers.get("authorization") !== "Bearer " + secret) {
+    return NextResponse.json({ success: false, message: "Unauthorized." }, { status: 401 });
+  }
+
+  try {
+    const db = await getDatabase();
+    let campaign = await db.collection("campaigns").findOneAndUpdate(
+      { status: "queued" },
+      { $set: { status: "sending", sendingStartedAt: new Date(), updatedAt: new Date() } },
+      { sort: { queuedAt: 1 }, returnDocument: "after" },
+    );
+    if (!campaign) campaign = await db.collection("campaigns").findOne({ status: "sending" });
+    if (!campaign) return NextResponse.json({ success: true, processed: 0, message: "No queued campaigns." });
+
+    const account = await db.collection("whatsappAccounts").findOne({ workspaceId: campaign.workspaceId, status: "connected" });
+    if (!account?.phoneNumberId || !account?.accessTokenEncrypted) {
+      await db.collection("campaigns").updateOne({ _id: campaign._id, status: "sending" }, { $set: { status: "paused", pauseReason: "WhatsApp account disconnected.", updatedAt: new Date() } });
+      return NextResponse.json({ success: false, message: "Campaign paused: WhatsApp account disconnected." }, { status: 409 });
+    }
+
+    const recipient = await db.collection("campaignRecipients").findOneAndUpdate(
+      {
+        workspaceId: campaign.workspaceId,
+        campaignId: campaign._id,
+        status: "pending",
+        $or: [{ retryAt: { $exists: false } }, { retryAt: { $lte: new Date() } }],
+      },
+      {
+        $set: { status: "processing", processingStartedAt: new Date(), updatedAt: new Date() },
+        $inc: { attempts: 1 },
+        $unset: { retryAt: "" },
+      },
+      { sort: { createdAt: 1, _id: 1 }, returnDocument: "after" },
+    );
+
+    if (recipient) {
+      // Consent may be revoked after the campaign snapshot was created.
+      // Re-check the live contact record immediately before sending.
+      const liveContact = recipient.contactId
+        ? await db.collection("contacts").findOne({
+            _id: recipient.contactId,
+            workspaceId: campaign.workspaceId,
+            "optIn.status": true,
+          })
+        : null;
+
+      if (!liveContact || !liveContact.phone) {
+        await db.collection("campaignRecipients").updateOne(
+          { _id: recipient._id, status: "processing" },
+          {
+            $set: {
+              status: "skipped",
+              error: "Contact is no longer opted in or no valid phone number is available.",
+              updatedAt: new Date(),
+            },
+            $unset: { processingStartedAt: "" },
+          },
+        );
+      } else {
+      const token = decryptSecret(account.accessTokenEncrypted);
+      const version = process.env.META_GRAPH_API_VERSION || "v22.0";
+      const params = campaign.bodyParameters || [];
+      const payload = {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: String(liveContact.phone).replace(/^\+/, ""),
+        type: "template",
+        template: {
+          name: campaign.template.name,
+          language: { code: campaign.template.language },
+          ...(params.length ? { components: [{ type: "body", parameters: params.map((text) => ({ type: "text", text })) }] } : {}),
+        },
+      };
+
+      let meta;
+      let data;
+      try {
+        meta = await fetch("https://graph.facebook.com/" + version + "/" + account.phoneNumberId + "/messages", {
+          method: "POST",
+          headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          cache: "no-store",
+          signal: AbortSignal.timeout(20000),
+        });
+        data = await meta.json();
+      } catch (error) {
+        await db.collection("campaignRecipients").updateOne(
+          { _id: recipient._id, status: "processing" },
+          { $set: { status: "unknown", error: "Meta may have accepted this message. Manual review required.", errorDetail: error.message, updatedAt: new Date() }, $unset: { processingStartedAt: "" } },
+        );
+      }
+
+      if (meta?.status === 429) {
+        if (recipient.attempts >= 3) {
+          await db.collection("campaignRecipients").updateOne(
+            { _id: recipient._id, status: "processing" },
+            { $set: { status: "failed", error: data?.error?.message || "Rate limit retry limit reached.", updatedAt: new Date() }, $unset: { processingStartedAt: "" } },
+          );
+        } else {
+          await db.collection("campaignRecipients").updateOne(
+            { _id: recipient._id, status: "processing" },
+            { $set: { status: "pending", retryAt: new Date(Date.now() + 30000 * recipient.attempts), error: data?.error?.message || "Rate limited; retry scheduled.", updatedAt: new Date() }, $unset: { processingStartedAt: "" } },
+          );
+        }
+      } else if (meta && !meta.ok) {
+        await db.collection("campaignRecipients").updateOne(
+          { _id: recipient._id, status: "processing" },
+          { $set: { status: "failed", error: data?.error?.message || "Meta rejected the message.", metaErrorCode: data?.error?.code || null, updatedAt: new Date() }, $unset: { processingStartedAt: "" } },
+        );
+      } else if (meta?.ok) {
+        const waMessageId = data?.messages?.[0]?.id;
+        if (!waMessageId) {
+          await db.collection("campaignRecipients").updateOne(
+            { _id: recipient._id, status: "processing" },
+            { $set: { status: "unknown", error: "Meta returned no message ID. Manual review required.", updatedAt: new Date() }, $unset: { processingStartedAt: "" } },
+          );
+        } else {
+          const now = new Date();
+          await db.collection("messages").updateOne(
+            { workspaceId: campaign.workspaceId, waMessageId },
+            { $setOnInsert: {
+              workspaceId: campaign.workspaceId, contactId: recipient.contactId || null,
+              phoneNumberId: account.phoneNumberId, waId: String(liveContact.phone).replace(/^\+/, ""),
+              waMessageId, providerMessageId: waMessageId, direction: "outbound", type: "template",
+              templateName: campaign.template.name, templateLanguage: campaign.template.language,
+              campaignId: campaign._id, campaignRecipientId: recipient._id,
+              status: "accepted", statusRank: 0, timestamp: now, createdAt: now, updatedAt: now,
+            } },
+            { upsert: true },
+          );
+          await db.collection("campaignRecipients").updateOne(
+            { _id: recipient._id, status: "processing" },
+            { $set: { status: "accepted", waMessageId, providerMessageId: waMessageId, acceptedAt: now, updatedAt: now }, $unset: { processingStartedAt: "" } },
+          );
+          await applyPendingWhatsAppStatus(db, campaign.workspaceId, waMessageId);
+          const saved = await db.collection("messages").findOne({ workspaceId: campaign.workspaceId, waMessageId });
+          if (saved?.status && saved.status !== "accepted") {
+            await db.collection("campaignRecipients").updateOne(
+              { _id: recipient._id, waMessageId },
+              { $set: { status: saved.status, statusRank: saved.statusRank || 0, statusUpdatedAt: saved.statusUpdatedAt || now, updatedAt: new Date() } },
+            );
+          }
+        }
+      }
+      }
+    }
+
+    const statuses = ["pending", "processing", "accepted", "sent", "delivered", "read", "failed", "unknown", "skipped"];
+    const counts = {};
+    for (const status of statuses) {
+      counts[status] = await db.collection("campaignRecipients").countDocuments({ workspaceId: campaign.workspaceId, campaignId: campaign._id, status });
+    }
+    const finished = counts.pending === 0 && counts.processing === 0;
+    const finalStatus = finished
+      ? (counts.failed + counts.unknown > 0 ? "completed_with_issues" : "completed")
+      : "sending";
+    await db.collection("campaigns").updateOne(
+      { _id: campaign._id, status: "sending" },
+      { $set: { status: finalStatus, progress: { total: campaign.recipientCount || 0, ...counts }, updatedAt: new Date(), ...(finished ? { completedAt: new Date() } : {}) } },
+    );
+
+    return NextResponse.json({ success: true, campaignId: campaign._id.toString(), processed: recipient ? 1 : 0, progress: counts, campaignStatus: finalStatus });
+  } catch (error) {
+    console.error("Campaign worker error:", error);
+    return NextResponse.json({ success: false, message: "Worker failed; any claimed recipient must be reconciled before retry." }, { status: 500 });
+  }
+}
