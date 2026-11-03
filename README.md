@@ -38,6 +38,33 @@ JavaScript-only Next.js App Router starter for a multi-tenant WhatsApp Business 
 5. Open http://localhost:3000 and register an account.
 6. For campaign processing, generate a separate worker secret with `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` and set it as `CRON_SECRET` in the server environment.
 
+## Meta Embedded Signup v4
+
+The WhatsApp settings page includes the v4 Embedded Signup flow. Configure these environment variables in Vercel (and locally in `.env.local`):
+
+```env
+META_APP_ID=your_meta_app_id
+META_APP_SECRET=your_meta_app_secret
+META_EMBEDDED_SIGNUP_CONFIG_ID=your_v4_configuration_id
+META_GRAPH_API_VERSION=v26.0
+META_WEBHOOK_VERIFY_TOKEN=your_webhook_verify_token
+ENCRYPTION_KEY=64_character_hex_key
+```
+
+Keep `META_APP_SECRET` and all other secrets server-side. Do not prefix them with `NEXT_PUBLIC_`. The app ID and configuration ID are returned by an authenticated server endpoint to initialize the Meta JavaScript SDK; neither is a secret.
+
+In Meta for Developers:
+
+1. Enable Facebook Login for Business and create a **WhatsApp Embedded Signup v4** configuration (do not reuse a retired v2/v3 configuration).
+2. Select WhatsApp Cloud API, WhatsApp accounts, and the permissions your product needs: `whatsapp_business_management` and `whatsapp_business_messaging`. Complete Meta App Review / Advanced Access requirements before onboarding real customers.
+3. Add your production domain to the Facebook Login for Business allowed JavaScript SDK domains and OAuth settings. Use HTTPS.
+4. Configure the WhatsApp webhook callback as `https://YOUR_DOMAIN/api/whatsapp/webhook`, subscribe to the `messages` field, and use the same `META_WEBHOOK_VERIFY_TOKEN` in Meta and Vercel.
+5. Set the app to Live when Meta has approved the required access and your business/provider setup is eligible.
+
+After a customer finishes signup, the browser sends the short-lived authorization code and WABA/phone identifiers to the authenticated server route. The server exchanges the code immediately, verifies that the selected phone belongs to the granted WABA, subscribes the app to WABA webhooks, and stores the token encrypted. The raw token and app secret are never returned to the browser.
+
+The current implementation supports the standard Cloud API signup path. It does not yet implement WhatsApp Business App coexistence onboarding, multi-number selection, partner credit-line sharing, billing, or automated token-expiry notifications. A different existing number is only replaced after the workspace admin explicitly checks the replacement confirmation; active campaigns block replacement.
+
 ## Included
 
 - Public landing page
@@ -59,7 +86,7 @@ This is a runnable MVP foundation, not a finished, audited commercial SaaS. Befo
 - Email verification, password reset, login/registration rate limiting and bot protection
 - CSRF/origin policy appropriate for custom domains and preview deployments
 - Admin provisioning and audited role management
-- Meta Embedded Signup and proper OAuth token lifecycle
+- Meta Tech Provider eligibility, App Review / Advanced Access, token-expiry handling and customer offboarding automation
 - Webhook signature verification using `META_APP_SECRET` (the included webhook endpoint verifies the challenge but deliberately does not trust unsigned POST events)
 - Production queue scheduling, configurable per-number pacing, lease recovery, operator review tools and monitoring for the campaign worker
 - Subscription billing, usage metering and payment webhook verification
