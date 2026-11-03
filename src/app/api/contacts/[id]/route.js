@@ -128,5 +128,16 @@ export async function DELETE(request, { params }) {
     );
   }
 
+  await db.collection("groups").updateMany(
+    {
+      workspaceId: new ObjectId(session.workspace.id),
+    },
+    {
+      $pull: {
+        contactIds: new ObjectId(id),
+      },
+    },
+  );
+
   return NextResponse.json({ success: true });
 }
