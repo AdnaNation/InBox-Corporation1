@@ -4,6 +4,7 @@ import { ObjectId } from "mongodb";
 import { getSession } from "@/lib/auth";
 import { getDatabase } from "@/lib/db";
 import CampaignTemplateVerification from "@/components/campaign-template-verification";
+import CampaignQueueAction from "@/components/campaign-queue-action";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -185,6 +186,12 @@ export default async function CampaignReviewPage({ params, searchParams }) {
           initialVerification={campaign.templateVerification || "pending"}
           initialMessage={campaign.templateVerificationMessage || ""}
           initialMetaStatus={campaign.template?.status || ""}
+        />
+
+        <CampaignQueueAction
+          campaignId={campaign._id.toString()}
+          initialStatus={campaign.status}
+          recipientCount={totalRecipients}
         />
       </section>
 
