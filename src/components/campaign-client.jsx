@@ -10,7 +10,7 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
     contactId: "",
     templateName: "",
     language: "en_US",
-    parameters: "",
+    parameters: " ",
   });
 
   const [result, setResult] = useState("");
