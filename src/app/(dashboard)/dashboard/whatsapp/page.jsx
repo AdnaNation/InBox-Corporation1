@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Plug, ShieldCheck, Loader2, AlertTriangle, Unplug, RefreshCw } from "lucide-react";
+import WhatsAppEmbeddedSignup from "@/components/whatsapp-embedded-signup";
 
 const emptyForm = {
   phoneNumberId: "",
@@ -121,6 +122,8 @@ export default function WhatsAppPage() {
           <div className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">No WhatsApp number is currently connected.</div>
         )}
       </section>
+
+      <WhatsAppEmbeddedSignup connected={Boolean(account)} onConnected={loadAccount} />
 
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
         <div className="flex items-center gap-2 font-semibold"><AlertTriangle size={18} />Developer setup required</div>
