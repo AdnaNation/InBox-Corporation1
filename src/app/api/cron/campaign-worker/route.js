@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 import { getDatabase } from "@/lib/db";
 import { decryptSecret } from "@/lib/crypto";
 import { applyPendingWhatsAppStatus } from "@/lib/whatsapp-status";
@@ -35,6 +36,49 @@ export async function POST(request) {
     });
     if (!liveCampaign) {
       return NextResponse.json({ success: true, processed: 0, message: "Campaign is no longer sending." });
+    }
+
+    // Serialize all sends through the same WhatsApp phone number, even when
+    // multiple campaigns or cron invocations target it concurrently.
+    // A short cooldown between leases provides conservative per-number pacing.
+    const leaseCollection = db.collection("whatsappWorkerLeases");
+    const leaseKey = String(account.phoneNumberId);
+    const leaseOwner = randomUUID();
+    const leaseNow = new Date();
+    try {
+      await leaseCollection.insertOne({
+        _id: leaseKey,
+        leaseUntil: new Date(0),
+        nextAllowedAt: new Date(0),
+        createdAt: leaseNow,
+      });
+    } catch (error) {
+      if (error?.code !== 11000) throw error;
+    }
+
+    const lease = await leaseCollection.findOneAndUpdate(
+      {
+        _id: leaseKey,
+        leaseUntil: { $lte: leaseNow },
+        nextAllowedAt: { $lte: leaseNow },
+      },
+      {
+        $set: {
+          leaseOwner,
+          leaseUntil: new Date(leaseNow.getTime() + 90 * 1000),
+          updatedAt: leaseNow,
+        },
+      },
+      { returnDocument: "after" },
+    );
+
+    if (!lease) {
+      return NextResponse.json({
+        success: true,
+        processed: 0,
+        retryAfterSeconds: 2,
+        message: "This WhatsApp number is busy or in its sending cooldown. Try the worker again shortly.",
+      }, { status: 202 });
     }
 
     // A crashed invocation must never cause an automatic duplicate send.
@@ -225,9 +269,27 @@ export async function POST(request) {
       { $set: { status: finalStatus, progress: { total: campaign.recipientCount || 0, ...counts }, updatedAt: new Date(), ...(finished ? { completedAt: new Date() } : {}) } },
     );
 
+    await leaseCollection.updateOne(
+      { _id: leaseKey, leaseOwner },
+      {
+        $set: {
+          leaseUntil: new Date(0),
+          nextAllowedAt: new Date(Date.now() + 2000),
+          updatedAt: new Date(),
+        },
+        $unset: { leaseOwner: "" },
+      },
+    );
+
     return NextResponse.json({ success: true, campaignId: campaign._id.toString(), processed: recipient ? 1 : 0, progress: counts, campaignStatus: finalStatus });
   } catch (error) {
     console.error("Campaign worker error:", error);
+    if (typeof leaseCollection !== "undefined" && typeof leaseKey !== "undefined" && typeof leaseOwner !== "undefined") {
+      await leaseCollection.updateOne(
+        { _id: leaseKey, leaseOwner },
+        { $set: { leaseUntil: new Date(0), nextAllowedAt: new Date(Date.now() + 2000), updatedAt: new Date() }, $unset: { leaseOwner: "" } },
+      ).catch((releaseError) => console.error("Campaign worker lease release failed:", releaseError));
+    }
     return NextResponse.json({ success: false, message: "Worker failed; any claimed recipient must be reconciled before retry." }, { status: 500 });
   }
 }
