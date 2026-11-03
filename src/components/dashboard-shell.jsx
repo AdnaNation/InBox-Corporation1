@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -34,6 +34,14 @@ export default function DashboardShell({ session, children }) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  // Avoid rendering a pathname-dependent active link until hydration is complete.
+  // This keeps server HTML and the first client render identical, including when
+  // Next.js rewrites or browser navigation affect the initial pathname.
+  const [navigationReady, setNavigationReady] = useState(false);
+
+  useEffect(() => {
+    setNavigationReady(true);
+  }, []);
   async function logout() {
     const response = await fetch("/api/auth/logout", { method: "POST" });
     if (response.ok) {
@@ -68,8 +76,9 @@ export default function DashboardShell({ session, children }) {
       <nav className="flex-1 space-y-1 px-3">
         {links.map(({ href, label, icon: Icon }) => {
           const active =
-            pathname === href ||
-            (href !== "/dashboard" && pathname.startsWith(href));
+            navigationReady &&
+            (pathname === href ||
+              (href !== "/dashboard" && pathname.startsWith(href)));
           return (
             <Link
               key={href}
