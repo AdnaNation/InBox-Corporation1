@@ -142,6 +142,32 @@ export async function POST(request) {
             { $set: { status: "pending", retryAt: new Date(Date.now() + 30000 * recipient.attempts), error: data?.error?.message || "Rate limited; retry scheduled.", updatedAt: new Date() }, $unset: { processingStartedAt: "" } },
           );
         }
+      } else if (meta && [401, 403].includes(meta.status)) {
+        // Authentication/permission failures are definite rejections. Keep
+        // this recipient pending and pause the campaign until credentials
+        // are repaired; never burn through the whole audience with a bad token.
+        await db.collection("campaignRecipients").updateOne(
+          { _id: recipient._id, status: "processing" },
+          {
+            $set: {
+              status: "pending",
+              error: data?.error?.message || "WhatsApp authorization failed. Reconnect the account before resuming.",
+              updatedAt: new Date(),
+            },
+            $unset: { processingStartedAt: "", retryAt: "" },
+          },
+        );
+        await db.collection("campaigns").updateOne(
+          { _id: campaign._id, workspaceId: campaign.workspaceId, status: "sending" },
+          {
+            $set: {
+              status: "paused",
+              pauseReason: "WhatsApp authorization failed. Reconnect the account before resuming.",
+              pausedAt: new Date(),
+              updatedAt: new Date(),
+            },
+          },
+        );
       } else if (meta && !meta.ok) {
         await db.collection("campaignRecipients").updateOne(
           { _id: recipient._id, status: "processing" },
