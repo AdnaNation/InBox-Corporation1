@@ -85,6 +85,35 @@ export async function POST(request) {
       }, { status: 202 });
     }
 
+    // Pausing can happen after the earlier campaign check but before this
+    // invocation acquires the phone-number lease. Recheck under the lease so
+    // a newly paused campaign does not claim another recipient.
+    const campaignAfterLease = await db.collection("campaigns").findOne({
+      _id: campaign._id,
+      workspaceId: campaign.workspaceId,
+      status: "sending",
+    });
+
+    if (!campaignAfterLease) {
+      await leaseCollection.updateOne(
+        { _id: leaseKey, leaseOwner },
+        {
+          $set: {
+            leaseUntil: new Date(0),
+            nextAllowedAt: new Date(Date.now() + 2000),
+            updatedAt: new Date(),
+          },
+          $unset: { leaseOwner: "" },
+        },
+      );
+
+      return NextResponse.json({
+        success: true,
+        processed: 0,
+        message: "Campaign was paused or changed before a recipient could be claimed.",
+      });
+    }
+
     // A crashed invocation must never cause an automatic duplicate send.
     // Once a processing lease is older than five minutes, mark its outcome
     // unknown and require operator review instead of returning it to pending.
