@@ -36,6 +36,7 @@ JavaScript-only Next.js App Router starter for a multi-tenant WhatsApp Business 
    ```
 
 5. Open http://localhost:3000 and register an account.
+6. For campaign processing, generate a separate worker secret with `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` and set it as `CRON_SECRET` in the server environment.
 
 ## Included
 
@@ -60,12 +61,12 @@ This is a runnable MVP foundation, not a finished, audited commercial SaaS. Befo
 - Admin provisioning and audited role management
 - Meta Embedded Signup and proper OAuth token lifecycle
 - Webhook signature verification using `META_APP_SECRET` (the included webhook endpoint verifies the challenge but deliberately does not trust unsigned POST events)
-- Durable queue/batch campaign processor, retries, rate limits, idempotency and delivery reconciliation (QStash integration)
+- Production queue scheduling, global per-number pacing, lease recovery, operator review tools and monitoring for the campaign worker
 - Subscription billing, usage metering and payment webhook verification
 - Consent evidence, suppression lists, opt-out handling, template approval checks and policy enforcement
 - Data retention, exports/deletion, monitoring, backups and security review
 
-The included send endpoint only sends one approved template to one opted-in contact. It is not a bulk sender.
+The single-contact endpoint sends one approved template to one opted-in contact. Campaign drafts require explicit queueing. The protected campaign worker processes one recipient per invocation and requires a CRON_SECRET of at least 32 characters. Configure that secret in the deployment environment and call POST /api/cron/campaign-worker with Authorization: Bearer <CRON_SECRET>. Do not expose the secret in browser code. Ambiguous network outcomes are marked unknown for manual reconciliation; they are not automatically resent.
 
 ## Vercel deployment
 
