@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { decryptSecret } from "@/lib/crypto";
 import { applyPendingWhatsAppStatus } from "@/lib/whatsapp-status";
@@ -28,6 +27,36 @@ export async function POST(request) {
       await db.collection("campaigns").updateOne({ _id: campaign._id, status: "sending" }, { $set: { status: "paused", pauseReason: "WhatsApp account disconnected.", updatedAt: new Date() } });
       return NextResponse.json({ success: false, message: "Campaign paused: WhatsApp account disconnected." }, { status: 409 });
     }
+
+    const liveCampaign = await db.collection("campaigns").findOne({
+      _id: campaign._id,
+      workspaceId: campaign.workspaceId,
+      status: "sending",
+    });
+    if (!liveCampaign) {
+      return NextResponse.json({ success: true, processed: 0, message: "Campaign is no longer sending." });
+    }
+
+    // A crashed invocation must never cause an automatic duplicate send.
+    // Once a processing lease is older than five minutes, mark its outcome
+    // unknown and require operator review instead of returning it to pending.
+    const staleBefore = new Date(Date.now() - 5 * 60 * 1000);
+    await db.collection("campaignRecipients").updateMany(
+      {
+        workspaceId: campaign.workspaceId,
+        campaignId: campaign._id,
+        status: "processing",
+        processingStartedAt: { $lte: staleBefore },
+      },
+      {
+        $set: {
+          status: "unknown",
+          error: "Worker lease expired. Meta may have accepted the message; manual reconciliation is required.",
+          updatedAt: new Date(),
+        },
+        $unset: { processingStartedAt: "" },
+      },
+    );
 
     const recipient = await db.collection("campaignRecipients").findOneAndUpdate(
       {
@@ -113,6 +142,32 @@ export async function POST(request) {
             { $set: { status: "pending", retryAt: new Date(Date.now() + 30000 * recipient.attempts), error: data?.error?.message || "Rate limited; retry scheduled.", updatedAt: new Date() }, $unset: { processingStartedAt: "" } },
           );
         }
+      } else if (meta && [401, 403].includes(meta.status)) {
+        // Authentication/permission failures are definite rejections. Keep
+        // this recipient pending and pause the campaign until credentials
+        // are repaired; never burn through the whole audience with a bad token.
+        await db.collection("campaignRecipients").updateOne(
+          { _id: recipient._id, status: "processing" },
+          {
+            $set: {
+              status: "pending",
+              error: data?.error?.message || "WhatsApp authorization failed. Reconnect the account before resuming.",
+              updatedAt: new Date(),
+            },
+            $unset: { processingStartedAt: "", retryAt: "" },
+          },
+        );
+        await db.collection("campaigns").updateOne(
+          { _id: campaign._id, workspaceId: campaign.workspaceId, status: "sending" },
+          {
+            $set: {
+              status: "paused",
+              pauseReason: "WhatsApp authorization failed. Reconnect the account before resuming.",
+              pausedAt: new Date(),
+              updatedAt: new Date(),
+            },
+          },
+        );
       } else if (meta && !meta.ok) {
         await db.collection("campaignRecipients").updateOne(
           { _id: recipient._id, status: "processing" },
@@ -163,7 +218,7 @@ export async function POST(request) {
     }
     const finished = counts.pending === 0 && counts.processing === 0;
     const finalStatus = finished
-      ? (counts.failed + counts.unknown > 0 ? "completed_with_issues" : "completed")
+      ? (counts.failed + counts.unknown + counts.skipped > 0 ? "completed_with_issues" : "completed")
       : "sending";
     await db.collection("campaigns").updateOne(
       { _id: campaign._id, status: "sending" },
