@@ -95,9 +95,7 @@ export default async function CampaignReviewPage({ params, searchParams }) {
     .limit(pageSize)
     .toArray();
 
-  const firstRecipient = totalRecipients
-    ? (currentPage - 1) * pageSize + 1
-    : 0;
+  const firstRecipient = totalRecipients ? (currentPage - 1) * pageSize + 1 : 0;
   const lastRecipient = Math.min(currentPage * pageSize, totalRecipients);
 
   const createdAt = campaign.createdAt
@@ -141,11 +139,17 @@ export default async function CampaignReviewPage({ params, searchParams }) {
 
           <div className="rounded-xl bg-slate-50 p-4">
             <p className="text-xs text-slate-500">Delivered / read</p>
-            <p className="mt-1 text-2xl font-bold">{(counts.delivered || 0) + (counts.read || 0)}</p>
+            <p className="mt-1 text-2xl font-bold">
+              {(counts.delivered || 0) + (counts.read || 0)}
+            </p>
           </div>
           <div className="rounded-xl bg-slate-50 p-4">
             <p className="text-xs text-slate-500">Failed / skipped / unknown</p>
-            <p className="mt-1 text-2xl font-bold">{(counts.failed || 0) + (counts.skipped || 0) + (counts.unknown || 0)}</p>
+            <p className="mt-1 text-2xl font-bold">
+              {(counts.failed || 0) +
+                (counts.skipped || 0) +
+                (counts.unknown || 0)}
+            </p>
           </div>
         </div>
       </section>
@@ -178,7 +182,11 @@ export default async function CampaignReviewPage({ params, searchParams }) {
           <div>
             <p className="text-xs text-slate-500">Body parameters configured</p>
             <p className="mt-1 font-medium">
-              {(campaign.bodyParameters || []).filter((value) => value !== "").length} of {campaign.template?.bodyVariableCount ?? "—"}
+              {
+                (campaign.bodyParameters || []).filter((value) => value !== "")
+                  .length
+              }{" "}
+              of {campaign.template?.bodyVariableCount ?? "—"}
             </p>
           </div>
 
@@ -277,7 +285,11 @@ export default async function CampaignReviewPage({ params, searchParams }) {
             <div className="flex items-center gap-2">
               {currentPage > 1 ? (
                 <Link
-                  href={currentPage === 2 ? `/dashboard/campaigns/${id}` : `/dashboard/campaigns/${id}?page=${currentPage - 1}`}
+                  href={
+                    currentPage === 2
+                      ? `/dashboard/campaigns/${id}`
+                      : `/dashboard/campaigns/${id}?page=${currentPage - 1}`
+                  }
                   className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 >
                   Previous
