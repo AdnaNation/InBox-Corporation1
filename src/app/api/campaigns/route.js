@@ -3,7 +3,6 @@ import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
-import { decryptSecret } from "@/lib/crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,12 +24,15 @@ export async function POST(request) {
     );
   }
 
+  let campaignId = null;
+  const db = await getDatabase();
+
   try {
     const body = await request.json();
 
     const name = typeof body.name === "string" ? body.name.trim() : "";
-
-    const { audience, template } = body;
+    const audience = body.audience;
+    const template = body.template;
 
     if (
       !name ||
@@ -49,18 +51,28 @@ export async function POST(request) {
       );
     }
 
-    const db = await getDatabase();
     const workspaceId = new ObjectId(session.workspace.id);
 
-    // Build the audience filter using server-side workspace data.
+    // A connected account is required, but we do not call Meta here.
+    const account = await db.collection("whatsappAccounts").findOne({
+      workspaceId,
+      status: "connected",
+    });
+
+    if (!account) {
+      return NextResponse.json(
+        { success: false, message: "Connect your WhatsApp account first." },
+        { status: 400 },
+      );
+    }
+
+    // Build a workspace-scoped, opted-in audience.
     const contactFilter = {
       workspaceId,
       "optIn.status": true,
     };
 
-    let savedAudience = {
-      type: audience.type,
-    };
+    let savedAudience = { type: audience.type };
 
     if (audience.type === "group") {
       if (
@@ -85,9 +97,7 @@ export async function POST(request) {
         );
       }
 
-      contactFilter._id = {
-        $in: group.contactIds || [],
-      };
+      contactFilter._id = { $in: group.contactIds || [] };
 
       savedAudience = {
         type: "group",
@@ -113,18 +123,13 @@ export async function POST(request) {
         $options: "i",
       };
 
-      savedAudience = {
-        type: "tag",
-        tag,
-      };
+      savedAudience = { type: "tag", tag };
     }
 
-    // Check that the audience currently has eligible contacts.
-    const targetCount = await db
-      .collection("contacts")
-      .countDocuments(contactFilter);
+    const contacts = db.collection("contacts");
+    const targetCount = await contacts.countDocuments(contactFilter);
 
-    if (targetCount === 0) {
+    if (!targetCount) {
       return NextResponse.json(
         {
           success: false,
@@ -134,111 +139,126 @@ export async function POST(request) {
       );
     }
 
-    // Verify the connected WhatsApp account.
-    const account = await db.collection("whatsappAccounts").findOne({
-      workspaceId,
-      status: "connected",
-    });
-
-    if (!account) {
-      return NextResponse.json(
-        { success: false, message: "WhatsApp account is not connected." },
-        { status: 400 },
+    // Unique recipient per contact per campaign.
+    await db
+      .collection("campaignRecipients")
+      .createIndex(
+        { workspaceId: 1, campaignId: 1, contactId: 1 },
+        { unique: true },
       );
-    }
-
-    // Verify the template directly with Meta.
-    const accessToken = decryptSecret(account.accessTokenEncrypted);
-    const version = process.env.META_GRAPH_API_VERSION || "v22.0";
-
-    const templateUrl = new URL(
-      `https://graph.facebook.com/${version}/${account.wabaId}/message_templates`,
-    );
-
-    templateUrl.searchParams.set("fields", "id,name,status,language,category");
-    templateUrl.searchParams.set("limit", "100");
-
-    const templateResponse = await fetch(templateUrl, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      cache: "no-store",
-    });
-
-    const templateData = await templateResponse.json();
-
-    if (!templateResponse.ok) {
-      console.error("Meta template verification error:", templateData);
-
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Could not verify the WhatsApp template with Meta.",
-        },
-        { status: 502 },
-      );
-    }
-
-    const approvedTemplate = (templateData.data || []).find(
-      (item) =>
-        item.name === template.name &&
-        item.language === template.language &&
-        item.status === "APPROVED",
-    );
-
-    if (!approvedTemplate) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "This template is not approved or does not exist.",
-        },
-        { status: 400 },
-      );
-    }
 
     const now = new Date();
 
+    // Create in preparing state until the recipient snapshot is complete.
     const campaign = {
       workspaceId,
       name,
       audience: savedAudience,
       template: {
-        id: approvedTemplate.id,
-        name: approvedTemplate.name,
-        language: approvedTemplate.language,
-        category: approvedTemplate.category,
+        name: template.name,
+        language: template.language,
+        id: null,
+        category: null,
       },
+      templateVerification: "pending",
       targetCount,
-      status: "draft",
+      recipientCount: 0,
+      status: "preparing",
       createdBy: new ObjectId(session.user.id),
       createdAt: now,
       updatedAt: now,
     };
 
-    const result = await db.collection("campaigns").insertOne(campaign);
+    const created = await db.collection("campaigns").insertOne(campaign);
+    campaignId = created.insertedId;
+
+    // Freeze the eligible audience at draft creation time.
+    const cursor = contacts.find(contactFilter).project({
+      name: 1,
+      phone: 1,
+      tags: 1,
+    });
+
+    let batch = [];
+    let insertedCount = 0;
+
+    while (await cursor.hasNext()) {
+      const contact = await cursor.next();
+
+      batch.push({
+        workspaceId,
+        campaignId,
+        contactId: contact._id,
+        name: contact.name || "",
+        phone: contact.phone,
+        tags: contact.tags || [],
+        status: "pending",
+        attempts: 0,
+        providerMessageId: null,
+        error: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      if (batch.length >= 500) {
+        await db.collection("campaignRecipients").insertMany(batch);
+        insertedCount += batch.length;
+        batch = [];
+      }
+    }
+
+    if (batch.length) {
+      await db.collection("campaignRecipients").insertMany(batch);
+      insertedCount += batch.length;
+    }
+
+    await db.collection("campaigns").updateOne(
+      {
+        _id: campaignId,
+        workspaceId,
+        status: "preparing",
+      },
+      {
+        $set: {
+          recipientCount: insertedCount,
+          status: "draft",
+          updatedAt: new Date(),
+          recipientSnapshotAt: new Date(),
+        },
+      },
+    );
 
     return NextResponse.json(
       {
         success: true,
-        message: "Campaign draft created successfully.",
+        message: "Campaign draft and recipient snapshot created.",
         campaign: {
-          id: result.insertedId.toString(),
+          id: campaignId.toString(),
           name,
-          audience: {
-            type: savedAudience.type,
-            groupName: savedAudience.groupName || null,
-            tag: savedAudience.tag || null,
-          },
-          template: campaign.template,
           targetCount,
-          status: campaign.status,
-          createdAt: now.toISOString(),
+          recipientCount: insertedCount,
+          status: "draft",
+          template: {
+            name: template.name,
+            language: template.language,
+          },
+          templateVerification: "pending",
         },
       },
       { status: 201 },
     );
   } catch (error) {
     console.error("Create campaign error:", error);
+
+    // Do not leave an incomplete campaign behind.
+    if (campaignId) {
+      await Promise.all([
+        db.collection("campaignRecipients").deleteMany({ campaignId }),
+        db.collection("campaigns").deleteOne({ _id: campaignId }),
+      ]).catch((cleanupError) => {
+        console.error("Campaign cleanup error:", cleanupError);
+      });
+    }
 
     return NextResponse.json(
       { success: false, message: "Could not create campaign draft." },
