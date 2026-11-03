@@ -36,6 +36,7 @@ export async function GET() {
       name: contact.name,
       phone: contact.phone,
       optedIn: contact.optIn?.status === true,
+      tags: contact.tags || [],
       createdAt: contact.createdAt?.toISOString(),
     })),
   });
@@ -83,7 +84,7 @@ export async function POST(request) {
     );
   }
 
-  const { name, phone, optedIn } = parsed.data;
+  const { name, phone, optedIn, tags } = parsed.data;
 
   const { valid, invalid } = normalizePhoneNumbers(phone);
 
@@ -134,6 +135,7 @@ export async function POST(request) {
     workspaceId,
     name: newNumbers.length === 1 ? name : `${name} ${index + 1}`,
     phone: number,
+    tags: [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))],
     optIn: {
       status: optedIn,
       source: "manual",
@@ -154,6 +156,7 @@ export async function POST(request) {
       name: contact.name,
       phone: contact.phone,
       optedIn: true,
+      tags: contact.tags,
       createdAt: now.toISOString(),
     }));
 
