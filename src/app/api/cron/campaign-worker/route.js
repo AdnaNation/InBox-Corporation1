@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { decryptSecret } from "@/lib/crypto";
 import { applyPendingWhatsAppStatus } from "@/lib/whatsapp-status";
@@ -44,6 +45,29 @@ export async function POST(request) {
     );
 
     if (recipient) {
+      // Consent may be revoked after the campaign snapshot was created.
+      // Re-check the live contact record immediately before sending.
+      const liveContact = recipient.contactId
+        ? await db.collection("contacts").findOne({
+            _id: recipient.contactId,
+            workspaceId: campaign.workspaceId,
+            "optIn.status": true,
+          })
+        : null;
+
+      if (!liveContact || !liveContact.phone) {
+        await db.collection("campaignRecipients").updateOne(
+          { _id: recipient._id, status: "processing" },
+          {
+            $set: {
+              status: "skipped",
+              error: "Contact is no longer opted in or no valid phone number is available.",
+              updatedAt: new Date(),
+            },
+            $unset: { processingStartedAt: "" },
+          },
+        );
+      } else {
       const token = decryptSecret(account.accessTokenEncrypted);
       const version = process.env.META_GRAPH_API_VERSION || "v22.0";
       const params = campaign.bodyParameters || [];
@@ -129,9 +153,10 @@ export async function POST(request) {
           }
         }
       }
+      }
     }
 
-    const statuses = ["pending", "processing", "accepted", "sent", "delivered", "read", "failed", "unknown"];
+    const statuses = ["pending", "processing", "accepted", "sent", "delivered", "read", "failed", "unknown", "skipped"];
     const counts = {};
     for (const status of statuses) {
       counts[status] = await db.collection("campaignRecipients").countDocuments({ workspaceId: campaign.workspaceId, campaignId: campaign._id, status });
