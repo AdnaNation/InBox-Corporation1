@@ -158,6 +158,9 @@ export async function POST(request, { params }) {
       });
     }
 
+    const bodyComponent = (matchedTemplate.components || []).find((component) => component.type === "BODY");
+    const bodyVariableCount = new Set((bodyComponent?.text || "").match(/\\{\\{\\d+\\}\\}/g) || []).size;
+
     const metaStatus = String(matchedTemplate.status || "").toUpperCase();
 
     let verification = "unavailable";
@@ -191,6 +194,7 @@ export async function POST(request, { params }) {
             category: matchedTemplate.category || null,
             status: metaStatus,
             parameterFormat: matchedTemplate.parameter_format || null,
+            bodyVariableCount,
           },
           templateVerification: verification,
           templateVerificationMessage: message,
@@ -211,6 +215,7 @@ export async function POST(request, { params }) {
         language: matchedTemplate.language,
         status: metaStatus,
         category: matchedTemplate.category || null,
+        bodyVariableCount,
       },
     });
   } catch (error) {
