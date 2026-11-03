@@ -7,6 +7,7 @@ export default function WhatsAppEmbeddedSignup({ connected, onConnected }) {
   const [config, setConfig] = useState(null);
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [sdkReady, setSdkReady] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [replaceExisting, setReplaceExisting] = useState(false);
@@ -100,7 +101,11 @@ export default function WhatsAppEmbeddedSignup({ connected, onConnected }) {
 
   useEffect(() => {
     if (!config?.configured) return;
-    if (window.FB) return;
+    if (window.FB) {
+      window.FB.init({ appId: config.appId, autoLogAppEvents: true, xfbml: false, version: config.apiVersion || "v26.0" });
+      setSdkReady(true);
+      return;
+    }
 
     const existing = document.getElementById("facebook-jssdk");
     if (existing) return;
@@ -113,7 +118,8 @@ export default function WhatsAppEmbeddedSignup({ connected, onConnected }) {
     script.crossOrigin = "anonymous";
     script.onload = () => {
       if (window.FB) {
-        window.FB.init({ appId: config.appId, autoLogAppEvents: true, xfbml: false, version: "v26.0" });
+        window.FB.init({ appId: config.appId, autoLogAppEvents: true, xfbml: false, version: config.apiVersion || "v26.0" });
+        setSdkReady(true);
       }
     };
     script.onerror = () => setError("Could not load the Meta login SDK. Check your browser connection and allowed domains.");
@@ -179,10 +185,10 @@ export default function WhatsAppEmbeddedSignup({ connected, onConnected }) {
       <button
         type="button"
         onClick={launchSignup}
-        disabled={loadingConfig || busy || !config?.configured || (connected && !replaceExisting)}
+        disabled={loadingConfig || busy || !config?.configured || !sdkReady || (connected && !replaceExisting)}
         className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-3 font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {busy || loadingConfig ? <Loader2 size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
+        {busy || loadingConfig || (config?.configured && !sdkReady) ? <Loader2 size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
         {connected ? "Connect a different number with Meta" : "Continue with Meta"}
       </button>
 
