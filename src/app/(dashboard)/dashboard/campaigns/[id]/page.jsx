@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ObjectId } from "mongodb";
 import { getSession } from "@/lib/auth";
 import { getDatabase } from "@/lib/db";
+import CampaignTemplateVerification from "@/components/campaign-template-verification";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -160,11 +161,12 @@ export default async function CampaignReviewPage({ params }) {
           </div>
         </div>
 
-        <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-          Template verification is pending. This campaign is a draft only. No
-          bulk messages have been sent. We will verify the template with Meta
-          before enabling campaign sending.
-        </div>
+        <CampaignTemplateVerification
+          campaignId={campaign._id.toString()}
+          initialVerification={campaign.templateVerification || "pending"}
+          initialMessage={campaign.templateVerificationMessage || ""}
+          initialMetaStatus={campaign.template?.status || ""}
+        />
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6">
@@ -181,7 +183,7 @@ export default async function CampaignReviewPage({ params }) {
         </div>
 
         <div className="mt-5 overflow-x-auto">
-          <table className="w-full min-w-[600px] text-left text-sm">
+          <table className="w-full min-w-150 text-left text-sm">
             <thead className="bg-slate-50 text-xs text-slate-500">
               <tr>
                 <th className="px-4 py-3">Contact</th>
