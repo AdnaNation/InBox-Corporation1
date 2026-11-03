@@ -13,6 +13,10 @@ export async function POST(request) {
     return NextResponse.json({ success: false, message: "Unauthorized." }, { status: 401 });
   }
 
+  let leaseCollection;
+  let leaseKey;
+  let leaseOwner;
+
   try {
     const db = await getDatabase();
     let campaign = await db.collection("campaigns").findOneAndUpdate(
@@ -41,9 +45,9 @@ export async function POST(request) {
     // Serialize all sends through the same WhatsApp phone number, even when
     // multiple campaigns or cron invocations target it concurrently.
     // A short cooldown between leases provides conservative per-number pacing.
-    const leaseCollection = db.collection("whatsappWorkerLeases");
-    const leaseKey = String(account.phoneNumberId);
-    const leaseOwner = randomUUID();
+    leaseCollection = db.collection("whatsappWorkerLeases");
+    leaseKey = String(account.phoneNumberId);
+    leaseOwner = randomUUID();
     const leaseNow = new Date();
     try {
       await leaseCollection.insertOne({
