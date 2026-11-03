@@ -159,7 +159,7 @@ export async function POST(request, { params }) {
     }
 
     const bodyComponent = (matchedTemplate.components || []).find((component) => component.type === "BODY");
-    const bodyVariableCount = new Set((bodyComponent?.text || "").match(/\\{\\{\\d+\\}\\}/g) || []).size;
+    const bodyVariableCount = new Set((bodyComponent?.text || "").match(/\{\{\d+\}\}/g) || []).size;
 
     const metaStatus = String(matchedTemplate.status || "").toUpperCase();
 
