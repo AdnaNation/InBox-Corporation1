@@ -35,6 +35,15 @@ export default function TeamClient({currentRole}){
     }catch(e){setError(e.message);}
     finally{setSaving(false);}
   }
+  async function removeMember(userId){
+    if(!window.confirm("Remove this person from the workspace? They will lose access to this workspace."))return;
+    setError("");setNotice("");
+    try{
+      const response=await fetch("/api/workspace/members",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({userId})});
+      const data=await response.json();if(!response.ok)throw new Error(data.message||"Could not remove member.");
+      setNotice(data.message||"Member removed.");await load();
+    }catch(e){setError(e.message);}
+  }
   async function revoke(id){
     if(!window.confirm("Revoke this invitation? The link will stop working."))return;
     setError("");setNotice("");
@@ -64,7 +73,7 @@ export default function TeamClient({currentRole}){
     </section>
     <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
       <div className="flex items-center gap-2"><Users className="text-green-600" size={20}/><h2 className="font-semibold">Workspace members <span className="text-slate-400">({members.length})</span></h2></div>
-      {loading?<div className="flex items-center gap-2 py-8 text-sm text-slate-500"><Loader2 size={18} className="animate-spin"/>Loading team...</div>:members.length===0?<p className="py-8 text-sm text-slate-500">No active members found.</p>:<div className="mt-4 divide-y divide-slate-100">{members.map(member=><div key={member.userId} className="flex items-center justify-between gap-3 py-4"><div className="min-w-0"><p className="truncate text-sm font-semibold">{member.name}</p><p className="truncate text-xs text-slate-500">{member.email}</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium capitalize text-slate-600">{member.role}</span></div>)}</div>}
+      {loading?<div className="flex items-center gap-2 py-8 text-sm text-slate-500"><Loader2 size={18} className="animate-spin"/>Loading team...</div>:members.length===0?<p className="py-8 text-sm text-slate-500">No active members found.</p>:<div className="mt-4 divide-y divide-slate-100">{members.map(member=><div key={member.userId} className="flex items-center justify-between gap-3 py-4"><div className="min-w-0"><p className="truncate text-sm font-semibold">{member.name}</p><p className="truncate text-xs text-slate-500">{member.email}</p></div><div className="flex items-center gap-2"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium capitalize text-slate-600">{member.role}</span>{member.role!=="owner"&&member.userId!==undefined&&<button onClick={()=>removeMember(member.userId)} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">Remove</button>}</div></div>)}</div>}
     </section>
     <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
       <div className="flex items-center gap-2"><Clock className="text-amber-600" size={20}/><h2 className="font-semibold">Pending invitations <span className="text-slate-400">({invitations.length})</span></h2></div>
