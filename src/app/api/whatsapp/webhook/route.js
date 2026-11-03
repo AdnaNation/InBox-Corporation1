@@ -300,6 +300,9 @@ async function processIncomingMessage(db, account, value, message) {
         $inc: {
           unreadCount: 1,
         },
+        $set: {
+          status: "open",
+        },
       },
     );
   }
