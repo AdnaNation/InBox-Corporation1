@@ -445,7 +445,14 @@ async function processStatus(db, account, status) {
   // reconciles it after inserting the outbound message.
   if (result.matchedCount > 0) {
     await db.collection("campaignRecipients").updateOne(
-      { workspaceId, waMessageId: status.id },
+      {
+        workspaceId,
+        waMessageId: status.id,
+        $or: [
+          { statusRank: { $exists: false } },
+          { statusRank: { $lt: incomingRank } },
+        ],
+      },
       {
         $set: {
           status: status.status,
