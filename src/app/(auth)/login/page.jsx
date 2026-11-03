@@ -33,7 +33,7 @@ export default function LoginPage() {
   }
 
   return <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12"><div className="w-full max-w-md">
-    <Link href="/" className="mb-8 flex items-center justify-center gap-2 text-xl font-bold"><span className="rounded-xl bg-green-600 p-2 text-white"><MessageCircle/></span>Wavo</Link>
+    <Link href="/" className="mb-8 flex items-center justify-center gap-2 text-xl font-bold"><span className="rounded-xl bg-green-600 p-2 text-white"><MessageCircle/></span>InBox Corporation</Link>
     <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
       <h1 className="text-2xl font-bold">Welcome back</h1><p className="mb-7 mt-2 text-sm text-slate-500">Sign in to your business workspace.</p>
       <form onSubmit={handleSubmit} className="space-y-5">

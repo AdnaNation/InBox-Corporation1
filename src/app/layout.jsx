@@ -1,8 +1,8 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Wavo — WhatsApp Business Platform",
-  description: "Manage WhatsApp conversations, contacts and campaigns."
+  title: "InBox Corporation — WhatsApp Business Platform",
+  description: "InBox Corporation helps businesses manage WhatsApp conversations, contacts and campaigns."
 };
 
 export default function RootLayout({ children }) {
