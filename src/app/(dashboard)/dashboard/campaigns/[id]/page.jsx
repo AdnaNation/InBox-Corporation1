@@ -27,7 +27,7 @@ function Status({ value }) {
   );
 }
 
-export default async function CampaignReviewPage({ params }) {
+export default async function CampaignReviewPage({ params, searchParams }) {
   const session = await getSession();
   if (!session) notFound();
 
@@ -45,29 +45,13 @@ export default async function CampaignReviewPage({ params }) {
 
   if (!campaign) notFound();
 
-  const [recipients, statusCounts] = await Promise.all([
-    db
-      .collection("campaignRecipients")
-      .find({ campaignId, workspaceId })
-      .project({
-        name: 1,
-        phone: 1,
-        status: 1,
-        error: 1,
-        createdAt: 1,
-      })
-      .sort({ createdAt: 1 })
-      .limit(100)
-      .toArray(),
-
-    db
-      .collection("campaignRecipients")
-      .aggregate([
-        { $match: { campaignId, workspaceId } },
-        { $group: { _id: "$status", count: { $sum: 1 } } },
-      ])
-      .toArray(),
-  ]);
+  const statusCounts = await db
+    .collection("campaignRecipients")
+    .aggregate([
+      { $match: { campaignId, workspaceId } },
+      { $group: { _id: "$status", count: { $sum: 1 } } },
+    ])
+    .toArray();
 
   const counts = Object.fromEntries(
     statusCounts.map((item) => [item._id, item.count]),
@@ -77,6 +61,34 @@ export default async function CampaignReviewPage({ params }) {
     (sum, value) => sum + value,
     0,
   );
+
+  const pageSize = 50;
+  const query = await searchParams;
+  const requestedPage = Number.parseInt(query?.page || "1", 10);
+  const totalPages = Math.max(1, Math.ceil(totalRecipients / pageSize));
+  const currentPage = Number.isFinite(requestedPage)
+    ? Math.min(Math.max(requestedPage, 1), totalPages)
+    : 1;
+
+  const recipients = await db
+    .collection("campaignRecipients")
+    .find({ campaignId, workspaceId })
+    .project({
+      name: 1,
+      phone: 1,
+      status: 1,
+      error: 1,
+      createdAt: 1,
+    })
+    .sort({ createdAt: 1, _id: 1 })
+    .skip((currentPage - 1) * pageSize)
+    .limit(pageSize)
+    .toArray();
+
+  const firstRecipient = totalRecipients
+    ? (currentPage - 1) * pageSize + 1
+    : 0;
+  const lastRecipient = Math.min(currentPage * pageSize, totalRecipients);
 
   const createdAt = campaign.createdAt
     ? new Date(campaign.createdAt).toLocaleString()
@@ -178,7 +190,7 @@ export default async function CampaignReviewPage({ params }) {
             </p>
           </div>
           <span className="text-xs text-slate-500">
-            Showing {Math.min(totalRecipients, 100)} of {totalRecipients}
+            Showing {firstRecipient}–{lastRecipient} of {totalRecipients}
           </span>
         </div>
 
@@ -223,11 +235,41 @@ export default async function CampaignReviewPage({ params }) {
           )}
         </div>
 
-        {totalRecipients > 100 && (
-          <p className="mt-4 text-xs text-slate-500">
-            The full recipient list is stored in the database. Pagination will
-            be added for larger campaigns.
-          </p>
+        {totalPages > 1 && (
+          <nav
+            aria-label="Recipient pages"
+            className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4"
+          >
+            <p className="text-xs text-slate-500">
+              Page {currentPage} of {totalPages}
+            </p>
+            <div className="flex items-center gap-2">
+              {currentPage > 1 ? (
+                <Link
+                  href={currentPage === 2 ? `/dashboard/campaigns/${id}` : `/dashboard/campaigns/${id}?page=${currentPage - 1}`}
+                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Previous
+                </Link>
+              ) : (
+                <span className="rounded-lg border border-slate-100 px-3 py-2 text-sm text-slate-300">
+                  Previous
+                </span>
+              )}
+              {currentPage < totalPages ? (
+                <Link
+                  href={`/dashboard/campaigns/${id}?page=${currentPage + 1}`}
+                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Next
+                </Link>
+              ) : (
+                <span className="rounded-lg border border-slate-100 px-3 py-2 text-sm text-slate-300">
+                  Next
+                </span>
+              )}
+            </div>
+          </nav>
         )}
       </section>
     </main>
