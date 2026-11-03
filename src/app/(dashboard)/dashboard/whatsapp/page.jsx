@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plug, ShieldCheck, Loader2, AlertTriangle, Unplug, RefreshCw } from "lucide-react";
+import { Plug, ShieldCheck, Loader2, AlertTriangle, Unplug, RefreshCw, Activity, CheckCircle2 } from "lucide-react";
 import WhatsAppEmbeddedSignup from "@/components/whatsapp-embedded-signup";
 
 const emptyForm = {
@@ -14,7 +14,7 @@ const emptyForm = {
 
 export default function WhatsAppPage() {
   const [form, setForm] = useState(emptyForm);
-  const [account, setAccount] = useState(null);
+  const [account, setAccount] = useState(null);\n  const [health, setHealth] = useState(null);\n  const [loadingHealth, setLoadingHealth] = useState(false);
   const [loading, setLoading] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [loadingAccount, setLoadingAccount] = useState(true);
@@ -27,12 +27,26 @@ export default function WhatsAppPage() {
       const response = await fetch("/api/whatsapp/account", { cache: "no-store" });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Could not load account.");
-      setAccount(data.account || null);
+      setAccount(data.account || null);\n      if (data.connected) await loadHealth();\n      else setHealth(null);
     } catch (error) {
       setMessage(error.message || "Could not load WhatsApp account.");
       setMessageError(true);
     } finally {
       setLoadingAccount(false);
+    }
+  }
+
+  async function loadHealth() {
+    setLoadingHealth(true);
+    try {
+      const response = await fetch("/api/whatsapp/account/health", { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.message || "Could not check account health.");
+      setHealth(data.health || null);
+    } catch (error) {
+      setHealth({ connectionStatus: "attention", message: error.message || "Could not check account health." });
+    } finally {
+      setLoadingHealth(false);
     }
   }
 
@@ -76,7 +90,7 @@ export default function WhatsAppPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Could not disconnect WhatsApp.");
       setMessage(data.message || "WhatsApp disconnected.");
-      setAccount(null);
+      setAccount(null);\n      setHealth(null);
     } catch (error) {
       setMessage(error.message || "Could not disconnect WhatsApp.");
       setMessageError(true);
@@ -124,6 +138,36 @@ export default function WhatsAppPage() {
           <div className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">No WhatsApp number is currently connected.</div>
         )}
       </section>
+
+      {account && (
+        <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="rounded-xl bg-slate-100 p-3 text-slate-700"><Activity size={20} /></span>
+              <div><h2 className="font-semibold">Account health</h2><p className="mt-1 text-xs text-slate-500">Live check against Meta Graph API.</p></div>
+            </div>
+            <button type="button" onClick={loadHealth} disabled={loadingHealth} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-50 disabled:opacity-50">
+              <RefreshCw size={15} className={loadingHealth ? "animate-spin" : ""} /> Check now
+            </button>
+          </div>
+          {loadingHealth && !health ? <p className="mt-5 text-sm text-slate-500">Checking token and number status...</p> : health ? (
+            <div className="mt-5">
+              <div className={`flex items-start gap-2 rounded-xl p-4 text-sm ${health.connectionStatus === "healthy" ? "bg-green-50 text-green-800" : "bg-amber-50 text-amber-900"}`}>
+                {health.connectionStatus === "healthy" ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
+                <div><p className="font-semibold">{health.connectionStatus === "healthy" ? "Connection healthy" : "Attention required"}</p><p className="mt-1">{health.message || "Meta account check completed."}</p></div>
+              </div>
+              {health.tokenStatus === "valid" && (
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Access token</p><p className="mt-1 flex items-center gap-2 text-sm font-semibold text-green-700"><CheckCircle2 size={15} /> Valid</p></div>
+                  <div className="rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Phone number quality</p><p className="mt-1 text-sm font-semibold text-slate-800">{health.qualityRating || "Unknown"}</p></div>
+                  <div className="rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Verified business name</p><p className="mt-1 text-sm font-semibold text-slate-800">{health.verifiedName || "Not provided by Meta"}</p></div>
+                  <div className="rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Number verification</p><p className="mt-1 text-sm font-semibold text-slate-800">{health.codeVerificationStatus || "Unknown"}</p></div>
+                </div>
+              )}
+            </div>
+          ) : <p className="mt-5 text-sm text-slate-500">Health information is not available yet. Select Check now.</p>}
+        </section>
+      )}
 
       {!loadingAccount && <WhatsAppEmbeddedSignup connected={Boolean(account)} onConnected={loadAccount} />}
 
