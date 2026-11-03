@@ -97,6 +97,8 @@ export default function InboxPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [statusUpdating, setStatusUpdating] = useState(false);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [assignmentUpdating, setAssignmentUpdating] = useState(false);
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [templates, setTemplates] = useState([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
@@ -176,6 +178,19 @@ export default function InboxPage() {
 
     return () => clearInterval(interval);
   }, [loadConversations]);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/workspace/members", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((data) => {
+        if (active && data.success) setTeamMembers(data.members || []);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     loadMessages(selectedId);
@@ -352,6 +367,44 @@ export default function InboxPage() {
       (conversation.lastMessagePreview || "").toLowerCase().includes(searchText)
     );
   });
+
+  async function handleAssignConversation(assigneeUserId) {
+    if (!selectedConversation || assignmentUpdating) return;
+    setAssignmentUpdating(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/whatsapp/conversations", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversationId: selectedConversation._id,
+          assigneeUserId: assigneeUserId || null,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Could not assign conversation.");
+      }
+
+      const assignedMember = teamMembers.find((member) => member.userId === assigneeUserId);
+      const assignment = {
+        assigneeUserId: assigneeUserId || null,
+        assigneeName: assignedMember?.name || null,
+        assigneeEmail: assignedMember?.email || null,
+      };
+      setSelectedConversation((current) => current ? { ...current, ...assignment } : current);
+      setConversations((current) =>
+        current.map((item) =>
+          item._id === selectedConversation._id ? { ...item, ...assignment } : item,
+        ),
+      );
+    } catch (err) {
+      setError(err.message || "Could not assign conversation.");
+    } finally {
+      setAssignmentUpdating(false);
+    }
+  }
 
   async function toggleConversationStatus() {
     if (!selectedConversation || statusUpdating) return;
@@ -580,6 +633,25 @@ export default function InboxPage() {
                 </div>
 
                 <div className="ml-auto flex items-center gap-2">
+                  {teamMembers.length > 0 && (
+                    <label className="hidden items-center gap-2 text-xs text-slate-500 lg:flex">
+                      <span>Assigned to</span>
+                      <select
+                        value={selectedConversation?.assigneeUserId?.toString?.() || ""}
+                        onChange={(event) => handleAssignConversation(event.target.value)}
+                        disabled={assignmentUpdating}
+                        className="max-w-40 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-medium text-slate-700 outline-none focus:border-green-500 disabled:opacity-60"
+                        aria-label="Assign conversation to team member"
+                      >
+                        <option value="">Unassigned</option>
+                        {teamMembers.map((member) => (
+                          <option key={member.userId} value={member.userId}>
+                            {member.name} · {member.role}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                   <span className={`hidden rounded-full px-2.5 py-1 text-[11px] font-semibold sm:inline-flex ${
                     (selectedConversation?.status || "open") === "closed"
                       ? "bg-slate-100 text-slate-600"
