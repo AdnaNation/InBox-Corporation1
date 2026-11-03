@@ -1,0 +1,901 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+
+function formatTime(value) {
+  if (!value) return "";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatConversationDate(value) {
+  if (!value) return "";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  const today = new Date();
+
+  if (date.toDateString() === today.toDateString()) {
+    return formatTime(date);
+  }
+
+  return date.toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
+  });
+}
+function getTemplateInfo(template) {
+  const components = template.components || [];
+
+  const header = components.find((component) => component.type === "HEADER");
+
+  const body = components.find((component) => component.type === "BODY");
+
+  const bodyText = body?.text || "";
+
+  const variableIndexes = [
+    ...new Set(
+      [...bodyText.matchAll(/\{\{(\d+)\}\}/g)].map((match) => Number(match[1])),
+    ),
+  ].sort((a, b) => a - b);
+
+  let reason = "";
+
+  if (String(template.parameter_format || "").toUpperCase() === "NAMED") {
+    reason = "Named variables are not supported by the current send API.";
+  } else if (
+    header &&
+    (header.format !== "TEXT" || /\{\{\d+\}\}/.test(header.text || ""))
+  ) {
+    reason = "Dynamic or media headers are not supported yet.";
+  } else if (variableIndexes.some((number, index) => number !== index + 1)) {
+    reason = "This template has a non-sequential variable structure.";
+  }
+
+  return {
+    bodyText,
+    variableIndexes,
+    supported: !reason,
+    reason,
+  };
+}
+
+function getTemplatePreview(template, parameters) {
+  const info = getTemplateInfo(template);
+
+  let preview = info.bodyText;
+
+  info.variableIndexes.forEach((number, index) => {
+    preview = preview.replaceAll(
+      `{{${number}}}`,
+      parameters[index] || `{{${number}}}`,
+    );
+  });
+
+  return preview;
+}
+
+export default function InboxPage() {
+  const [conversations, setConversations] = useState([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [selectedConversation, setSelectedConversation] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [messageText, setMessageText] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
+  const [templates, setTemplates] = useState([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [templateParameters, setTemplateParameters] = useState([]);
+  const [templateSending, setTemplateSending] = useState(false);
+
+  const bottomRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  const loadConversations = useCallback(async () => {
+    try {
+      const response = await fetch("/api/whatsapp/conversations", {
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Could not load conversations.");
+      }
+
+      setConversations(data.conversations || []);
+
+      setSelectedId((currentId) => {
+        if (currentId) return currentId;
+        return data.conversations?.[0]?._id || "";
+      });
+    } catch (err) {
+      setError(err.message || "Could not load conversations.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadMessages = useCallback(async (conversationId) => {
+    if (!conversationId) {
+      setMessages([]);
+      setSelectedConversation(null);
+      return;
+    }
+
+    try {
+      setMessagesLoading(true);
+
+      const response = await fetch(
+        `/api/whatsapp/conversations?conversationId=${encodeURIComponent(conversationId)}`,
+        { cache: "no-store" },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Could not load messages.");
+      }
+
+      setSelectedConversation(data.conversation);
+      setMessages(data.messages || []);
+
+      // The server resets unreadCount when this conversation is opened.
+      setConversations((current) =>
+        current.map((item) =>
+          item._id === conversationId ? { ...item, unreadCount: 0 } : item,
+        ),
+      );
+    } catch (err) {
+      setError(err.message || "Could not load messages.");
+    } finally {
+      setMessagesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadConversations();
+
+    const interval = setInterval(loadConversations, 8000);
+
+    return () => clearInterval(interval);
+  }, [loadConversations]);
+
+  useEffect(() => {
+    loadMessages(selectedId);
+
+    if (!selectedId) return;
+
+    const interval = setInterval(() => {
+      loadMessages(selectedId);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [selectedId, loadMessages]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "end",
+    });
+  }, [messages]);
+
+  async function handleSend(event) {
+    event.preventDefault();
+
+    const text = messageText.trim();
+
+    if (!text || !selectedId || sending) return;
+
+    setSending(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/whatsapp/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          conversationId: selectedId,
+          text,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Message could not be sent.");
+      }
+
+      setMessageText("");
+
+      // Reload the conversation history to get the saved WhatsApp message.
+      await loadMessages(selectedId);
+      await loadConversations();
+
+      textareaRef.current?.focus();
+    } catch (err) {
+      setError(err.message || "Message could not be sent.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function openTemplateModal() {
+    if (!selectedId) return;
+
+    setError("");
+    setTemplateModalOpen(true);
+    setSelectedTemplate(null);
+    setTemplateParameters([]);
+
+    setTemplatesLoading(true);
+
+    try {
+      const response = await fetch("/api/whatsapp/templates", {
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Could not load templates.");
+      }
+
+      setTemplates(
+        (data.templates || []).filter(
+          (template) => template.status === "APPROVED",
+        ),
+      );
+    } catch (err) {
+      setError(err.message || "Could not load templates.");
+      setTemplateModalOpen(false);
+    } finally {
+      setTemplatesLoading(false);
+    }
+  }
+
+  function handleTemplateSelect(templateName, language) {
+    const template = templates.find(
+      (item) => item.name === templateName && item.language === language,
+    );
+
+    if (!template) return;
+
+    setSelectedTemplate(template);
+
+    const info = getTemplateInfo(template);
+
+    setTemplateParameters(info.variableIndexes.map(() => ""));
+  }
+
+  async function handleTemplateSend(event) {
+    event.preventDefault();
+
+    if (!selectedTemplate || !selectedId || templateSending) return;
+
+    const info = getTemplateInfo(selectedTemplate);
+
+    if (!info.supported) {
+      setError(info.reason);
+      return;
+    }
+
+    if (templateParameters.some((value) => !value.trim())) {
+      setError("Please complete all template variables.");
+      return;
+    }
+
+    setTemplateSending(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/whatsapp/templates/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          conversationId: selectedId,
+          templateName: selectedTemplate.name,
+          language: selectedTemplate.language,
+          parameters: templateParameters,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Template could not be sent.");
+      }
+
+      setTemplateModalOpen(false);
+      setSelectedTemplate(null);
+      setTemplateParameters([]);
+
+      await loadMessages(selectedId);
+      await loadConversations();
+    } catch (err) {
+      setError(err.message || "Template could not be sent.");
+    } finally {
+      setTemplateSending(false);
+    }
+  }
+
+  const filteredConversations = conversations.filter((conversation) => {
+    const searchText = search.trim().toLowerCase();
+
+    if (!searchText) return true;
+
+    return (
+      (conversation.customerName || "").toLowerCase().includes(searchText) ||
+      (conversation.waId || "").toLowerCase().includes(searchText) ||
+      (conversation.lastMessagePreview || "").toLowerCase().includes(searchText)
+    );
+  });
+
+  return (
+    <div className="mx-auto max-w-[1600px] p-4 sm:p-6">
+      <div className="mb-5">
+        <h1 className="text-2xl font-bold text-slate-900">Inbox</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Manage your WhatsApp customer conversations.
+        </p>
+      </div>
+
+      {error && (
+        <div className="mb-4 flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => setError("")}
+            className="font-bold"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      <div className="grid h-[calc(100dvh-190px)] min-h-135 grid-cols-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:grid-cols-[320px_minmax(0,1fr)]">
+        {/* Conversation list */}
+        <aside
+          className={`min-h-0 flex-col border-r border-slate-200 ${
+            selectedId ? "hidden md:flex" : "flex"
+          }`}
+        >
+          <div className="border-b border-slate-200 p-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-slate-900">Conversations</h2>
+              <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">
+                {conversations.length}
+              </span>
+            </div>
+
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search conversations..."
+              className="mt-4 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100"
+            />
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {loading ? (
+              <div className="p-6 text-center text-sm text-slate-500">
+                Loading conversations...
+              </div>
+            ) : filteredConversations.length === 0 ? (
+              <div className="px-5 py-12 text-center">
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-xl">
+                  <span>💬</span>
+                </div>
+                <p className="font-medium text-slate-700">
+                  No conversations yet
+                </p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  When someone sends a WhatsApp message to your connected
+                  number, the conversation will appear here.
+                </p>
+              </div>
+            ) : (
+              filteredConversations.map((conversation) => {
+                const active = selectedId === conversation._id;
+
+                return (
+                  <button
+                    key={conversation._id}
+                    type="button"
+                    onClick={() => {
+                      setError("");
+                      setSelectedId(conversation._id);
+                    }}
+                    className={`flex w-full items-start gap-3 border-b border-slate-100 p-4 text-left transition hover:bg-slate-50 ${
+                      active ? "bg-green-50" : "bg-white"
+                    }`}
+                  >
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-green-100 font-semibold text-green-700">
+                      {(conversation.customerName || "?")
+                        .trim()
+                        .charAt(0)
+                        .toUpperCase()}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-semibold text-slate-900">
+                          {conversation.customerName || conversation.waId}
+                        </p>
+                        <span className="shrink-0 text-[11px] text-slate-400">
+                          {formatConversationDate(conversation.lastMessageAt)}
+                        </span>
+                      </div>
+
+                      <div className="mt-1 flex items-center justify-between gap-2">
+                        <p className="truncate text-xs text-slate-500">
+                          {conversation.lastMessagePreview || "No messages"}
+                        </p>
+
+                        {conversation.unreadCount > 0 && (
+                          <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-green-600 px-1.5 text-[10px] font-bold text-white">
+                            {conversation.unreadCount}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </aside>
+
+        {/* Chat panel */}
+        <section
+          className={`min-h-0 min-w-0 flex-col ${
+            selectedId ? "flex" : "hidden md:flex"
+          }`}
+        >
+          {!selectedId ? (
+            <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-3xl">
+                💬
+              </div>
+              <h3 className="text-lg font-semibold text-slate-800">
+                Your WhatsApp inbox
+              </h3>
+              <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">
+                Select a conversation to read messages and reply to your
+                customers.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Chat header */}
+              <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedId("")}
+                  className="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100 md:hidden"
+                  aria-label="Back to conversations"
+                >
+                  ←
+                </button>
+
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100 font-semibold text-green-700">
+                  {(selectedConversation?.customerName || "?")
+                    .trim()
+                    .charAt(0)
+                    .toUpperCase()}
+                </div>
+
+                <div className="min-w-0">
+                  <h2 className="truncate text-sm font-semibold text-slate-900">
+                    {selectedConversation?.customerName || "WhatsApp customer"}
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    {selectedConversation?.waId || ""}
+                  </p>
+                </div>
+
+                <div className="ml-auto hidden items-center gap-1.5 text-xs text-green-700 sm:flex">
+                  <span className="h-2 w-2 rounded-full bg-green-500" />
+                  WhatsApp
+                </div>
+              </div>
+
+              {/* Messages */}
+              <div className="min-h-0 flex-1 overflow-y-auto bg-[#f7f8f5] px-3 py-5 sm:px-6">
+                {messagesLoading && messages.length === 0 ? (
+                  <div className="py-10 text-center text-sm text-slate-500">
+                    Loading messages...
+                  </div>
+                ) : messages.length === 0 ? (
+                  <div className="py-10 text-center text-sm text-slate-500">
+                    No messages in this conversation.
+                  </div>
+                ) : (
+                  <div className="mx-auto flex max-w-3xl flex-col gap-3">
+                    {messages.map((message) => {
+                      const outbound = message.direction === "outbound";
+                      const isTemplate = message.type === "template";
+
+                      const templateName = message.templateName
+                        ? message.templateName.replaceAll("_", " ")
+                        : "WhatsApp Template";
+
+                      const status = message.status;
+
+                      return (
+                        <div
+                          key={message._id}
+                          className={`flex ${
+                            outbound ? "justify-end" : "justify-start"
+                          }`}
+                        >
+                          <div
+                            className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 shadow-sm sm:max-w-[75%] ${
+                              outbound
+                                ? "rounded-br-md bg-[#dcf8c6] text-slate-800"
+                                : "rounded-bl-md border border-slate-100 bg-white text-slate-800"
+                            }`}
+                          >
+                            {/* Template information */}
+                            {isTemplate && (
+                              <div className="mb-2 flex flex-wrap items-center gap-2 border-b border-slate-300/50 pb-2">
+                                <span className="rounded-md bg-blue-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-blue-700">
+                                  Template
+                                </span>
+
+                                <span className="text-xs font-semibold capitalize text-slate-600">
+                                  {templateName}
+                                </span>
+
+                                {message.templateLanguage && (
+                                  <span className="text-[10px] text-slate-400">
+                                    {message.templateLanguage}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Other media/message types */}
+                            {!isTemplate && message.type !== "text" && (
+                              <p className="mb-1 text-xs font-semibold capitalize text-slate-500">
+                                {message.type || "Message"}
+                              </p>
+                            )}
+
+                            {/* Message content */}
+                            <p className="whitespace-pre-wrap wrap-break-words text-sm leading-6">
+                              {message.text ||
+                                (message.type === "image"
+                                  ? "📷 Image"
+                                  : message.type === "audio"
+                                    ? "🎵 Audio"
+                                    : message.type === "video"
+                                      ? "🎬 Video"
+                                      : message.type === "document"
+                                        ? "📎 Document"
+                                        : isTemplate
+                                          ? "WhatsApp template message"
+                                          : `[${message.type || "Message"}]`)}
+                            </p>
+
+                            {/* Timestamp and delivery status */}
+                            <div className="mt-1 flex items-center justify-end gap-1.5">
+                              <span className="text-[10px] text-slate-500">
+                                {formatTime(message.timestamp)}
+                              </span>
+
+                              {outbound && (
+                                <span
+                                  className={`text-[10px] font-medium ${
+                                    status === "read"
+                                      ? "text-blue-500"
+                                      : status === "failed"
+                                        ? "text-red-500"
+                                        : "text-slate-500"
+                                  }`}
+                                  title={
+                                    status === "read"
+                                      ? "Read"
+                                      : status === "delivered"
+                                        ? "Delivered"
+                                        : status === "failed"
+                                          ? "Failed"
+                                          : "Sent"
+                                  }
+                                >
+                                  {status === "read"
+                                    ? "✓✓"
+                                    : status === "delivered"
+                                      ? "✓✓"
+                                      : status === "failed"
+                                        ? "Failed"
+                                        : "✓"}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    <div ref={bottomRef} />
+                  </div>
+                )}
+              </div>
+
+              {/* Composer */}
+              <form
+                onSubmit={handleSend}
+                className="border-t border-slate-200 bg-white p-3 sm:p-4"
+              >
+                <div className="mx-auto flex max-w-3xl flex-wrap items-end gap-2">
+                  <button
+                    type="button"
+                    onClick={openTemplateModal}
+                    className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-green-200 bg-green-50 px-3 text-sm font-semibold text-green-700 transition hover:bg-green-100"
+                  >
+                    <span>▤</span>
+                    Template
+                  </button>
+                  <textarea
+                    ref={textareaRef}
+                    value={messageText}
+                    onChange={(event) => setMessageText(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === "Enter" &&
+                        !event.shiftKey &&
+                        !event.nativeEvent.isComposing
+                      ) {
+                        event.preventDefault();
+                        event.currentTarget.form?.requestSubmit();
+                      }
+                    }}
+                    rows={1}
+                    maxLength={4096}
+                    placeholder="Type a message..."
+                    className="max-h-32 min-h-11 flex-1 resize-y rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-green-500 focus:bg-white focus:ring-2 focus:ring-green-100"
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={!messageText.trim() || sending}
+                    className="flex h-11 shrink-0 items-center justify-center rounded-xl bg-green-600 px-5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {sending ? "Sending..." : "Send"}
+                  </button>
+                </div>
+
+                <p className="mx-auto mt-2 max-w-3xl text-[11px] text-slate-400">
+                  Press Enter to send · Shift + Enter for a new line
+                </p>
+              </form>
+            </>
+          )}
+        </section>
+      </div>
+      {templateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            {/* Modal header */}
+            <div className="flex items-center justify-between border-b border-slate-200 p-5">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  WhatsApp Templates
+                </h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Choose an approved template to send.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setTemplateModalOpen(false)}
+                className="rounded-lg px-3 py-1 text-2xl text-slate-400 hover:bg-slate-100"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-5 p-5">
+              {/* Loading */}
+              {templatesLoading ? (
+                <div className="py-10 text-center text-sm text-slate-500">
+                  Loading approved templates...
+                </div>
+              ) : (
+                <>
+                  {/* Template selector */}
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Select template
+                    </label>
+
+                    <select
+                      value={
+                        selectedTemplate
+                          ? `${selectedTemplate.name}|${selectedTemplate.language}`
+                          : ""
+                      }
+                      onChange={(event) => {
+                        const [name, language] = event.target.value.split("|");
+
+                        if (name && language) {
+                          handleTemplateSelect(name, language);
+                        } else {
+                          setSelectedTemplate(null);
+                          setTemplateParameters([]);
+                        }
+                      }}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+                    >
+                      <option value="">Choose a template...</option>
+
+                      {templates.map((template) => (
+                        <option
+                          key={`${template.name}-${template.language}`}
+                          value={`${template.name}|${template.language}`}
+                        >
+                          {template.name} ({template.language})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Selected template */}
+                  {selectedTemplate &&
+                    (() => {
+                      const info = getTemplateInfo(selectedTemplate);
+
+                      return (
+                        <div className="space-y-4">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+                              {selectedTemplate.status}
+                            </span>
+
+                            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                              {selectedTemplate.category}
+                            </span>
+
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
+                              {selectedTemplate.language}
+                            </span>
+                          </div>
+
+                          {/* Unsupported template */}
+                          {!info.supported ? (
+                            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                              <p className="font-semibold">
+                                This template needs additional support.
+                              </p>
+                              <p className="mt-1">{info.reason}</p>
+                            </div>
+                          ) : (
+                            <>
+                              {/* Template body */}
+                              <div>
+                                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                                  Template content
+                                </label>
+
+                                <div className="whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+                                  {info.bodyText || "No text body available."}
+                                </div>
+                              </div>
+
+                              {/* Dynamic variable inputs */}
+                              {info.variableIndexes.length > 0 && (
+                                <div>
+                                  <h3 className="mb-3 text-sm font-semibold text-slate-800">
+                                    Fill in template variables
+                                  </h3>
+
+                                  <div className="space-y-3">
+                                    {info.variableIndexes.map(
+                                      (number, index) => (
+                                        <div key={number}>
+                                          <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                                            Variable {`{{${number}}}`}
+                                          </label>
+
+                                          <input
+                                            type="text"
+                                            required
+                                            value={
+                                              templateParameters[index] || ""
+                                            }
+                                            onChange={(event) => {
+                                              const value = event.target.value;
+
+                                              setTemplateParameters((current) =>
+                                                current.map(
+                                                  (item, itemIndex) =>
+                                                    itemIndex === index
+                                                      ? value
+                                                      : item,
+                                                ),
+                                              );
+                                            }}
+                                            placeholder={`Enter value for {{${number}}}`}
+                                            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+                                          />
+                                        </div>
+                                      ),
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Live preview */}
+                              <div>
+                                <h3 className="mb-2 text-sm font-semibold text-slate-800">
+                                  Message preview
+                                </h3>
+
+                                <div className="rounded-xl border border-green-200 bg-[#dcf8c6] p-4">
+                                  <p className="whitespace-pre-wrap text-sm leading-6 text-slate-800">
+                                    {getTemplatePreview(
+                                      selectedTemplate,
+                                      templateParameters,
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Send */}
+                              <button
+                                type="button"
+                                onClick={handleTemplateSend}
+                                disabled={
+                                  templateSending ||
+                                  templateParameters.some(
+                                    (value) => !value.trim(),
+                                  )
+                                }
+                                className="w-full rounded-xl bg-green-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {templateSending
+                                  ? "Sending template..."
+                                  : "Send WhatsApp Template"}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                  {!selectedTemplate && templates.length === 0 && (
+                    <div className="rounded-xl bg-slate-50 p-5 text-center text-sm text-slate-500">
+                      No approved templates were found for this WhatsApp
+                      account.
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

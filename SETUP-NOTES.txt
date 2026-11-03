@@ -1,0 +1,7 @@
+Generate JWT_SECRET:
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+
+Generate ENCRYPTION_KEY (64 hex characters):
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+Copy .env.example to .env.local and fill in values before running.
