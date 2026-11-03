@@ -8,7 +8,7 @@ import { isSameOrigin } from "@/lib/security";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(request) {
   const session = await getSession();
 
   if (!session) {
@@ -17,7 +17,12 @@ export async function GET() {
       { status: 401 },
     );
   }
-
+  const { searchParams } = new URL(request.url);
+  const requestedLimit = Number(searchParams.get("limit") || 200);
+  const limit = Math.min(
+    Math.max(Number.isFinite(requestedLimit) ? requestedLimit : 200, 1),
+    5000,
+  );
   const db = await getDatabase();
 
   const contacts = await db
@@ -26,7 +31,7 @@ export async function GET() {
       workspaceId: new ObjectId(session.workspace.id),
     })
     .sort({ createdAt: -1 })
-    .limit(200)
+    .limit(limit)
     .toArray();
 
   return NextResponse.json({

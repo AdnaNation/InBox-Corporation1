@@ -41,6 +41,14 @@ export async function initializeDatabase() {
         db
           .collection("webhookEvents")
           .createIndex({ eventId: 1 }, { unique: true }),
+        db
+          .collection("groups")
+          .createIndex({ workspaceId: 1, nameKey: 1 }, { unique: true }),
+
+        db.collection("groups").createIndex({
+          workspaceId: 1,
+          createdAt: -1,
+        }),
       ]);
 
       return true;

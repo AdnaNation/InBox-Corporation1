@@ -1,21 +1,43 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Search, Users, Loader2, Trash2, Phone } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Users,
+  Loader2,
+  Trash2,
+  Phone,
+  Tag,
+  X,
+  Save,
+  Pencil,
+} from "lucide-react";
+
 import ContactCsvImport from "@/components/contact-csv-import";
 
 export default function ContactsClient({ initialContacts = [] }) {
   const [contacts, setContacts] = useState(initialContacts);
   const [search, setSearch] = useState("");
+  const [tagFilter, setTagFilter] = useState("all");
+
   const [form, setForm] = useState({
     name: "",
     phone: "",
+    tags: "",
     optedIn: false,
   });
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
+  const [editingId, setEditingId] = useState(null);
+  const [tagDraft, setTagDraft] = useState([]);
+  const [tagInput, setTagInput] = useState("");
+  const [savingTags, setSavingTags] = useState(false);
+
+  // Refresh contacts after CSV import
   async function refreshContacts() {
     const response = await fetch("/api/contacts", {
       cache: "no-store",
@@ -28,16 +50,30 @@ export default function ContactsClient({ initialContacts = [] }) {
     }
   }
 
+  // Get all unique tags from loaded contacts
+  const availableTags = useMemo(() => {
+    return [
+      ...new Set(contacts.flatMap((contact) => contact.tags || [])),
+    ].sort();
+  }, [contacts]);
+
+  // Search and filter contacts
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    if (!query) return contacts;
+    return contacts.filter((contact) => {
+      const matchesSearch =
+        !query ||
+        `${contact.name} ${contact.phone}`.toLowerCase().includes(query);
 
-    return contacts.filter((contact) =>
-      `${contact.name} ${contact.phone}`.toLowerCase().includes(query),
-    );
-  }, [contacts, search]);
+      const matchesTag =
+        tagFilter === "all" || (contact.tags || []).includes(tagFilter);
 
+      return matchesSearch && matchesTag;
+    });
+  }, [contacts, search, tagFilter]);
+
+  // Add contacts
   async function addContact(event) {
     event.preventDefault();
 
@@ -56,6 +92,25 @@ export default function ContactsClient({ initialContacts = [] }) {
         return;
       }
 
+      const tags = [
+        ...new Set(
+          form.tags
+            .split(",")
+            .map((tag) => tag.trim().toLowerCase())
+            .filter(Boolean),
+        ),
+      ];
+
+      if (tags.length > 10) {
+        setError("You can add a maximum of 10 tags.");
+        return;
+      }
+
+      if (tags.some((tag) => tag.length > 30)) {
+        setError("Each tag must be 30 characters or fewer.");
+        return;
+      }
+
       const response = await fetch("/api/contacts", {
         method: "POST",
         headers: {
@@ -65,6 +120,7 @@ export default function ContactsClient({ initialContacts = [] }) {
           name: form.name,
           phone: phoneNumbers,
           optedIn: form.optedIn,
+          tags,
         }),
       });
 
@@ -96,6 +152,7 @@ export default function ContactsClient({ initialContacts = [] }) {
       setForm({
         name: "",
         phone: "",
+        tags: "",
         optedIn: false,
       });
     } catch (error) {
@@ -106,6 +163,78 @@ export default function ContactsClient({ initialContacts = [] }) {
     }
   }
 
+  // Start editing tags
+  function startEditTags(contact) {
+    setEditingId(contact.id);
+    setTagDraft(contact.tags || []);
+    setTagInput("");
+  }
+
+  // Add a tag to the editor
+  function addTag() {
+    const tag = tagInput.trim().toLowerCase();
+
+    if (!tag) return;
+
+    if (tag.length > 30) {
+      alert("Each tag must be 30 characters or fewer.");
+      return;
+    }
+
+    if (tagDraft.includes(tag)) {
+      setTagInput("");
+      return;
+    }
+
+    if (tagDraft.length >= 10) {
+      alert("Maximum 10 tags allowed.");
+      return;
+    }
+
+    setTagDraft((current) => [...current, tag]);
+    setTagInput("");
+  }
+
+  // Save updated tags
+  async function saveTags(contactId) {
+    setSavingTags(true);
+
+    try {
+      const response = await fetch(`/api/contacts/${contactId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tags: tagDraft,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || "Could not update tags.");
+        return;
+      }
+
+      setContacts((current) =>
+        current.map((contact) =>
+          contact.id === contactId ? { ...contact, tags: data.tags } : contact,
+        ),
+      );
+
+      setEditingId(null);
+      setTagDraft([]);
+      setTagInput("");
+    } catch (error) {
+      console.error(error);
+      alert("Network error. Please try again.");
+    } finally {
+      setSavingTags(false);
+    }
+  }
+
+  // Delete contact
   async function removeContact(id) {
     if (!confirm("Are you sure you want to delete this contact?")) {
       return;
@@ -131,10 +260,11 @@ export default function ContactsClient({ initialContacts = [] }) {
 
   return (
     <>
+      {/* CSV Import */}
       <ContactCsvImport onImported={refreshContacts} />
 
       <div className="grid gap-5 xl:grid-cols-[360px_1fr]">
-        {/* Add contacts */}
+        {/* Add Contacts */}
         <form
           onSubmit={addContact}
           className="h-fit rounded-2xl border border-slate-200 bg-white p-5"
@@ -163,7 +293,10 @@ export default function ContactsClient({ initialContacts = [] }) {
               maxLength={100}
               value={form.name}
               onChange={(event) =>
-                setForm({ ...form, name: event.target.value })
+                setForm({
+                  ...form,
+                  name: event.target.value,
+                })
               }
               placeholder="Customer"
               className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-green-500"
@@ -177,14 +310,16 @@ export default function ContactsClient({ initialContacts = [] }) {
             Phone numbers
             <textarea
               required
-              rows={6}
+              rows={5}
               value={form.phone}
               onChange={(event) =>
-                setForm({ ...form, phone: event.target.value })
+                setForm({
+                  ...form,
+                  phone: event.target.value,
+                })
               }
               placeholder={`+8801712345678
-+8801812345678
-+8801912345678`}
++8801812345678`}
               className="mt-2 w-full resize-y rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-green-500"
             />
             <span className="mt-1 block text-xs font-normal text-slate-400">
@@ -193,12 +328,35 @@ export default function ContactsClient({ initialContacts = [] }) {
             </span>
           </label>
 
+          {/* Tags */}
+          <label className="mb-4 block text-sm font-medium">
+            Tags
+            <input
+              value={form.tags}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  tags: event.target.value,
+                })
+              }
+              placeholder="vip, customer, new-lead"
+              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-green-500"
+            />
+            <span className="mt-1 block text-xs font-normal text-slate-400">
+              Separate tags with commas. Maximum 10 tags.
+            </span>
+          </label>
+
+          {/* Consent */}
           <label className="mb-5 flex items-start gap-2 text-xs leading-5 text-slate-600">
             <input
               type="checkbox"
               checked={form.optedIn}
               onChange={(event) =>
-                setForm({ ...form, optedIn: event.target.checked })
+                setForm({
+                  ...form,
+                  optedIn: event.target.checked,
+                })
               }
               className="mt-1 accent-green-600"
             />
@@ -224,8 +382,9 @@ export default function ContactsClient({ initialContacts = [] }) {
           </button>
         </form>
 
-        {/* Contact list */}
+        {/* Contact List */}
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          {/* Header */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-5">
             <div>
               <h2 className="font-semibold">All contacts</h2>
@@ -250,22 +409,58 @@ export default function ContactsClient({ initialContacts = [] }) {
             </div>
           </div>
 
+          {/* Tag Filter */}
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 p-4">
+            <Tag size={15} className="text-slate-400" />
+
+            <button
+              type="button"
+              onClick={() => setTagFilter("all")}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium ${
+                tagFilter === "all"
+                  ? "bg-green-600 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              All tags
+            </button>
+
+            {availableTags.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => setTagFilter(tag)}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium ${
+                  tagFilter === tag
+                    ? "bg-green-600 text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+
+          {/* Table */}
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs text-slate-500">
                 <tr>
                   <th className="px-5 py-3 font-medium">Name</th>
                   <th className="px-5 py-3 font-medium">Phone</th>
+                  <th className="px-5 py-3 font-medium">Tags</th>
                   <th className="px-5 py-3 font-medium">Consent</th>
-                  <th className="px-5 py-3 font-medium">Action</th>
+                  <th className="px-5 py-3 font-medium">Actions</th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-slate-100">
                 {filtered.map((contact) => (
-                  <tr key={contact.id}>
+                  <tr key={contact.id} className="align-top">
+                    {/* Name */}
                     <td className="px-5 py-4 font-medium">{contact.name}</td>
 
+                    {/* Phone */}
                     <td className="px-5 py-4 text-slate-500">
                       <span className="flex items-center gap-2">
                         <Phone size={14} />
@@ -273,6 +468,104 @@ export default function ContactsClient({ initialContacts = [] }) {
                       </span>
                     </td>
 
+                    {/* Tags */}
+                    <td className="min-w-48 px-5 py-4">
+                      {editingId === contact.id ? (
+                        <div className="min-w-44 space-y-3">
+                          <div className="flex flex-wrap gap-1.5">
+                            {tagDraft.map((tag) => (
+                              <span
+                                key={tag}
+                                className="flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs text-green-700"
+                              >
+                                {tag}
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setTagDraft((current) =>
+                                      current.filter((item) => item !== tag),
+                                    )
+                                  }
+                                  className="hover:text-red-600"
+                                >
+                                  <X size={12} />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+
+                          <div className="flex gap-1">
+                            <input
+                              value={tagInput}
+                              onChange={(event) =>
+                                setTagInput(event.target.value)
+                              }
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  addTag();
+                                }
+                              }}
+                              placeholder="Add a tag"
+                              maxLength={30}
+                              className="w-28 rounded-lg border border-slate-200 px-2 py-1.5 text-xs outline-none focus:border-green-500"
+                            />
+
+                            <button
+                              type="button"
+                              onClick={addTag}
+                              className="rounded-lg bg-slate-100 px-2 text-slate-600 hover:bg-slate-200"
+                            >
+                              <Plus size={15} />
+                            </button>
+                          </div>
+
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              disabled={savingTags}
+                              onClick={() => saveTags(contact.id)}
+                              className="flex items-center gap-1 rounded-lg bg-green-600 px-2.5 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                            >
+                              {savingTags ? (
+                                <Loader2 size={12} className="animate-spin" />
+                              ) : (
+                                <Save size={12} />
+                              )}
+                              Save
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setEditingId(null)}
+                              className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs text-slate-600"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex min-w-36 flex-wrap items-center gap-1.5">
+                          {(contact.tags || []).map((tag) => (
+                            <span
+                              key={tag}
+                              className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+
+                          {(!contact.tags || contact.tags.length === 0) && (
+                            <span className="text-xs text-slate-400">
+                              No tags
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Consent */}
                     <td className="px-5 py-4">
                       {contact.optedIn ? (
                         <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
@@ -285,15 +578,30 @@ export default function ContactsClient({ initialContacts = [] }) {
                       )}
                     </td>
 
+                    {/* Actions */}
                     <td className="px-5 py-4">
-                      <button
-                        type="button"
-                        onClick={() => removeContact(contact.id)}
-                        className="flex items-center gap-1 text-xs font-medium text-red-600 hover:underline"
-                      >
-                        <Trash2 size={14} />
-                        Delete
-                      </button>
+                      <div className="flex items-center gap-3">
+                        {editingId !== contact.id && (
+                          <button
+                            type="button"
+                            onClick={() => startEditTags(contact)}
+                            title="Edit tags"
+                            className="text-slate-500 hover:text-green-600"
+                          >
+                            <Pencil size={15} />
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => removeContact(contact.id)}
+                          title="Delete contact"
+                          className="flex items-center gap-1 text-xs font-medium text-red-600 hover:underline"
+                        >
+                          <Trash2 size={14} />
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
