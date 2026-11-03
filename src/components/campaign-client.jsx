@@ -69,6 +69,9 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
         if (firstApproved) {
           const key = `${firstApproved.name}::${firstApproved.language}`;
           setSelectedTemplateKey(key);
+          const firstBody = firstApproved.components?.find((item) => item.type === "BODY");
+          const firstVariableCount = new Set((firstBody?.text || "").match(/\{\{\d+\}\}/g) || []).size;
+          setCampaignBodyParameters(Array(firstVariableCount).fill(""));
           setForm((current) => ({
             ...current,
             templateName: firstApproved.name,
@@ -96,7 +99,7 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
       parameters: [],
     }));
     const body = template?.components?.find((item) => item.type === "BODY");
-    const count = new Set((body?.text || "").match(/\\{\\{\\d+\\}\\}/g) || []).size;
+    const count = new Set((body?.text || "").match(/\{\{\d+\}\}/g) || []).size;
     setCampaignBodyParameters(Array(count).fill(""));
   }
 
