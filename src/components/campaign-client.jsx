@@ -34,6 +34,7 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
   const [templatesError, setTemplatesError] = useState("");
   const [selectedTemplateKey, setSelectedTemplateKey] = useState("");
   const [campaignName, setCampaignName] = useState("");
+  const [campaignBodyParameters, setCampaignBodyParameters] = useState([]);
   const [createLoading, setCreateLoading] = useState(false);
   const [createResult, setCreateResult] = useState(null);
 
@@ -94,6 +95,9 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
       language: template?.language || "",
       parameters: [],
     }));
+    const body = template?.components?.find((item) => item.type === "BODY");
+    const count = new Set((body?.text || "").match(/\\{\\{\\d+\\}\\}/g) || []).size;
+    setCampaignBodyParameters(Array(count).fill(""));
   }
 
   async function createCampaignDraft(event) {
@@ -116,6 +120,7 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
             name: selectedTemplate.name,
             language: selectedTemplate.language,
           },
+          bodyParameters: campaignBodyParameters.map((value) => value.trim()),
         }),
       });
       const data = await response.json();
@@ -499,6 +504,32 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
               })}
             </select>
           </label>
+
+          {selectedTemplate && bodyVariableCount > 0 && (
+            <div className="lg:col-span-2 rounded-xl border border-green-200 bg-green-50/50 p-4">
+              <h3 className="text-sm font-semibold text-slate-800">Campaign template variables</h3>
+              <p className="mt-1 text-xs text-slate-500">These values will be used for every recipient in this campaign. Use a template without variables if each contact needs a different personalised value.</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                {Array.from({ length: bodyVariableCount }, (_, index) => (
+                  <label key={index} className="block text-sm font-medium">
+                    Body parameter {index + 1} {"{{" + (index + 1) + "}}"}
+                    <input
+                      required
+                      maxLength={1024}
+                      value={campaignBodyParameters[index] || ""}
+                      onChange={(event) => setCampaignBodyParameters((current) => {
+                        const next = [...current];
+                        next[index] = event.target.value;
+                        return next;
+                      })}
+                      placeholder={"Value for {{" + (index + 1) + "}}"}
+                      className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-green-500"
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
           {selectedTemplate && (
             <div className="lg:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
