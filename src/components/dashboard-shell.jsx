@@ -24,6 +24,7 @@ const links = [
   { href: "/dashboard/templates", label: "Templates", icon: MessageCircle },
   { href: "/dashboard/campaigns", label: "Campaigns", icon: Send },
   { href: "/dashboard/inbox", label: "Inbox", icon: MessageSquare },
+  { href: "/dashboard/team", label: "Team", icon: Users },
   { href: "/dashboard/whatsapp", label: "WhatsApp", icon: Plug },
   { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/dashboard/billing", label: "Billing", icon: CreditCard },

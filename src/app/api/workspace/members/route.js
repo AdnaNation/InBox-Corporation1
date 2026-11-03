@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { isSameOrigin } from "@/lib/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,5 +53,34 @@ export async function GET() {
       { success: false, message: "Could not load workspace team." },
       { status: 500 },
     );
+  }
+}
+
+
+export async function DELETE(request) {
+  try {
+    if (!isSameOrigin(request)) return NextResponse.json({success:false,message:"Invalid request origin."},{status:403});
+    const session = await getSession();
+    if (!session) return NextResponse.json({success:false,message:"Unauthorized."},{status:401});
+    const actorRole = session.membership.role;
+    if (!["owner","admin"].includes(actorRole)) return NextResponse.json({success:false,message:"Not allowed."},{status:403});
+    const {userId} = await request.json();
+    if (!ObjectId.isValid(userId)) return NextResponse.json({success:false,message:"Invalid member."},{status:400});
+    if (userId === session.user.id) return NextResponse.json({success:false,message:"You cannot remove yourself from this workspace."},{status:400});
+    const db = await getDatabase();
+    const workspaceId = new ObjectId(session.workspace.id);
+    const targetId = new ObjectId(userId);
+    const target = await db.collection("memberships").findOne({workspaceId,userId:targetId,status:"active"});
+    if (!target) return NextResponse.json({success:false,message:"Active member not found."},{status:404});
+    if (target.role === "owner") return NextResponse.json({success:false,message:"The workspace owner cannot be removed."},{status:403});
+    if (target.role === "admin" && actorRole !== "owner") return NextResponse.json({success:false,message:"Only the owner can remove an admin."},{status:403});
+    await db.collection("memberships").updateOne(
+      {_id:target._id,workspaceId,status:"active"},
+      {$set:{status:"removed",removedAt:new Date(),removedBy:new ObjectId(session.user.id)}}
+    );
+    return NextResponse.json({success:true,message:"Member removed from this workspace."});
+  } catch(error) {
+    console.error("Remove workspace member error:",error);
+    return NextResponse.json({success:false,message:"Could not remove member."},{status:500});
   }
 }

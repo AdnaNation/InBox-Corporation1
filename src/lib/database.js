@@ -9,6 +9,9 @@ export async function initializeDatabase() {
 
       await Promise.all([
         db.collection("users").createIndex({ email: 1 }, { unique: true }),
+        db.collection("workspaceInvitations").createIndex({ tokenHash: 1 }, { unique: true }),
+        db.collection("workspaceInvitations").createIndex({ workspaceId: 1, email: 1 }, { unique: true, partialFilterExpression: { status: "pending" } }),
+        db.collection("workspaceInvitations").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
         db.collection("workspaces").createIndex({ slug: 1 }, { unique: true }),
         db.collection("memberships").createIndex({ workspaceId: 1, userId: 1 }, { unique: true }),
         db.collection("contacts").createIndex({ workspaceId: 1, phone: 1 }, { unique: true }),
