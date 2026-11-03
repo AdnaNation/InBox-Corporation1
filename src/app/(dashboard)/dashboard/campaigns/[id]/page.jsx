@@ -140,8 +140,12 @@ export default async function CampaignReviewPage({ params, searchParams }) {
           </div>
 
           <div className="rounded-xl bg-slate-50 p-4">
-            <p className="text-xs text-slate-500">Failed recipients</p>
-            <p className="mt-1 text-2xl font-bold">{counts.failed || 0}</p>
+            <p className="text-xs text-slate-500">Delivered / read</p>
+            <p className="mt-1 text-2xl font-bold">{(counts.delivered || 0) + (counts.read || 0)}</p>
+          </div>
+          <div className="rounded-xl bg-slate-50 p-4">
+            <p className="text-xs text-slate-500">Failed / skipped / unknown</p>
+            <p className="mt-1 text-2xl font-bold">{(counts.failed || 0) + (counts.skipped || 0) + (counts.unknown || 0)}</p>
           </div>
         </div>
       </section>
@@ -201,6 +205,10 @@ export default async function CampaignReviewPage({ params, searchParams }) {
           campaignId={campaign._id.toString()}
           initialStatus={campaign.status}
           recipientCount={totalRecipients}
+        />
+        <CampaignControls
+          campaignId={campaign._id.toString()}
+          initialStatus={campaign.status}
         />
       </section>
 
