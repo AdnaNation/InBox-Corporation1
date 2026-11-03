@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { isSameOrigin } from "@/lib/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -88,6 +89,62 @@ export async function GET(request) {
 
     return NextResponse.json(
       { success: false, message: "Could not load conversations." },
+      { status: 500 },
+    );
+  }
+}
+
+
+export async function PATCH(request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json(
+      { success: false, message: "Invalid request origin." },
+      { status: 403 },
+    );
+  }
+
+  try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized." },
+        { status: 401 },
+      );
+    }
+
+    const body = await request.json();
+    const { conversationId, status } = body;
+
+    if (
+      typeof conversationId !== "string" ||
+      !ObjectId.isValid(conversationId) ||
+      !["open", "closed"].includes(status)
+    ) {
+      return NextResponse.json(
+        { success: false, message: "Invalid conversation status details." },
+        { status: 400 },
+      );
+    }
+
+    const workspaceId = new ObjectId(session.workspace.id);
+    const db = await getDatabase();
+    const result = await db.collection("conversations").updateOne(
+      { _id: new ObjectId(conversationId), workspaceId },
+      { $set: { status, updatedAt: new Date() } },
+    );
+
+    if (!result.matchedCount) {
+      return NextResponse.json(
+        { success: false, message: "Conversation not found." },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json({ success: true, status });
+  } catch (error) {
+    console.error("Update conversation status error:", error);
+    return NextResponse.json(
+      { success: false, message: "Could not update conversation status." },
       { status: 500 },
     );
   }
