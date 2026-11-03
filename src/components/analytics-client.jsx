@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Activity, CheckCheck, MessageCircle, Send, Users, AlertCircle, RefreshCw } from "lucide-react";
 
 const ranges = [
@@ -32,7 +32,7 @@ export default function AnalyticsClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  async function load(selectedRange = range, signal) {
+  const load = useCallback(async (selectedRange = range, signal) => {
     setLoading(true);
     setError("");
     try {
@@ -48,13 +48,13 @@ export default function AnalyticsClient() {
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  }
+  }, [range]);
 
   useEffect(() => {
     const controller = new AbortController();
     load(range, controller.signal);
     return () => controller.abort();
-  }, [range]);
+  }, [range, load]);
 
   const maxDaily = useMemo(() => {
     if (!data?.daily?.length) return 1;
