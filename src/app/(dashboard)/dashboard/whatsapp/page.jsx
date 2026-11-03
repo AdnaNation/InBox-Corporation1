@@ -14,7 +14,9 @@ const emptyForm = {
 
 export default function WhatsAppPage() {
   const [form, setForm] = useState(emptyForm);
-  const [account, setAccount] = useState(null);\n  const [health, setHealth] = useState(null);\n  const [loadingHealth, setLoadingHealth] = useState(false);
+  const [account, setAccount] = useState(null);
+  const [health, setHealth] = useState(null);
+  const [loadingHealth, setLoadingHealth] = useState(false);
   const [loading, setLoading] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [loadingAccount, setLoadingAccount] = useState(true);
@@ -27,7 +29,9 @@ export default function WhatsAppPage() {
       const response = await fetch("/api/whatsapp/account", { cache: "no-store" });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Could not load account.");
-      setAccount(data.account || null);\n      if (data.connected) await loadHealth();\n      else setHealth(null);
+      setAccount(data.account || null);
+      if (data.connected) await loadHealth();
+      else setHealth(null);
     } catch (error) {
       setMessage(error.message || "Could not load WhatsApp account.");
       setMessageError(true);
@@ -90,7 +94,8 @@ export default function WhatsAppPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Could not disconnect WhatsApp.");
       setMessage(data.message || "WhatsApp disconnected.");
-      setAccount(null);\n      setHealth(null);
+      setAccount(null);
+      setHealth(null);
     } catch (error) {
       setMessage(error.message || "Could not disconnect WhatsApp.");
       setMessageError(true);
