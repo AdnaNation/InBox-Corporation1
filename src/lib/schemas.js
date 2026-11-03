@@ -28,4 +28,5 @@ export const contactSchema = z.object({
   name: z.string().trim().min(1).max(100),
   phone: z.union([phoneValueSchema, z.array(phoneValueSchema).min(1).max(500)]),
   optedIn: z.literal(true),
+  tags: z.array(z.string().trim().min(1).max(30)).max(10).default([]),
 });
