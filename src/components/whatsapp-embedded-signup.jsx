@@ -194,7 +194,7 @@ export default function WhatsAppEmbeddedSignup({ connected, onConnected }) {
 
       {!loadingConfig && !config?.configured && (
         <p className="mt-3 text-xs leading-5 text-amber-700">
-          Add NEXT_PUBLIC_META_APP_ID and NEXT_PUBLIC_META_EMBEDDED_SIGNUP_CONFIG_ID in Vercel, and META_APP_ID / META_APP_SECRET on the server, to enable this button.
+          Configure META_APP_ID, META_APP_SECRET, and META_EMBEDDED_SIGNUP_CONFIG_ID in the server environment to enable this button.
         </p>
       )}
       {error && <p role="alert" className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
