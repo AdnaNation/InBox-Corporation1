@@ -7,6 +7,7 @@ import CampaignTemplateVerification from "@/components/campaign-template-verific
 import CampaignQueueAction from "@/components/campaign-queue-action";
 import CampaignControls from "@/components/campaign-controls";
 import CampaignRecipientReview from "@/components/campaign-recipient-review";
+import CampaignDeliveryProgress from "@/components/campaign-delivery-progress";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -130,26 +131,14 @@ export default async function CampaignReviewPage({ params, searchParams }) {
           <Status value={campaign.status} />
         </div>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          <div className="rounded-xl bg-slate-50 p-4">
-            <p className="text-xs text-slate-500">Recipient snapshot</p>
-            <p className="mt-1 text-2xl font-bold">{totalRecipients}</p>
-          </div>
-
-          <div className="rounded-xl bg-slate-50 p-4">
-            <p className="text-xs text-slate-500">Pending recipients</p>
-            <p className="mt-1 text-2xl font-bold">{counts.pending || 0}</p>
-          </div>
-
-          <div className="rounded-xl bg-slate-50 p-4">
-            <p className="text-xs text-slate-500">Delivered / read</p>
-            <p className="mt-1 text-2xl font-bold">{(counts.delivered || 0) + (counts.read || 0)}</p>
-          </div>
-          <div className="rounded-xl bg-slate-50 p-4">
-            <p className="text-xs text-slate-500">Failed / skipped / unknown</p>
-            <p className="mt-1 text-2xl font-bold">{(counts.failed || 0) + (counts.skipped || 0) + (counts.unknown || 0)}</p>
-          </div>
-        </div>
+        <CampaignDeliveryProgress
+          campaignId={campaign._id.toString()}
+          initialStatus={campaign.status}
+          initialCounts={Object.fromEntries([
+            "pending", "processing", "accepted", "sent", "delivered", "read", "failed", "unknown", "skipped",
+          ].map((status) => [status, counts[status] || 0]))}
+          initialTotal={totalRecipients}
+        />
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6">
