@@ -92,13 +92,48 @@ export async function POST(request, { params }) {
       [
         { $set: {
           lastError: "$error",
+          attemptHistory: {
+            $slice: [
+              {
+                $concatArrays: [
+                  { $ifNull: ["$attemptHistory", []] },
+                  [{
+                    status: "$status",
+                    error: "$error",
+                    waMessageId: "$waMessageId",
+                    acceptedAt: "$acceptedAt",
+                    sentAt: "$sentAt",
+                    deliveredAt: "$deliveredAt",
+                    readAt: "$readAt",
+                    failedAt: "$failedAt",
+                    statusUpdatedAt: "$statusUpdatedAt",
+                    retryQueuedAt: now,
+                  }],
+                ],
+              },
+              -20,
+            ],
+          },
           status: "pending",
           retryBatchId,
           retryQueuedAt: now,
           retryCount: { $add: [{ $ifNull: ["$retryCount", 0] }, 1] },
           updatedAt: now,
         } },
-        { $unset: "error" },
+        { $unset: [
+          "error",
+          "waMessageId",
+          "providerMessageId",
+          "statusRank",
+          "statusUpdatedAt",
+          "acceptedAt",
+          "sentAt",
+          "deliveredAt",
+          "readAt",
+          "failedAt",
+          "processingStartedAt",
+          "retryAt",
+        ] },
       ],
     );
 
