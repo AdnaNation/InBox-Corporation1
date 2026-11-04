@@ -98,6 +98,7 @@ export default function InboxPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [assignmentFilter, setAssignmentFilter] = useState("all");
+  const [unreadFilter, setUnreadFilter] = useState("all");
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [teamMembers, setTeamMembers] = useState([]);
   const [assignmentUpdating, setAssignmentUpdating] = useState(false);
@@ -363,6 +364,7 @@ export default function InboxPage() {
     if (statusFilter !== "all" && status !== statusFilter) return false;
     if (assignmentFilter === "assigned" && !conversation.assigneeUserId) return false;
     if (assignmentFilter === "unassigned" && conversation.assigneeUserId) return false;
+    if (unreadFilter === "unread" && !(conversation.unreadCount > 0)) return false;
     if (!searchText) return true;
 
     return (
@@ -518,6 +520,16 @@ export default function InboxPage() {
               <option value="all">All assignments</option>
               <option value="assigned">Assigned</option>
               <option value="unassigned">Unassigned</option>
+            </select>
+
+            <select
+              value={unreadFilter}
+              onChange={(event) => setUnreadFilter(event.target.value)}
+              aria-label="Filter by unread status"
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100"
+            >
+              <option value="all">All messages</option>
+              <option value="unread">Unread only</option>
             </select>
 
             <input
