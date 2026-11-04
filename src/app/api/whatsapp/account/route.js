@@ -240,6 +240,12 @@ export async function POST(request) {
         $setOnInsert: {
           createdAt: now,
         },
+        $unset: {
+          tokenIssuedAt: "",
+          tokenExpiresAt: "",
+          dataAccessExpiresAt: "",
+          tokenExpiryKnown: "",
+        },
       },
       { upsert: true },
     );
