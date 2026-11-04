@@ -12,6 +12,7 @@ import {
   X,
   Save,
   Pencil,
+  ShieldCheck,
 } from "lucide-react";
 
 import ContactCsvImport from "@/components/contact-csv-import";
@@ -36,6 +37,11 @@ export default function ContactsClient({ initialContacts = [] }) {
   const [tagDraft, setTagDraft] = useState([]);
   const [tagInput, setTagInput] = useState("");
   const [savingTags, setSavingTags] = useState(false);
+  const [consentContact, setConsentContact] = useState(null);
+  const [consentSource, setConsentSource] = useState("website_form");
+  const [consentEvidence, setConsentEvidence] = useState("");
+  const [consentConfirmed, setConsentConfirmed] = useState(false);
+  const [savingConsent, setSavingConsent] = useState(false);
 
   // Refresh contacts after CSV import
   async function refreshContacts() {
@@ -231,6 +237,41 @@ export default function ContactsClient({ initialContacts = [] }) {
       alert("Network error. Please try again.");
     } finally {
       setSavingTags(false);
+    }
+  }
+
+  async function recordRenewedConsent() {
+    if (!consentContact) return;
+    setSavingConsent(true);
+    try {
+      const response = await fetch(`/api/contacts/${consentContact.id}/consent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source: consentSource,
+          evidence: consentEvidence,
+          confirmed: consentConfirmed,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        alert(data.message || "Could not record renewed consent.");
+        return;
+      }
+      setContacts((current) => current.map((contact) =>
+        contact.id === consentContact.id
+          ? { ...contact, optedIn: true, suppressed: false }
+          : contact
+      ));
+      setConsentContact(null);
+      setConsentEvidence("");
+      setConsentConfirmed(false);
+      setNotice("Fresh consent recorded. This contact is eligible for future campaigns.");
+    } catch (error) {
+      console.error(error);
+      alert("Network error. Please try again.");
+    } finally {
+      setSavingConsent(false);
     }
   }
 
@@ -567,14 +608,12 @@ export default function ContactsClient({ initialContacts = [] }) {
 
                     {/* Consent */}
                     <td className="px-5 py-4">
-                      {contact.optedIn ? (
-                        <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
-                          Opted in
-                        </span>
+                      {contact.suppressed ? (
+                        <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700">Opted out — blocked</span>
+                      ) : contact.optedIn ? (
+                        <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">Opted in</span>
                       ) : (
-                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                          Not confirmed
-                        </span>
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">Not confirmed</span>
                       )}
                     </td>
 
@@ -589,6 +628,23 @@ export default function ContactsClient({ initialContacts = [] }) {
                             className="text-slate-500 hover:text-green-600"
                           >
                             <Pencil size={15} />
+                          </button>
+                        )}
+
+                        {(!contact.optedIn || contact.suppressed) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setConsentContact(contact);
+                              setConsentSource("website_form");
+                              setConsentEvidence("");
+                              setConsentConfirmed(false);
+                            }}
+                            title="Record fresh consent"
+                            className="flex items-center gap-1 text-xs font-medium text-green-700 hover:underline"
+                          >
+                            <ShieldCheck size={14} />
+                            Record consent
                           </button>
                         )}
 
@@ -616,6 +672,70 @@ export default function ContactsClient({ initialContacts = [] }) {
             )}
           </div>
         </section>
+      {consentContact && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+          <form
+            onSubmit={(event) => { event.preventDefault(); recordRenewedConsent(); }}
+            className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"
+          >
+            <div className="mb-4 flex items-center gap-3">
+              <ShieldCheck className="text-green-600" size={22} />
+              <div>
+                <h3 className="font-semibold text-slate-900">Record fresh WhatsApp consent</h3>
+                <p className="text-xs text-slate-500">{consentContact.name} · {consentContact.phone}</p>
+              </div>
+            </div>
+            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-800">
+              Only continue if this person gave new, explicit permission after opting out. Adding a note alone does not create consent.
+            </div>
+            <label className="mb-4 block text-sm font-medium text-slate-700">
+              How was fresh consent received?
+              <select
+                value={consentSource}
+                onChange={(event) => setConsentSource(event.target.value)}
+                className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5"
+              >
+                <option value="website_form">Website consent form</option>
+                <option value="paper_form">Signed paper form</option>
+                <option value="verbal">Verbal consent</option>
+                <option value="whatsapp_initiated">Customer initiated WhatsApp</option>
+                <option value="other">Other documented source</option>
+              </select>
+            </label>
+            <label className="mb-4 block text-sm font-medium text-slate-700">
+              Evidence / reference
+              <textarea
+                required
+                minLength={8}
+                maxLength={500}
+                rows={3}
+                value={consentEvidence}
+                onChange={(event) => setConsentEvidence(event.target.value)}
+                placeholder="Example: Website form submitted on 4 Nov 2026; consent record #..."
+                className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+              />
+              <span className="mt-1 block text-xs font-normal text-slate-400">Include a date, form reference, conversation reference, or other verifiable detail.</span>
+            </label>
+            <label className="mb-5 flex items-start gap-2 text-xs leading-5 text-slate-600">
+              <input
+                type="checkbox"
+                checked={consentConfirmed}
+                onChange={(event) => setConsentConfirmed(event.target.checked)}
+                className="mt-1 accent-green-600"
+              />
+              <span>I confirm that the contact gave fresh, explicit WhatsApp consent after their previous opt-out, and that the evidence above is accurate.</span>
+            </label>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setConsentContact(null)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-600">Cancel</button>
+              <button type="submit" disabled={savingConsent || !consentConfirmed || consentEvidence.trim().length < 8} className="flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                {savingConsent && <Loader2 size={15} className="animate-spin" />}
+                {savingConsent ? "Saving..." : "Record fresh consent"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       </div>
     </>
   );

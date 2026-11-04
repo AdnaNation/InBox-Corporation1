@@ -191,7 +191,7 @@ export async function POST(request) {
     const now = new Date();
 
     const suppressionRows = await db.collection("contactSuppressions")
-      .find({ workspaceId, phone: { $in: validContacts.map((contact) => contact.phone) } })
+      .find({ workspaceId, phone: { $in: validContacts.map((contact) => contact.phone) }, active: { $ne: false } })
       .project({ phone: 1 })
       .toArray();
     const suppressedNumbers = new Set(suppressionRows.map((item) => item.phone));

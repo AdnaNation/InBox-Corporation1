@@ -188,6 +188,7 @@ export async function POST(request) {
         ? await db.collection("contactSuppressions").findOne({
             workspaceId: campaign.workspaceId,
             phone: liveContact.phone,
+            active: { $ne: false },
           }, { projection: { _id: 1 } })
         : null;
 
