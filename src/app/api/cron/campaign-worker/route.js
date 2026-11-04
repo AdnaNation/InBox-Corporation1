@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { getDatabase } from "@/lib/db";
 import { decryptSecret } from "@/lib/crypto";
 import { applyPendingWhatsAppStatus } from "@/lib/whatsapp-status";
-import { checkWorkspacePlanLimit } from "@/lib/plan-limits";
+import { checkWorkspacePlanLimit, reserveWorkspaceMessageUsage, releaseWorkspaceMessageUsage } from "@/lib/plan-limits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -208,6 +208,38 @@ export async function POST(request) {
         },
       };
 
+      const reservation = await reserveWorkspaceMessageUsage(db, campaign.workspaceId, 1);
+      if (!reservation.allowed) {
+        await db.collection("campaignRecipients").updateOne(
+          { _id: recipient._id, status: "processing" },
+          {
+            $set: { status: "pending", error: reservation.reason, updatedAt: new Date() },
+            $unset: { processingStartedAt: "" },
+          },
+        );
+        await db.collection("campaigns").updateOne(
+          { _id: campaign._id, workspaceId: campaign.workspaceId, status: "sending" },
+          {
+            $set: { status: "paused", pauseReason: reservation.reason, pausedAt: new Date(), updatedAt: new Date() },
+          },
+        );
+        await leaseCollection.updateOne(
+          { _id: leaseKey, leaseOwner },
+          {
+            $set: { leaseUntil: new Date(0), nextAllowedAt: new Date(Date.now() + 2000), updatedAt: new Date() },
+            $unset: { leaseOwner: "" },
+          },
+        );
+        return NextResponse.json({
+          success: false,
+          code: "PLAN_LIMIT_REACHED",
+          message: reservation.reason,
+          plan: reservation.plan,
+          usage: reservation.usage,
+          limits: reservation.limits,
+        }, { status: 429 });
+      }
+
       let meta;
       let data;
       try {
@@ -227,6 +259,7 @@ export async function POST(request) {
       }
 
       if (meta?.status === 429) {
+        await releaseWorkspaceMessageUsage(db, campaign.workspaceId, 1);
         if (recipient.attempts >= 3) {
           await db.collection("campaignRecipients").updateOne(
             { _id: recipient._id, status: "processing" },
@@ -239,6 +272,7 @@ export async function POST(request) {
           );
         }
       } else if (meta && [401, 403].includes(meta.status)) {
+        await releaseWorkspaceMessageUsage(db, campaign.workspaceId, 1);
         // Authentication/permission failures are definite rejections. Keep
         // this recipient pending and pause the campaign until credentials
         // are repaired; never burn through the whole audience with a bad token.
@@ -265,6 +299,7 @@ export async function POST(request) {
           },
         );
       } else if (meta && !meta.ok) {
+        await releaseWorkspaceMessageUsage(db, campaign.workspaceId, 1);
         await db.collection("campaignRecipients").updateOne(
           { _id: recipient._id, status: "processing" },
           { $set: { status: "failed", error: data?.error?.message || "Meta rejected the message.", metaErrorCode: data?.error?.code || null, updatedAt: new Date() }, $unset: { processingStartedAt: "" } },

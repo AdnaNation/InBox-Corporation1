@@ -5,7 +5,7 @@ import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
 import { decryptSecret } from "@/lib/crypto";
 import { applyPendingWhatsAppStatus } from "@/lib/whatsapp-status";
-import { checkWorkspacePlanLimit } from "@/lib/plan-limits";
+import { reserveWorkspaceMessageUsage, releaseWorkspaceMessageUsage } from "@/lib/plan-limits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -82,11 +82,6 @@ export async function POST(request) {
         { success: false, message: "WhatsApp account is not connected." },
         { status: 400 },
       );
-    }
-
-    const quota = await checkWorkspacePlanLimit(db, workspaceId, "messages", 1);
-    if (!quota.allowed) {
-      return NextResponse.json({ success: false, code: "PLAN_LIMIT_REACHED", message: quota.reason, plan: quota.plan, usage: quota.usage, limits: quota.limits }, { status: 429 });
     }
 
     const accessToken = decryptSecret(account.accessTokenEncrypted);
@@ -174,6 +169,11 @@ export async function POST(request) {
         ]
       : [];
 
+    const quota = await reserveWorkspaceMessageUsage(db, workspaceId, 1);
+    if (!quota.allowed) {
+      return NextResponse.json({ success: false, code: "PLAN_LIMIT_REACHED", message: quota.reason, plan: quota.plan, usage: quota.usage, limits: quota.limits }, { status: 429 });
+    }
+
     const response = await fetch(
       `https://graph.facebook.com/${version}/${account.phoneNumberId}/messages`,
       {
@@ -235,6 +235,7 @@ export async function POST(request) {
     }
 
     if (!response.ok) {
+      await releaseWorkspaceMessageUsage(db, workspaceId, 1);
       return NextResponse.json(
         {
           success: false,
