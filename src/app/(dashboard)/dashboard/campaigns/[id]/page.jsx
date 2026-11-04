@@ -12,6 +12,17 @@ import CampaignDeliveryProgress from "@/components/campaign-delivery-progress";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function displayText(value, fallback = "—") {
+  if (value === null || value === undefined || value === "") return fallback;
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+  if (typeof value === "object") {
+    const message = value.message || value.title || value.code;
+    if (typeof message === "string" || typeof message === "number") return String(message);
+    try { return JSON.stringify(value); } catch { return fallback; }
+  }
+  return fallback;
+}
+
 function Status({ value }) {
   const styles = {
     pending: "bg-amber-50 text-amber-700",
@@ -124,7 +135,7 @@ export default async function CampaignReviewPage({ params, searchParams }) {
               Campaign review
             </p>
             <h1 className="mt-2 text-2xl font-bold text-slate-900">
-              {campaign.name}
+              {displayText(campaign.name, "Untitled campaign")}
             </h1>
             <p className="mt-2 text-sm text-slate-500">Created {createdAt}</p>
           </div>
@@ -150,21 +161,21 @@ export default async function CampaignReviewPage({ params, searchParams }) {
           <div>
             <p className="text-xs text-slate-500">Template name</p>
             <p className="mt-1 font-medium">
-              {campaign.template?.name || "Not selected"}
+              {displayText(campaign.template?.name, "Not selected")}
             </p>
           </div>
 
           <div>
             <p className="text-xs text-slate-500">Language</p>
             <p className="mt-1 font-medium">
-              {campaign.template?.language || "—"}
+              {displayText(campaign.template?.language)}
             </p>
           </div>
 
           <div>
             <p className="text-xs text-slate-500">Template verification</p>
             <p className="mt-1 font-medium">
-              {campaign.templateVerification || "Not verified"}
+              {displayText(campaign.templateVerification, "Not verified")}
             </p>
           </div>
 
@@ -178,7 +189,7 @@ export default async function CampaignReviewPage({ params, searchParams }) {
           <div>
             <p className="text-xs text-slate-500">Audience type</p>
             <p className="mt-1 font-medium">
-              {campaign.audience?.type || "—"}
+              {displayText(campaign.audience?.type)}
               {campaign.audience?.groupName
                 ? ` — ${campaign.audience.groupName}`
                 : ""}
@@ -238,16 +249,16 @@ export default async function CampaignReviewPage({ params, searchParams }) {
                   className="border-t border-slate-100"
                 >
                   <td className="px-4 py-3 font-medium">
-                    {recipient.name || "Unnamed"}
+                    {displayText(recipient.name, "Unnamed")}
                   </td>
                   <td className="px-4 py-3 text-slate-600">
-                    {recipient.phone}
+                    {displayText(recipient.phone)}
                   </td>
                   <td className="px-4 py-3">
                     <Status value={recipient.status} />
                   </td>
                   <td className="max-w-xs truncate px-4 py-3 text-xs text-red-600">
-                    {recipient.error || recipient.manualReview?.note || "—"}
+                    {displayText(recipient.error || recipient.manualReview?.note)}
                   </td>
                   <td className="px-4 py-3">
                     {recipient.status === "unknown" ? (
@@ -257,8 +268,8 @@ export default async function CampaignReviewPage({ params, searchParams }) {
                       />
                     ) : recipient.manualReview ? (
                       <div className="text-xs text-slate-600">
-                        <p className="font-medium">Manually marked {recipient.manualReview.outcome}</p>
-                        <p>{recipient.manualReview.note}</p>
+                        <p className="font-medium">Manually marked {displayText(recipient.manualReview.outcome)}</p>
+                        <p>{displayText(recipient.manualReview.note)}</p>
                         <p className="mt-1 text-slate-400">
                           {recipient.manualReview.reviewedAt
                             ? new Date(recipient.manualReview.reviewedAt).toLocaleString()
