@@ -72,6 +72,17 @@ export async function checkWorkspacePlanLimit(db, workspaceId, resource, request
   };
 }
 
+// Release capacity only when Meta definitively rejects a request. Network
+// timeouts and ambiguous outcomes keep their reservation to prevent over-sending.
+export async function releaseWorkspaceMessageUsage(db, workspaceId, requested = 1) {
+  if (!Number.isSafeInteger(requested) || requested < 1) return;
+  const counterId = getUsagePeriodKey(workspaceId);
+  await db.collection("planUsageCounters").updateOne(
+    { _id: counterId, messages: { $gte: requested } },
+    { $inc: { messages: -requested }, $set: { updatedAt: new Date() } },
+  );
+}
+
 // Atomically reserve monthly outbound-message capacity before contacting Meta.
 // The counter is initialized from historical message records so existing usage
 // remains accounted for when this reservation ledger is introduced.
