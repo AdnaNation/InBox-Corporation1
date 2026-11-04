@@ -99,6 +99,7 @@ export default function InboxPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [assignmentFilter, setAssignmentFilter] = useState("all");
   const [unreadFilter, setUnreadFilter] = useState("all");
+  const [currentUserId, setCurrentUserId] = useState("");
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [teamMembers, setTeamMembers] = useState([]);
   const [assignmentUpdating, setAssignmentUpdating] = useState(false);
@@ -125,6 +126,7 @@ export default function InboxPage() {
       }
 
       setConversations(data.conversations || []);
+      setCurrentUserId(data.currentUserId || "");
 
       setSelectedId((currentId) => {
         if (currentId) return currentId;
@@ -364,6 +366,7 @@ export default function InboxPage() {
     if (statusFilter !== "all" && status !== statusFilter) return false;
     if (assignmentFilter === "assigned" && !conversation.assigneeUserId) return false;
     if (assignmentFilter === "unassigned" && conversation.assigneeUserId) return false;
+    if (assignmentFilter === "mine" && String(conversation.assigneeUserId || "") !== currentUserId) return false;
     if (unreadFilter === "unread" && !(conversation.unreadCount > 0)) return false;
     if (!searchText) return true;
 
@@ -395,9 +398,9 @@ export default function InboxPage() {
 
       const assignedMember = teamMembers.find((member) => member.userId === assigneeUserId);
       const assignment = {
-        assigneeUserId: assigneeUserId || null,
-        assigneeName: assignedMember?.name || null,
-        assigneeEmail: assignedMember?.email || null,
+        assigneeUserId: data.assigneeUserId ?? (assigneeUserId || null),
+        assigneeName: data.assigneeName ?? assignedMember?.name ?? null,
+        assigneeEmail: data.assigneeEmail ?? assignedMember?.email ?? null,
       };
       setSelectedConversation((current) => current ? { ...current, ...assignment } : current);
       setConversations((current) =>
@@ -520,6 +523,7 @@ export default function InboxPage() {
               <option value="all">All assignments</option>
               <option value="assigned">Assigned</option>
               <option value="unassigned">Unassigned</option>
+              <option value="mine">Assigned to me</option>
             </select>
 
             <select
@@ -666,6 +670,16 @@ export default function InboxPage() {
                 </div>
 
                 <div className="ml-auto flex items-center gap-2">
+                  {currentUserId && selectedConversation && !selectedConversation.assigneeUserId && (
+                    <button
+                      type="button"
+                      onClick={() => handleAssignConversation(currentUserId)}
+                      disabled={assignmentUpdating}
+                      className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50"
+                    >
+                      {assignmentUpdating ? "Assigning..." : "Assign to me"}
+                    </button>
+                  )}
                   {teamMembers.length > 0 && (
                     <label className="hidden items-center gap-2 text-xs text-slate-500 lg:flex">
                       <span>Assigned to</span>
