@@ -37,6 +37,15 @@ export async function GET() {
       ]),
     ]);
 
+    const auditLogs = await db.collection("platformAdminAuditLogs")
+      .find({}, { projection: { action: 1, actorId: 1, targetWorkspaceId: 1, targetId: 1, details: 1, createdAt: 1 } })
+      .sort({ createdAt: -1 }).limit(50).toArray();
+    const auditActorIds = [...new Set(auditLogs.map((log) => log.actorId?.toString()).filter(Boolean))].map((id) => new ObjectId(id));
+    const auditActors = auditActorIds.length
+      ? await db.collection("users").find({ _id: { $in: auditActorIds } }, { projection: { name: 1, email: 1 } }).toArray()
+      : [];
+    const auditActorMap = new Map(auditActors.map((actor) => [actor._id.toString(), { name: actor.name || "", email: actor.email || "" }]));
+
     const ownerIds = [...new Set(workspaces.map((workspace) => workspace.ownerId?.toString()).filter(Boolean))].map((id) => new ObjectId(id));
     const owners = ownerIds.length
       ? await db.collection("users").find({ _id: { $in: ownerIds } }, { projection: { name: 1, email: 1, status: 1 } }).toArray()
@@ -55,6 +64,14 @@ export async function GET() {
         subscriptionStatus: workspace.subscription?.status || "active",
         createdAt: workspace.createdAt || null,
         owner: ownerMap.get(workspace.ownerId?.toString()) || null,
+      })),
+      auditLogs: auditLogs.map((log) => ({
+        id: log._id.toString(),
+        action: log.action,
+        actor: auditActorMap.get(log.actorId?.toString()) || null,
+        workspaceName: workspaces.find((workspace) => workspace._id.toString() === log.targetWorkspaceId?.toString())?.name || "Workspace",
+        details: log.details || null,
+        createdAt: log.createdAt || null,
       })),
       requests: requests.map((request) => ({
         id: request._id.toString(),
