@@ -101,7 +101,27 @@ export default function PlatformAdminClient() {
           </table>
         </div>
       </section>
-      <p className="text-xs leading-5 text-slate-500">Workspace changes are recorded in the platform admin audit log. This console does not process payments or send customer notifications. Workspace list is limited to the latest 100 records.</p>
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="border-b border-slate-100 p-5">
+          <h2 className="font-bold text-slate-900">Platform audit history</h2>
+          <p className="mt-1 text-sm text-slate-500">Latest 50 administrative actions, including plan approvals and workspace changes.</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[680px] text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3">Action</th><th className="px-5 py-3">Workspace</th><th className="px-5 py-3">Performed by</th><th className="px-5 py-3">Date</th></tr></thead>
+            <tbody className="divide-y divide-slate-100">
+              {(data?.auditLogs || []).map((log) => <tr key={log.id}>
+                <td className="px-5 py-4 font-medium text-slate-800">{String(log.action || "admin_action").replaceAll("_", " ")}</td>
+                <td className="px-5 py-4 text-slate-700">{log.workspaceName}</td>
+                <td className="px-5 py-4 text-slate-500">{log.actor?.email || log.actor?.name || "Platform admin"}</td>
+                <td className="px-5 py-4 text-slate-500">{log.createdAt ? new Date(log.createdAt).toLocaleString() : "—"}</td>
+              </tr>)}
+              {!data?.auditLogs?.length && <tr><td colSpan="4" className="px-5 py-10 text-center text-slate-500">No administrative actions recorded yet.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <p className="text-xs leading-5 text-slate-500">This console does not process payments or send customer notifications. Workspace list is limited to the latest 100 records and audit history to the latest 50 actions.</p>
     </div>
   );
 }
