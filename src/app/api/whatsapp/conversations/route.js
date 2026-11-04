@@ -127,6 +127,16 @@ export async function PATCH(request) {
     const db = await getDatabase();
     const updates = { updatedAt: new Date() };
 
+    if (Object.prototype.hasOwnProperty.call(body, "priority")) {
+      if (!["normal", "high"].includes(body.priority)) {
+        return NextResponse.json(
+          { success: false, message: "Invalid conversation priority." },
+          { status: 400 },
+        );
+      }
+      updates.priority = body.priority;
+    }
+
     if (Object.prototype.hasOwnProperty.call(body, "status")) {
       if (!["open", "closed"].includes(body.status)) {
         return NextResponse.json(
@@ -243,6 +253,7 @@ export async function PATCH(request) {
     return NextResponse.json({
       success: true,
       status: updates.status,
+      priority: updates.priority,
       assigneeUserId: updates.assigneeUserId?.toString() ?? updates.assigneeUserId,
       assigneeName: updates.assigneeName,
       assigneeEmail: updates.assigneeEmail,
