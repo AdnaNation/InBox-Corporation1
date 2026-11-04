@@ -123,7 +123,7 @@ export async function POST(request) {
   );
 
   const suppressions = await db.collection("contactSuppressions")
-    .find({ workspaceId, phone: { $in: valid } })
+    .find({ workspaceId, phone: { $in: valid }, active: { $ne: false } })
     .project({ phone: 1 })
     .toArray();
   const suppressedNumbers = new Set(suppressions.map((item) => item.phone));
