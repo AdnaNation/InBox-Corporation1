@@ -19,11 +19,11 @@ function percentage(value, total) {
   return total ? Math.round((value / total) * 100) : 0;
 }
 
-export default function CampaignDeliveryProgress({ campaignId, initialStatus, initialCounts, initialTotal }) {
+export default function CampaignDeliveryProgress({ campaignId, initialStatus, initialCounts, initialTotal, initialPauseReason }) {
   const [status, setStatus] = useState(initialStatus);
   const [counts, setCounts] = useState(initialCounts);
   const [total, setTotal] = useState(initialTotal);
-  const [pauseReason, setPauseReason] = useState("");
+  const [pauseReason, setPauseReason] = useState(initialPauseReason || "");
   const [lastUpdated, setLastUpdated] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -93,10 +93,10 @@ export default function CampaignDeliveryProgress({ campaignId, initialStatus, in
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl bg-slate-50 p-4">
-          <p className="text-xs text-slate-500">Recipients completed</p>
+          <p className="text-xs text-slate-500">Recipients processed</p>
           <p className="mt-1 text-2xl font-bold tabular-nums">{completed.toLocaleString()} <span className="text-sm font-medium text-slate-400">/ {total.toLocaleString()}</span></p>
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-green-500 transition-all" style={{ width: completion + "%" }} /></div>
-          <p className="mt-1 text-xs text-slate-500">{completion}% complete</p>
+          <p className="mt-1 text-xs text-slate-500">{completion}% processed</p>
         </div>
         <div className="rounded-xl bg-slate-50 p-4">
           <p className="text-xs text-slate-500">Delivered / read</p>
