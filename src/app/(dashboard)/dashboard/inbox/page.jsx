@@ -97,6 +97,7 @@ export default function InboxPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [assignmentFilter, setAssignmentFilter] = useState("all");
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [teamMembers, setTeamMembers] = useState([]);
   const [assignmentUpdating, setAssignmentUpdating] = useState(false);
@@ -360,6 +361,8 @@ export default function InboxPage() {
     const status = conversation.status || "open";
 
     if (statusFilter !== "all" && status !== statusFilter) return false;
+    if (assignmentFilter === "assigned" && !conversation.assigneeUserId) return false;
+    if (assignmentFilter === "unassigned" && conversation.assigneeUserId) return false;
     if (!searchText) return true;
 
     return (
@@ -505,6 +508,17 @@ export default function InboxPage() {
                 </button>
               ))}
             </div>
+
+            <select
+              value={assignmentFilter}
+              onChange={(event) => setAssignmentFilter(event.target.value)}
+              aria-label="Filter by assignment"
+              className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100"
+            >
+              <option value="all">All assignments</option>
+              <option value="assigned">Assigned</option>
+              <option value="unassigned">Unassigned</option>
+            </select>
 
             <input
               type="search"
