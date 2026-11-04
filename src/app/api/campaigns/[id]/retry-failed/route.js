@@ -178,7 +178,21 @@ export async function POST(request, { params }) {
                 $max: [0, { $subtract: [{ $ifNull: ["$retryCount", 1] }, 1] }],
               },
               attemptHistory: {
-                $slice: [{ $ifNull: ["$attemptHistory", []] }, 0, -1],
+                $slice: [
+                  { $ifNull: ["$attemptHistory", []] },
+                  0,
+                  {
+                    $max: [
+                      0,
+                      {
+                        $subtract: [
+                          { $size: { $ifNull: ["$attemptHistory", []] } },
+                          1,
+                        ],
+                      },
+                    ],
+                  },
+                ],
               },
               updatedAt: new Date(),
             },
