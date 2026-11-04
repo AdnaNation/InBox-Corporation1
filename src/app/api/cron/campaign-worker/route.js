@@ -184,14 +184,22 @@ export async function POST(request) {
             "optIn.status": true,
           })
         : null;
+      const suppression = liveContact?.phone
+        ? await db.collection("contactSuppressions").findOne({
+            workspaceId: campaign.workspaceId,
+            phone: liveContact.phone,
+          }, { projection: { _id: 1 } })
+        : null;
 
-      if (!liveContact || !liveContact.phone) {
+      if (!liveContact || !liveContact.phone || suppression) {
         await db.collection("campaignRecipients").updateOne(
           { _id: recipient._id, status: "processing" },
           {
             $set: {
               status: "skipped",
-              error: "Contact is no longer opted in or no valid phone number is available.",
+              error: suppression
+                ? "Contact has an active opt-out suppression and cannot receive campaign messages."
+                : "Contact is no longer opted in or no valid phone number is available.",
               updatedAt: new Date(),
             },
             $unset: { processingStartedAt: "" },
