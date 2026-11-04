@@ -46,7 +46,8 @@ export async function GET() {
       }];
     });
 
-    return NextResponse.json({ success: true, members });
+    const activity = await db.collection("workspaceAuditLogs").find({ workspaceId }).sort({ createdAt: -1 }).limit(20).toArray();
+    return NextResponse.json({ success: true, members, activity: activity.map((item) => ({ id: item._id.toString(), action: item.action, details: item.details || {}, createdAt: item.createdAt })) });
   } catch (error) {
     console.error("Load workspace team error:", error);
     return NextResponse.json(
