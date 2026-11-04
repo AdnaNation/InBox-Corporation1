@@ -15,9 +15,6 @@ export async function GET() {
     const workspaceId = new ObjectId(session.workspace.id);
     const workspace = await db.collection("workspaces").findOne({ _id: workspaceId }, { projection: { subscription: 1 } });
     if (!workspace) return NextResponse.json({ success: false, message: "Workspace not found." }, { status: 404 });
-    const start = new Date();
-    start.setUTCDate(1);
-    start.setUTCHours(0, 0, 0, 0);
     const [planState, pendingRequest] = await Promise.all([
       getWorkspacePlanUsage(db, workspaceId),
       db.collection("billingRequests").findOne({ workspaceId, status: "pending" }, { sort: { createdAt: -1 }, projection: { requestedPlan: 1, billingCycle: 1, createdAt: 1 } }),
