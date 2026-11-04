@@ -5,7 +5,7 @@ import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
 import { decryptSecret } from "@/lib/crypto";
 import { applyPendingWhatsAppStatus } from "@/lib/whatsapp-status";
-import { reserveWorkspaceMessageUsage } from "@/lib/plan-limits";
+import { reserveWorkspaceMessageUsage, releaseWorkspaceMessageUsage } from "@/lib/plan-limits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -235,6 +235,7 @@ export async function POST(request) {
     }
 
     if (!response.ok) {
+      await releaseWorkspaceMessageUsage(db, workspaceId, 1);
       return NextResponse.json(
         {
           success: false,
