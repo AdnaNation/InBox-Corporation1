@@ -1,5 +1,6 @@
 "use client";
 
+import ConversationNotes from "@/components/conversation-notes";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 function formatTime(value) {
@@ -673,6 +674,8 @@ export default function InboxPage() {
                   </button>
                 </div>
               </div>
+
+              <ConversationNotes conversationId={selectedId} />
 
               {/* Messages */}
               <div className="min-h-0 flex-1 overflow-y-auto bg-[#f7f8f5] px-3 py-5 sm:px-6">
