@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
+import { checkWorkspacePlanLimit } from "@/lib/plan-limits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -141,6 +142,13 @@ export async function POST(request) {
         },
         { status: 400 },
       );
+    }
+
+    const campaignQuota = await checkWorkspacePlanLimit(db, workspaceId, "campaigns", 1);
+    const messageQuota = await checkWorkspacePlanLimit(db, workspaceId, "messages", targetCount);
+    if (!campaignQuota.allowed || !messageQuota.allowed) {
+      const quota = !campaignQuota.allowed ? campaignQuota : messageQuota;
+      return NextResponse.json({ success: false, code: "PLAN_LIMIT_REACHED", message: quota.reason, plan: quota.plan, usage: quota.usage, limits: quota.limits, remainingMessages: messageQuota.remaining }, { status: 429 });
     }
 
     // Unique recipient per contact per campaign.
