@@ -138,6 +138,7 @@ export default async function CampaignReviewPage({ params, searchParams }) {
             "pending", "processing", "accepted", "sent", "delivered", "read", "failed", "unknown", "skipped",
           ].map((status) => [status, counts[status] || 0]))}
           initialTotal={totalRecipients}
+          initialPauseReason={campaign.pauseReason || ""}
         />
       </section>
 
