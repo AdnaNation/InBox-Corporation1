@@ -8,6 +8,7 @@ import CampaignQueueAction from "@/components/campaign-queue-action";
 import CampaignControls from "@/components/campaign-controls";
 import CampaignRecipientReview from "@/components/campaign-recipient-review";
 import CampaignDeliveryProgress from "@/components/campaign-delivery-progress";
+import CampaignRetryAction from "@/components/campaign-retry-action";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -215,6 +216,12 @@ export default async function CampaignReviewPage({ params, searchParams }) {
           campaignId={campaign._id.toString()}
           initialStatus={campaign.status}
         />
+        {campaign.status === "completed_with_issues" && counts.failed > 0 && ["owner", "admin"].includes(session.membership?.role) && (
+          <CampaignRetryAction
+            campaignId={campaign._id.toString()}
+            failedCount={counts.failed}
+          />
+        )}
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6">
