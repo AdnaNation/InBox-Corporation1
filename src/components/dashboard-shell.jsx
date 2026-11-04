@@ -17,6 +17,7 @@ import {
   Plug,
   BarChart3,
   KeyRound,
+  ShieldCheck,
 } from "lucide-react";
 
 const links = [
@@ -77,7 +78,7 @@ export default function DashboardShell({ session, children }) {
         </div>
       </div>
       <nav className="flex-1 space-y-1 px-3">
-        {links.map(({ href, label, icon: Icon }) => {
+        {[...links, ...(session.isPlatformAdmin ? [{ href: "/dashboard/platform-admin", label: "Platform admin", icon: ShieldCheck }] : [])].map(({ href, label, icon: Icon }) => {
           const active =
             navigationReady &&
             (pathname === href ||
