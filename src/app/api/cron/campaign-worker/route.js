@@ -20,6 +20,11 @@ export async function POST(request) {
 
   try {
     const db = await getDatabase();
+    const workerNow = new Date();
+    await db.collection("campaigns").updateMany(
+      { status: "scheduled", scheduledAt: { $lte: workerNow } },
+      { $set: { status: "queued", activatedAt: workerNow, updatedAt: workerNow } },
+    );
     let campaign = await db.collection("campaigns").findOneAndUpdate(
       { status: "queued" },
       { $set: { status: "sending", sendingStartedAt: new Date(), updatedAt: new Date() } },
