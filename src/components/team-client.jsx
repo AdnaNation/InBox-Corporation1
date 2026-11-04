@@ -5,6 +5,7 @@ import {Copy,Loader2,RefreshCw,UserPlus,Users,UserX,Clock} from "lucide-react";
 
 export default function TeamClient({currentRole}){
   const [members,setMembers]=useState([]);
+  const [activity,setActivity]=useState([]);
   const [invitations,setInvitations]=useState([]);
   const [email,setEmail]=useState("");
   const [role,setRole]=useState("agent");
@@ -20,7 +21,7 @@ export default function TeamClient({currentRole}){
       const md=await m.json(),id=await i.json();
       if(!m.ok)throw new Error(md.message||"Could not load members.");
       if(!i.ok)throw new Error(id.message||"Could not load invitations.");
-      setMembers(md.members||[]);setInvitations(id.invitations||[]);
+      setMembers(md.members||[]);setActivity(md.activity||[]);setInvitations(id.invitations||[]);
     }catch(e){setError(e.message);}
     finally{setLoading(false);}
   },[]);
@@ -86,6 +87,10 @@ export default function TeamClient({currentRole}){
     <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
       <div className="flex items-center gap-2"><Clock className="text-amber-600" size={20}/><h2 className="font-semibold">Pending invitations <span className="text-slate-400">({invitations.length})</span></h2></div>
       {loading?<p className="py-6 text-sm text-slate-500">Loading invitations...</p>:invitations.length===0?<p className="py-6 text-sm text-slate-500">No pending invitations.</p>:<div className="mt-4 divide-y divide-slate-100">{invitations.map(invite=><div key={invite.id} className="flex flex-wrap items-center justify-between gap-3 py-4"><div className="min-w-0"><p className="truncate text-sm font-semibold">{invite.email}</p><p className="mt-1 text-xs text-slate-500 capitalize">{invite.role} · Expires {new Date(invite.expiresAt).toLocaleDateString()}</p></div><button onClick={()=>revoke(invite.id)} className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"><UserX size={14}/>Revoke</button></div>)}</div>}
+    </section>
+    <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+      <div className="flex items-center gap-2"><Clock className="text-slate-500" size={20}/><h2 className="font-semibold">Recent team activity</h2></div>
+      {activity.length===0?<p className="py-5 text-sm text-slate-500">No team changes recorded yet.</p>:<div className="mt-3 divide-y divide-slate-100">{activity.map(item=><div key={item.id} className="py-3"><p className="text-sm font-medium">{item.action==="member_role_changed"?"Member role changed":"Member removed"}</p><p className="mt-1 text-xs text-slate-500">{item.details?.from&&item.details?.to?\x60${item.details.from} → ${item.details.to}\x60:item.details?.role?\x60Role: ${item.details.role}\x60:"Workspace access updated"} · {new Date(item.createdAt).toLocaleString()}</p></div>)}</div>}
     </section>
     <p className="mt-5 text-xs leading-5 text-slate-400">Workspace owners can invite admins and agents and change member roles. Admins can invite agents. A person must sign in using the exact invited email address to accept. An accepted invitation adds the member to the workspace; they may need to sign in again to switch workspaces.</p>
   </div>;
