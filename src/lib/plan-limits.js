@@ -27,6 +27,7 @@ export async function getWorkspacePlanUsage(db, workspaceId) {
     db.collection("messages").countDocuments({
       workspaceId,
       direction: "outbound",
+      status: { $in: ["accepted", "sent", "delivered", "read"] },
       timestamp: { $gte: monthStart },
     }),
     db.collection("campaigns").countDocuments({
