@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDatabase } from "@/lib/db";
 import { decryptSecret } from "@/lib/crypto";
+import { sendWhatsAppHealthAlert } from "@/lib/whatsapp-health-alerts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,6 +32,9 @@ export async function GET(request) {
     let attention = 0;
     let unavailable = 0;
     const failures = [];
+    let alertsSent = 0;
+    let alertsPending = 0;
+    let alertsFailed = 0;
 
     for (const account of accounts) {
       let outcome;
@@ -74,14 +78,20 @@ export async function GET(request) {
       );
 
       if (previousStatus !== outcome.status) {
+        const shouldNotify = outcome.status !== "healthy"
+          || (previousStatus !== "unknown" && previousStatus !== "healthy");
         await db.collection("whatsappHealthEvents").insertOne({
           workspaceId: account.workspaceId,
           accountId: account._id,
           phoneNumberId: account.phoneNumberId,
+          businessName: account.businessName || "",
+          displayPhoneNumber: account.displayPhoneNumber || "",
           previousStatus,
           status: outcome.status,
           tokenStatus: outcome.tokenStatus,
           message: outcome.message,
+          emailStatus: shouldNotify ? "pending" : "not_required",
+          emailAttempts: 0,
           checkedAt,
           createdAt: checkedAt,
         });
@@ -93,6 +103,63 @@ export async function GET(request) {
       if (outcome.status !== "healthy") failures.push({ phoneNumberId: account.phoneNumberId, status: outcome.status, message: outcome.message });
     }
 
+    const pendingEvents = await db.collection("whatsappHealthEvents").find({
+      $or: [
+        { emailStatus: "pending" },
+        { emailStatus: "failed", emailRetryAt: { $lte: checkedAt } },
+      ],
+    }).sort({ createdAt: 1 }).limit(25).toArray();
+
+    for (const event of pendingEvents) {
+      const workspace = await db.collection("workspaces").findOne(
+        { _id: event.workspaceId },
+        { projection: { name: 1, ownerId: 1 } },
+      );
+      const owner = workspace?.ownerId
+        ? await db.collection("users").findOne(
+            { _id: workspace.ownerId, status: "active" },
+            { projection: { email: 1 } },
+          )
+        : null;
+
+      if (!owner?.email) {
+        await db.collection("whatsappHealthEvents").updateOne(
+          { _id: event._id, emailStatus: { $in: ["pending", "failed"] } },
+          { $set: { emailStatus: "skipped", emailLastError: "Workspace owner email is unavailable.", emailUpdatedAt: checkedAt } },
+        );
+        continue;
+      }
+
+      try {
+        const delivery = await sendWhatsAppHealthAlert({
+          to: owner.email,
+          eventId: event._id.toString(),
+          workspaceName: workspace.name || "Your workspace",
+          businessName: event.businessName,
+          phoneNumber: event.displayPhoneNumber,
+          previousStatus: event.previousStatus,
+          status: event.status,
+          message: event.message,
+          checkedAt: event.checkedAt || event.createdAt,
+        });
+        if (!delivery.configured) {
+          alertsPending++;
+          continue;
+        }
+        await db.collection("whatsappHealthEvents").updateOne(
+          { _id: event._id, emailStatus: { $in: ["pending", "failed"] } },
+          { $set: { emailStatus: "sent", emailSentAt: new Date(), emailProviderId: delivery.providerId, emailUpdatedAt: new Date() }, $inc: { emailAttempts: 1 } },
+        );
+        alertsSent++;
+      } catch (error) {
+        await db.collection("whatsappHealthEvents").updateOne(
+          { _id: event._id, emailStatus: { $in: ["pending", "failed"] } },
+          { $set: { emailStatus: "failed", emailLastError: String(error?.message || "Email delivery failed.").slice(0, 300), emailRetryAt: new Date(Date.now() + 10 * 60 * 1000), emailUpdatedAt: new Date() }, $inc: { emailAttempts: 1 } },
+        );
+        alertsFailed++;
+      }
+    }
+
     return NextResponse.json({
       success: true,
       checkedAt: checkedAt.toISOString(),
@@ -100,6 +167,10 @@ export async function GET(request) {
       healthy,
       attention,
       unavailable,
+      alertsSent,
+      alertsPending,
+      alertsFailed,
+      emailConfigured: Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM),
       failures,
     });
   } catch (error) {

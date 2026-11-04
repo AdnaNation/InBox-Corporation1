@@ -253,8 +253,17 @@ export default function WhatsAppPage() {
                 : "No scheduled check has been recorded."}
             </p>
           </div>
+          <div className="mt-3 rounded-xl border border-slate-200 p-4">
+            <p className="text-sm font-semibold text-slate-800">Email alerts</p>
+            <p className="mt-1 text-xs leading-5 text-slate-600">
+              When the connection changes to attention or unavailable, and when it recovers, InBox Corporation emails the workspace owner at their account email address.
+            </p>
+            <p className="mt-2 text-xs leading-5 text-slate-500">
+              Email delivery requires <code>RESEND_API_KEY</code> and <code>EMAIL_FROM</code> in your Vercel project environment variables. The sender address must be verified in Resend. Until these are configured, alert events stay queued and will be sent by the next scheduled check after configuration.
+            </p>
+          </div>
           <p className="mt-3 text-xs leading-5 text-slate-500">
-            To enable automatic checks, add a cron job that calls <code>/api/cron/whatsapp-health</code> every 5 minutes with the same Authorization Bearer secret used by your campaign worker. This monitor records status changes; it does not send email or SMS alerts.
+            Automatic checks run every 5 minutes using your existing cron job and its Authorization Bearer secret. No additional cron job is needed.
           </p>
         </section>
       )}
