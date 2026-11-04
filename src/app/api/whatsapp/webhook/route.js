@@ -330,6 +330,13 @@ async function processStatus(db, account, status) {
     ? new Date(Number(status.timestamp) * 1000)
     : new Date();
 
+  const statusTimestampField = {
+    sent: "sentAt",
+    delivered: "deliveredAt",
+    read: "readAt",
+    failed: "failedAt",
+  }[status.status];
+
   const updateData = {
     workspaceId,
     waMessageId: status.id,
@@ -378,6 +385,11 @@ async function processStatus(db, account, status) {
               "$statusUpdatedAt",
             ],
           },
+          ...(statusTimestampField ? {
+            [statusTimestampField]: {
+              $ifNull: ["$" + statusTimestampField, statusDate],
+            },
+          } : {}),
           error: {
             $cond: [
               { $gt: [incomingRank, { $ifNull: ["$statusRank", 0] }] },
@@ -426,6 +438,11 @@ async function processStatus(db, account, status) {
               "$statusUpdatedAt",
             ],
           },
+          ...(statusTimestampField ? {
+            [statusTimestampField]: {
+              $ifNull: ["$" + statusTimestampField, statusDate],
+            },
+          } : {}),
           ...(updateData.error ? { error: updateData.error } : {}),
         },
       },
@@ -458,6 +475,7 @@ async function processStatus(db, account, status) {
           status: status.status,
           statusRank: incomingRank,
           statusUpdatedAt: statusDate,
+          ...(statusTimestampField ? { [statusTimestampField]: statusDate } : {}),
           updatedAt: new Date(),
           ...(updateData.error ? { error: updateData.error } : {}),
         },

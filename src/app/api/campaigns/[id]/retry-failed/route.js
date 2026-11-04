@@ -92,13 +92,48 @@ export async function POST(request, { params }) {
       [
         { $set: {
           lastError: "$error",
+          attemptHistory: {
+            $slice: [
+              {
+                $concatArrays: [
+                  { $ifNull: ["$attemptHistory", []] },
+                  [{
+                    status: "$status",
+                    error: "$error",
+                    waMessageId: "$waMessageId",
+                    acceptedAt: "$acceptedAt",
+                    sentAt: "$sentAt",
+                    deliveredAt: "$deliveredAt",
+                    readAt: "$readAt",
+                    failedAt: "$failedAt",
+                    statusUpdatedAt: "$statusUpdatedAt",
+                    retryQueuedAt: now,
+                  }],
+                ],
+              },
+              -20,
+            ],
+          },
           status: "pending",
           retryBatchId,
           retryQueuedAt: now,
           retryCount: { $add: [{ $ifNull: ["$retryCount", 0] }, 1] },
           updatedAt: now,
         } },
-        { $unset: "error" },
+        { $unset: [
+          "error",
+          "waMessageId",
+          "providerMessageId",
+          "statusRank",
+          "statusUpdatedAt",
+          "acceptedAt",
+          "sentAt",
+          "deliveredAt",
+          "readAt",
+          "failedAt",
+          "processingStartedAt",
+          "retryAt",
+        ] },
       ],
     );
 
@@ -135,7 +170,33 @@ export async function POST(request, { params }) {
       await db.collection("campaignRecipients").updateMany(
         { workspaceId, campaignId, status: "pending", retryBatchId },
         [
-          { $set: { status: "failed", error: "$lastError", updatedAt: new Date() } },
+          {
+            $set: {
+              status: "failed",
+              error: "$lastError",
+              retryCount: {
+                $max: [0, { $subtract: [{ $ifNull: ["$retryCount", 1] }, 1] }],
+              },
+              attemptHistory: {
+                $slice: [
+                  { $ifNull: ["$attemptHistory", []] },
+                  0,
+                  {
+                    $max: [
+                      0,
+                      {
+                        $subtract: [
+                          { $size: { $ifNull: ["$attemptHistory", []] } },
+                          1,
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+              updatedAt: new Date(),
+            },
+          },
           { $unset: ["lastError", "retryBatchId", "retryQueuedAt"] },
         ],
       );

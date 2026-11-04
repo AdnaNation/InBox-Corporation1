@@ -42,6 +42,11 @@ export async function applyPendingWhatsAppStatus(db, workspaceId, waMessageId) {
             ],
           },
 
+          sentAt: pending.sentAt ? { $ifNull: [pending.sentAt, "$sentAt"] } : "$sentAt",
+          deliveredAt: pending.deliveredAt ? { $ifNull: [pending.deliveredAt, "$deliveredAt"] } : "$deliveredAt",
+          readAt: pending.readAt ? { $ifNull: [pending.readAt, "$readAt"] } : "$readAt",
+          failedAt: pending.failedAt ? { $ifNull: [pending.failedAt, "$failedAt"] } : "$failedAt",
+
           error: {
             $cond: [
               {

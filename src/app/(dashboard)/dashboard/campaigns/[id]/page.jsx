@@ -238,12 +238,17 @@ export default async function CampaignReviewPage({ params, searchParams }) {
         </div>
 
         <div className="mt-5 overflow-x-auto">
-          <table className="w-full min-w-150 text-left text-sm">
+          <table className="w-full min-w-[1100px] text-left text-sm">
             <thead className="bg-slate-50 text-xs text-slate-500">
               <tr>
                 <th className="px-4 py-3">Contact</th>
                 <th className="px-4 py-3">Phone</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Accepted</th>
+                <th className="px-4 py-3">Sent</th>
+                <th className="px-4 py-3">Delivered</th>
+                <th className="px-4 py-3">Read</th>
+                <th className="px-4 py-3">Retry history</th>
                 <th className="px-4 py-3">Error / review note</th>
                 <th className="px-4 py-3">Manual review</th>
               </tr>
@@ -263,8 +268,54 @@ export default async function CampaignReviewPage({ params, searchParams }) {
                   </td>
                   <td className="px-4 py-3">
                     <Status value={recipient.status} />
+                    {recipient.statusUpdatedAt && (
+                      <p className="mt-1 whitespace-nowrap text-[11px] text-slate-400">
+                        Updated {new Date(recipient.statusUpdatedAt).toLocaleString()}
+                      </p>
+                    )}
                   </td>
-                  <td className="max-w-xs truncate px-4 py-3 text-xs text-red-600">
+                  {[
+                    ["acceptedAt", recipient.acceptedAt],
+                    ["sentAt", recipient.sentAt],
+                    ["deliveredAt", recipient.deliveredAt],
+                    ["readAt", recipient.readAt],
+                  ].map(([key, value]) => (
+                    <td key={key} className="whitespace-nowrap px-4 py-3 text-xs text-slate-600">
+                      {value ? new Date(value).toLocaleString() : "—"}
+                    </td>
+                  ))}
+                  <td className="px-4 py-3 text-xs text-slate-600">
+                    <p className="font-semibold">{recipient.retryCount || 0} retr{recipient.retryCount === 1 ? "y" : "ies"}</p>
+                    {recipient.retryQueuedAt && (
+                      <p className="mt-1 whitespace-nowrap text-slate-500">
+                        Last queued {new Date(recipient.retryQueuedAt).toLocaleString()}
+                      </p>
+                    )}
+                    {recipient.lastError && (
+                      <p className="mt-1 max-w-64 text-red-600">
+                        Previous error: {displayText(recipient.lastError)}
+                      </p>
+                    )}
+                    {Array.isArray(recipient.attemptHistory) && recipient.attemptHistory.length > 0 && (
+                      <details className="mt-1">
+                        <summary className="cursor-pointer text-green-700">View attempts ({recipient.attemptHistory.length})</summary>
+                        <div className="mt-2 space-y-2">
+                          {recipient.attemptHistory.map((attempt, index) => (
+                            <div key={index} className="rounded-lg bg-slate-50 p-2">
+                              <p>Attempt {index + 1}: {displayText(attempt.status)}</p>
+                              {attempt.retryQueuedAt && <p>Retry queued: {new Date(attempt.retryQueuedAt).toLocaleString()}</p>}
+                              {attempt.acceptedAt && <p>Accepted: {new Date(attempt.acceptedAt).toLocaleString()}</p>}
+                              {attempt.sentAt && <p>Sent: {new Date(attempt.sentAt).toLocaleString()}</p>}
+                              {attempt.deliveredAt && <p>Delivered: {new Date(attempt.deliveredAt).toLocaleString()}</p>}
+                              {attempt.readAt && <p>Read: {new Date(attempt.readAt).toLocaleString()}</p>}
+                              {attempt.error && <p className="text-red-600">Error: {displayText(attempt.error)}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+                  </td>
+                  <td className="max-w-xs px-4 py-3 text-xs text-red-600">
                     {displayText(recipient.error || recipient.manualReview?.note)}
                   </td>
                   <td className="px-4 py-3">
