@@ -284,6 +284,10 @@ async function processIncomingMessage(db, account, value, message) {
           createdAt: new Date(),
         },
         $set: {
+          active: true,
+          reason: "inbound_keyword",
+          keyword: content.text.trim().toLowerCase(),
+          optedOutAt: optOutAt,
           lastOptOutMessageId: message.id,
           updatedAt: new Date(),
         },
