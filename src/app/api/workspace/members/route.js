@@ -84,3 +84,37 @@ export async function DELETE(request) {
     return NextResponse.json({success:false,message:"Could not remove member."},{status:500});
   }
 }
+
+
+export async function PATCH(request) {
+  try {
+    if (!isSameOrigin(request)) return NextResponse.json({ success: false, message: "Invalid request origin." }, { status: 403 });
+    const session = await getSession();
+    if (!session) return NextResponse.json({ success: false, message: "Unauthorized." }, { status: 401 });
+    if (session.membership.role !== "owner") return NextResponse.json({ success: false, message: "Only the workspace owner can change member roles." }, { status: 403 });
+    const { userId, role } = await request.json();
+    if (!ObjectId.isValid(userId) || !["admin", "agent"].includes(role)) return NextResponse.json({ success: false, message: "Choose a valid member and role." }, { status: 400 });
+    if (userId === session.user.id) return NextResponse.json({ success: false, message: "Your owner role cannot be changed." }, { status: 400 });
+    const db = await getDatabase();
+    const workspaceId = new ObjectId(session.workspace.id);
+    const targetUserId = new ObjectId(userId);
+    const target = await db.collection("memberships").findOne({ workspaceId, userId: targetUserId, status: "active" });
+    if (!target) return NextResponse.json({ success: false, message: "Active member not found." }, { status: 404 });
+    if (target.role === "owner") return NextResponse.json({ success: false, message: "The workspace owner role cannot be changed." }, { status: 403 });
+    if (target.role === role) return NextResponse.json({ success: true, message: "This member already has that role." });
+    const now = new Date();
+    const updated = await db.collection("memberships").updateOne(
+      { _id: target._id, workspaceId, status: "active", role: target.role },
+      { $set: { role, updatedAt: now, roleUpdatedAt: now, roleUpdatedBy: new ObjectId(session.user.id) } },
+    );
+    if (!updated.modifiedCount) return NextResponse.json({ success: false, message: "Member role changed elsewhere. Refresh and try again." }, { status: 409 });
+    await db.collection("workspaceAuditLogs").insertOne({
+      workspaceId, action: "member_role_changed", actorId: new ObjectId(session.user.id), targetUserId,
+      details: { from: target.role, to: role }, createdAt: now,
+    });
+    return NextResponse.json({ success: true, message: "Member role updated." });
+  } catch (error) {
+    console.error("Update workspace member role error:", error);
+    return NextResponse.json({ success: false, message: "Could not update member role." }, { status: 500 });
+  }
+}
