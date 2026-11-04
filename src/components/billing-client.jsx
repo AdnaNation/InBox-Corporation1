@@ -68,9 +68,9 @@ export default function BillingClient() {
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">{data?.pendingRequest ? "Request pending" : "Workspace plan"}</span>
         </div>
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          <Usage label="Contacts" value={data?.usage?.contacts} />
-          <Usage label="Messages this month" value={data?.usage?.messagesThisMonth} />
-          <Usage label="Campaigns this month" value={data?.usage?.campaignsThisMonth} />
+          <Usage label="Contacts" value={data?.usage?.contacts} limit={data?.limits?.contacts} />
+          <Usage label="Messages this month" value={data?.usage?.messagesThisMonth} limit={data?.limits?.messagesThisMonth} />
+          <Usage label="Campaigns this month" value={data?.usage?.campaignsThisMonth} limit={data?.limits?.campaignsThisMonth} />
         </div>
         {data?.pendingRequest && <p className="mt-5 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">You have a pending request for the {data.pendingRequest.plan} plan ({data.pendingRequest.billingCycle}). Our team will contact you.</p>}
         {loading && <p className="mt-4 text-sm text-slate-500">Loading usage…</p>}
@@ -110,9 +110,10 @@ export default function BillingClient() {
   );
 }
 
-function Usage({ label, value }) {
+function Usage({ label, value, limit }) {
   return <div className="rounded-xl bg-slate-50 p-4">
     <p className="text-xs font-medium text-slate-500">{label}</p>
     <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{number(value)}</p>
+    {limit != null && <p className="mt-1 text-xs text-slate-500">of {number(limit)} included</p>}
   </div>;
 }
