@@ -170,7 +170,19 @@ export async function POST(request, { params }) {
       await db.collection("campaignRecipients").updateMany(
         { workspaceId, campaignId, status: "pending", retryBatchId },
         [
-          { $set: { status: "failed", error: "$lastError", updatedAt: new Date() } },
+          {
+            $set: {
+              status: "failed",
+              error: "$lastError",
+              retryCount: {
+                $max: [0, { $subtract: [{ $ifNull: ["$retryCount", 1] }, 1] }],
+              },
+              attemptHistory: {
+                $slice: [{ $ifNull: ["$attemptHistory", []] }, 0, -1],
+              },
+              updatedAt: new Date(),
+            },
+          },
           { $unset: ["lastError", "retryBatchId", "retryQueuedAt"] },
         ],
       );
