@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { getWorkspacePlanUsage } from "@/lib/plan-limits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,20 +15,16 @@ export async function GET() {
     const workspaceId = new ObjectId(session.workspace.id);
     const workspace = await db.collection("workspaces").findOne({ _id: workspaceId }, { projection: { subscription: 1 } });
     if (!workspace) return NextResponse.json({ success: false, message: "Workspace not found." }, { status: 404 });
-    const start = new Date();
-    start.setUTCDate(1);
-    start.setUTCHours(0, 0, 0, 0);
-    const [contacts, messages, campaigns, pendingRequest] = await Promise.all([
-      db.collection("contacts").countDocuments({ workspaceId }),
-      db.collection("messages").countDocuments({ workspaceId, timestamp: { $gte: start } }),
-      db.collection("campaigns").countDocuments({ workspaceId, createdAt: { $gte: start } }),
+    const [planState, pendingRequest] = await Promise.all([
+      getWorkspacePlanUsage(db, workspaceId),
       db.collection("billingRequests").findOne({ workspaceId, status: "pending" }, { sort: { createdAt: -1 }, projection: { requestedPlan: 1, billingCycle: 1, createdAt: 1 } }),
     ]);
     return NextResponse.json({
       success: true,
-      plan: workspace.subscription?.plan || "free",
+      plan: planState.plan,
       subscriptionStatus: workspace.subscription?.status || "active",
-      usage: { contacts, messagesThisMonth: messages, campaignsThisMonth: campaigns },
+      usage: { contacts: planState.usage.contacts, messagesThisMonth: planState.usage.messages, campaignsThisMonth: planState.usage.campaigns },
+      limits: { contacts: planState.limits.contacts, messagesThisMonth: planState.limits.messages, campaignsThisMonth: planState.limits.campaigns },
       pendingRequest: pendingRequest ? { plan: pendingRequest.requestedPlan, billingCycle: pendingRequest.billingCycle, createdAt: pendingRequest.createdAt } : null,
       paymentEnabled: false,
     });
