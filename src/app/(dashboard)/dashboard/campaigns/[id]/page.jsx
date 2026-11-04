@@ -238,7 +238,7 @@ export default async function CampaignReviewPage({ params, searchParams }) {
         </div>
 
         <div className="mt-5 overflow-x-auto">
-          <table className="w-full min-w-275 text-left text-sm">
+          <table className="w-full min-w-[1100px] text-left text-sm">
             <thead className="bg-slate-50 text-xs text-slate-500">
               <tr>
                 <th className="px-4 py-3">Contact</th>
