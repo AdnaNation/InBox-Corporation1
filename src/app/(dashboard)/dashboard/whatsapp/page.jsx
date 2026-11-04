@@ -22,6 +22,8 @@ export default function WhatsAppPage() {
   const [loadingAccount, setLoadingAccount] = useState(true);
   const [message, setMessage] = useState("");
   const [messageError, setMessageError] = useState(false);
+  const [replacementToken, setReplacementToken] = useState("");
+  const [savingToken, setSavingToken] = useState(false);
 
   async function loadAccount() {
     setLoadingAccount(true);
@@ -81,6 +83,31 @@ export default function WhatsAppPage() {
       setMessageError(true);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function updateAccessToken(e) {
+    e.preventDefault();
+    if (!replacementToken.trim()) return;
+    setSavingToken(true);
+    setMessage("");
+    setMessageError(false);
+    try {
+      const response = await fetch("/api/whatsapp/account/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken: replacementToken.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Could not update access token.");
+      setReplacementToken("");
+      setMessage(data.message || "Access token updated and verified with Meta.");
+      await loadHealth();
+    } catch (error) {
+      setMessage(error.message || "Could not update access token.");
+      setMessageError(true);
+    } finally {
+      setSavingToken(false);
     }
   }
 
@@ -194,6 +221,37 @@ export default function WhatsAppPage() {
             </div>
           ) : <p className="mt-5 text-sm text-slate-500">Health information is not available yet. Select Check now.</p>}
         </section>
+      )}
+
+      {account && (
+        <form onSubmit={updateAccessToken} className="mb-5 rounded-2xl border border-slate-200 bg-white p-6">
+          <div className="mb-3 flex items-center gap-3">
+            <span className="rounded-xl bg-green-50 p-3 text-green-700"><ShieldCheck size={20} /></span>
+            <div>
+              <h2 className="font-semibold">Update access token</h2>
+              <p className="text-xs text-slate-500">Keep the same WhatsApp number and business account.</p>
+            </div>
+          </div>
+          <p className="mb-4 text-sm leading-6 text-slate-600">
+            Paste a replacement Meta access token. InBox Corporation will verify it against your connected Phone Number ID before saving it. Your current token stays active if verification fails.
+          </p>
+          <label className="block text-sm font-medium">
+            New Meta access token
+            <input
+              required
+              type="password"
+              autoComplete="new-password"
+              value={replacementToken}
+              onChange={(e) => setReplacementToken(e.target.value)}
+              placeholder="Paste the new access token"
+              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-green-500"
+            />
+          </label>
+          <button disabled={savingToken || !replacementToken.trim()} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3 font-semibold text-white disabled:opacity-50">
+            {savingToken ? <Loader2 className="animate-spin" /> : <ShieldCheck size={18} />}
+            Verify and update token
+          </button>
+        </form>
       )}
 
       {!loadingAccount && <WhatsAppEmbeddedSignup connected={Boolean(account)} onConnected={loadAccount} />}
