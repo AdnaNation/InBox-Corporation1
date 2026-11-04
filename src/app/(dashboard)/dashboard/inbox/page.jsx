@@ -603,6 +603,12 @@ export default function InboxPage() {
                           </span>
                         )}
                       </div>
+
+                      <p className={`mt-1 truncate text-[10px] font-medium ${conversation.assigneeName ? "text-indigo-600" : "text-slate-400"}`}>
+                        {conversation.assigneeName
+                          ? `Assigned to ${conversation.assigneeName}`
+                          : "Unassigned"}
+                      </p>
                     </div>
                   </button>
                 );
