@@ -89,6 +89,10 @@ async function ensureIndexes(db) {
       db
         .collection("messages")
         .createIndex({ workspaceId: 1, conversationId: 1, timestamp: -1 }),
+
+      db
+        .collection("contactSuppressions")
+        .createIndex({ workspaceId: 1, phone: 1 }, { unique: true }),
     ]).catch((error) => {
       indexesPromise = null;
       throw error;
@@ -164,6 +168,12 @@ function extractMessageContent(message) {
 // --------------------------------------------------
 // PROCESS INCOMING MESSAGE
 // --------------------------------------------------
+
+function isOptOutMessage(message) {
+  if (message?.type !== "text") return false;
+  const text = String(message.text?.body || "").trim().toLowerCase();
+  return /^(stop|stop all|unsubscribe|cancel|end|quit|remove|opt ?out)[.!\s]*$/.test(text);
+}
 
 async function processIncomingMessage(db, account, value, message) {
   const workspaceId = account.workspaceId;
@@ -256,6 +266,44 @@ async function processIncomingMessage(db, account, value, message) {
   // Extract message data.
 
   const content = extractMessageContent(message);
+
+  // A clear opt-out keyword immediately revokes marketing consent.
+  // Keep a durable workspace-level suppression record so deleting and
+  // re-importing a contact cannot silently restore consent.
+  if (isOptOutMessage(message)) {
+    const optOutAt = timestamp;
+    await db.collection("contactSuppressions").updateOne(
+      { workspaceId, phone: waId },
+      {
+        $setOnInsert: {
+          workspaceId,
+          phone: waId,
+          reason: "inbound_keyword",
+          keyword: content.text.trim().toLowerCase(),
+          optedOutAt: optOutAt,
+          createdAt: new Date(),
+        },
+        $set: {
+          lastOptOutMessageId: message.id,
+          updatedAt: new Date(),
+        },
+      },
+      { upsert: true },
+    );
+
+    await db.collection("contacts").updateMany(
+      { workspaceId, phone: waId },
+      {
+        $set: {
+          "optIn.status": false,
+          "optIn.revokedAt": optOutAt,
+          "optIn.revocationSource": "whatsapp_inbound_keyword",
+          "optIn.revocationMessageId": message.id,
+          updatedAt: new Date(),
+        },
+      },
+    );
+  }
 
   // Insert message only once.
   // waMessageId is unique within a workspace.

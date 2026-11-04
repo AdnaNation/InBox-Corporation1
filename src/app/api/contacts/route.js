@@ -122,15 +122,24 @@ export async function POST(request) {
     existingContacts.map((contact) => contact.phone),
   );
 
-  const newNumbers = valid.filter((number) => !existingNumbers.has(number));
+  const suppressions = await db.collection("contactSuppressions")
+    .find({ workspaceId, phone: { $in: valid } })
+    .project({ phone: 1 })
+    .toArray();
+  const suppressedNumbers = new Set(suppressions.map((item) => item.phone));
+  const allowedNumbers = valid.filter((number) => !suppressedNumbers.has(number));
+  const newNumbers = allowedNumbers.filter((number) => !existingNumbers.has(number));
 
   if (newNumbers.length === 0) {
     return NextResponse.json({
       success: true,
-      message: "All provided numbers already exist.",
+      message: suppressedNumbers.size
+        ? "Suppressed numbers were excluded. No new contacts were added."
+        : "All provided numbers already exist.",
       contacts: [],
       added: 0,
       duplicates: existingNumbers.size,
+      suppressed: [...suppressedNumbers],
       invalid,
     });
   }
@@ -166,7 +175,7 @@ export async function POST(request) {
       id: result.insertedIds[index].toString(),
       name: contact.name,
       phone: contact.phone,
-      optedIn: true,
+      optedIn: contact.optIn.status === true,
       tags: contact.tags,
       createdAt: now.toISOString(),
     }));
@@ -178,6 +187,7 @@ export async function POST(request) {
         contacts: insertedContacts,
         added: insertedContacts.length,
         duplicates: existingNumbers.size,
+        suppressed: [...suppressedNumbers],
         invalid,
       },
       { status: 201 },
@@ -205,6 +215,7 @@ export async function POST(request) {
         })),
         added: saved.length - existingNumbers.size,
         duplicates: existingNumbers.size,
+        suppressed: [...suppressedNumbers],
         invalid,
       });
     }

@@ -190,12 +190,30 @@ export async function POST(request) {
     const userId = new ObjectId(session.user.id);
     const now = new Date();
 
-    const quota = await checkWorkspacePlanLimit(db, workspaceId, "contacts", validContacts.length);
+    const suppressionRows = await db.collection("contactSuppressions")
+      .find({ workspaceId, phone: { $in: validContacts.map((contact) => contact.phone) } })
+      .project({ phone: 1 })
+      .toArray();
+    const suppressedNumbers = new Set(suppressionRows.map((item) => item.phone));
+    const importableContacts = validContacts.filter((contact) => !suppressedNumbers.has(contact.phone));
+
+    if (importableContacts.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: "All valid numbers are already present or suppressed.",
+        added: 0,
+        duplicates: validContacts.length - suppressedNumbers.size,
+        suppressed: suppressedNumbers.size,
+        invalid: invalidRows,
+      });
+    }
+
+    const quota = await checkWorkspacePlanLimit(db, workspaceId, "contacts", importableContacts.length);
     if (!quota.allowed) {
       return NextResponse.json({ success: false, code: "PLAN_LIMIT_REACHED", message: quota.reason, plan: quota.plan, usage: quota.usage, limits: quota.limits }, { status: 429 });
     }
 
-    const operations = validContacts.map((contact) => ({
+    const operations = importableContacts.map((contact) => ({
       updateOne: {
         filter: {
           workspaceId,
@@ -228,7 +246,8 @@ export async function POST(request) {
       success: true,
       message: "CSV import completed.",
       added: result.upsertedCount,
-      duplicates: validContacts.length - result.upsertedCount,
+      duplicates: importableContacts.length - result.upsertedCount,
+      suppressed: suppressedNumbers.size,
       invalid: invalidRows,
     });
   } catch (error) {
