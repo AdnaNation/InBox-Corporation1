@@ -82,6 +82,7 @@ export async function GET(request) {
 
     return NextResponse.json({
       success: true,
+      currentUserId: session.user.id,
       conversations,
     });
   } catch (error) {
@@ -137,11 +138,24 @@ export async function PATCH(request) {
     }
 
     if (Object.prototype.hasOwnProperty.call(body, "assigneeUserId")) {
-      if (!["owner", "admin"].includes(session.membership?.role)) {
-        return NextResponse.json(
-          { success: false, message: "Only workspace owners and admins can assign conversations." },
-          { status: 403 },
-        );
+      const canManageAssignments = ["owner", "admin"].includes(session.membership?.role);
+      if (!canManageAssignments) {
+        if (body.assigneeUserId !== session.user.id) {
+          return NextResponse.json(
+            { success: false, message: "Agents can only assign unassigned conversations to themselves." },
+            { status: 403 },
+          );
+        }
+        const existingConversation = await db.collection("conversations").findOne({
+          _id: new ObjectId(conversationId),
+          workspaceId,
+        }, { projection: { assigneeUserId: 1 } });
+        if (existingConversation?.assigneeUserId && existingConversation.assigneeUserId.toString() !== session.user.id) {
+          return NextResponse.json(
+            { success: false, message: "This conversation is already assigned to another team member." },
+            { status: 409 },
+          );
+        }
       }
 
       if (body.assigneeUserId === null || body.assigneeUserId === "") {
