@@ -161,6 +161,28 @@ export default function WhatsAppPage() {
                 {health.connectionStatus === "healthy" ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
                 <div><p className="font-semibold">{health.connectionStatus === "healthy" ? "Connection healthy" : "Attention required"}</p><p className="mt-1">{health.message || "Meta account check completed."}</p></div>
               </div>
+              {health.tokenExpiryStatus && (
+                <div className={`mt-4 rounded-xl border p-4 text-sm ${
+                  health.tokenExpiryStatus === "expired" || health.tokenExpiryStatus === "expiring"
+                    ? "border-amber-200 bg-amber-50 text-amber-900"
+                    : "border-slate-200 bg-slate-50 text-slate-700"
+                }`}>
+                  <p className="font-semibold">Access token expiry</p>
+                  <p className="mt-1">
+                    {health.tokenExpiryStatus === "unknown"
+                      ? "Meta did not provide an expiry date for this token."
+                      : health.tokenExpiresAt
+                        ? `${health.tokenExpiryStatus === "expired" ? "Expired" : health.tokenExpiryStatus === "expiring" ? "Expires soon" : "Expires"}: ${new Date(health.tokenExpiresAt).toLocaleString()}`
+                        : "Expiry information is unavailable."}
+                  </p>
+                  {health.dataAccessExpiresAt && (
+                    <p className="mt-1 text-xs">Meta data access expiry: {new Date(health.dataAccessExpiresAt).toLocaleString()}</p>
+                  )}
+                  {(health.tokenExpiryStatus === "expired" || health.tokenExpiryStatus === "expiring") && (
+                    <p className="mt-2">Reconnect using the Meta button below before messaging is interrupted.</p>
+                  )}
+                </div>
+              )}
               {health.tokenStatus === "valid" && (
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <div className="rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Access token</p><p className="mt-1 flex items-center gap-2 text-sm font-semibold text-green-700"><CheckCircle2 size={15} /> Valid</p></div>
@@ -178,7 +200,7 @@ export default function WhatsAppPage() {
 
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
         <div className="flex items-center gap-2 font-semibold"><AlertTriangle size={18} />Developer setup required</div>
-        <p className="mt-1">Meta Embedded Signup is available above once your v4 configuration is added. Manual credentials remain as a developer fallback; coexistence onboarding and automated token-expiry handling are not included yet.</p>
+        <p className="mt-1">Meta Embedded Signup is available above once your v4 configuration is added. Token expiry is monitored when Meta provides an expiry timestamp; reconnect through Meta when the dashboard shows an expiry warning. Manual credentials remain as a developer fallback.</p>
       </div>
 
       <form onSubmit={submit} className="mt-5 rounded-2xl border border-slate-200 bg-white p-6">
