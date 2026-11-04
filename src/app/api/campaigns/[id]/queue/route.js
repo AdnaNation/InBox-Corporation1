@@ -72,8 +72,8 @@ export async function POST(request, { params }) {
       return NextResponse.json({ success: false, message: "The exact template and language must currently be approved by Meta." }, { status: 409 });
     }
 
-    const body = (template.components || []).find((item) => item.type === "BODY");
-    const variableCount = new Set((body?.text || "").match(/\{\{\d+\}\}/g) || []).size;
+    const templateBody = (template.components || []).find((item) => item.type === "BODY");
+    const variableCount = new Set((templateBody?.text || "").match(/\{\{\d+\}\}/g) || []).size;
     if (variableCount !== parameters.length) {
       return NextResponse.json({ success: false, message: "Meta's current template requires " + variableCount + " body parameter(s); this draft has " + parameters.length + "." }, { status: 409 });
     }
