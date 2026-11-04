@@ -26,7 +26,11 @@ export default function ConversationNotes({ conversationId }) {
   }, [conversationId]);
 
   useEffect(() => {
-    if (!open || !conversationId) return;
+    if (!conversationId) {
+      setNotes([]);
+      setLoading(false);
+      return;
+    }
     let active = true;
     setLoading(true);
     fetch(`/api/whatsapp/conversations/notes?conversationId=${encodeURIComponent(conversationId)}`, { cache: "no-store" })
@@ -38,7 +42,7 @@ export default function ConversationNotes({ conversationId }) {
       .catch((err) => active && setError(err.message || "Could not load notes."))
       .finally(() => active && setLoading(false));
     return () => { active = false; };
-  }, [open, conversationId]);
+  }, [conversationId]);
 
   async function addNote(event) {
     event.preventDefault();
