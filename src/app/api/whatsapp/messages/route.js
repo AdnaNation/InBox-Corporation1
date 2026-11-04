@@ -5,7 +5,7 @@ import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
 import { decryptSecret } from "@/lib/crypto";
 import { applyPendingWhatsAppStatus } from "@/lib/whatsapp-status";
-import { reserveWorkspaceMessageUsage } from "@/lib/plan-limits";
+import { reserveWorkspaceMessageUsage, releaseWorkspaceMessageUsage } from "@/lib/plan-limits";
 
 export const runtime = "nodejs";
 
@@ -153,6 +153,7 @@ export async function POST(request) {
     const metaData = await metaResponse.json();
 
     if (!metaResponse.ok) {
+      await releaseWorkspaceMessageUsage(db, workspaceId, 1);
       console.error("Meta send message error:", metaData);
 
       return NextResponse.json(
