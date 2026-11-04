@@ -107,7 +107,7 @@ export async function POST(request, { params }) {
     );
   }
 
-  await db.collection("auditLogs").insertOne({
+  await db.collection("workspaceAuditLogs").insertOne({
     workspaceId,
     actorUserId: new ObjectId(session.user.id),
     action: "contact.consent_reinstated",
