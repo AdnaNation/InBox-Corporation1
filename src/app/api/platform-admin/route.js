@@ -126,6 +126,9 @@ export async function POST(request) {
     if (action === "set-workspace-status" || action === "set-workspace-plan") {
       if (!ObjectId.isValid(body.workspaceId)) return NextResponse.json({ success: false, message: "Invalid workspace." }, { status: 400 });
       const workspaceId = new ObjectId(body.workspaceId);
+      if (action === "set-workspace-status" && body.status === "suspended" && workspaceId.toString() === session.workspace.id) {
+        return NextResponse.json({ success: false, message: "You cannot suspend the workspace used for your current platform admin session." }, { status: 409 });
+      }
       let update;
       let auditAction;
 
