@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { getDatabase } from "@/lib/db";
 import { decryptSecret } from "@/lib/crypto";
 import { applyPendingWhatsAppStatus } from "@/lib/whatsapp-status";
+import { checkWorkspacePlanLimit } from "@/lib/plan-limits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -112,6 +113,24 @@ export async function POST(request) {
         processed: 0,
         message: "Campaign was paused or changed before a recipient could be claimed.",
       });
+    }
+
+    const messageQuota = await checkWorkspacePlanLimit(db, campaign.workspaceId, "messages", 1);
+    if (!messageQuota.allowed) {
+      await db.collection("campaigns").updateOne(
+        { _id: campaign._id, workspaceId: campaign.workspaceId, status: "sending" },
+        {
+          $set: { status: "paused", pauseReason: messageQuota.reason, pausedAt: new Date(), updatedAt: new Date() },
+        },
+      );
+      await leaseCollection.updateOne(
+        { _id: leaseKey, leaseOwner },
+        {
+          $set: { leaseUntil: new Date(0), nextAllowedAt: new Date(Date.now() + 2000), updatedAt: new Date() },
+          $unset: { leaseOwner: "" },
+        },
+      );
+      return NextResponse.json({ success: false, code: "PLAN_LIMIT_REACHED", message: messageQuota.reason, plan: messageQuota.plan, usage: messageQuota.usage, limits: messageQuota.limits }, { status: 429 });
     }
 
     // A crashed invocation must never cause an automatic duplicate send.
