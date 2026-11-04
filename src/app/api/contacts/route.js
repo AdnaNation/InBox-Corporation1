@@ -35,6 +35,13 @@ export async function GET(request) {
     .limit(limit)
     .toArray();
 
+  const suppressedRows = await db.collection("contactSuppressions").find({
+    workspaceId: new ObjectId(session.workspace.id),
+    phone: { $in: contacts.map((contact) => contact.phone) },
+    active: { $ne: false },
+  }).project({ phone: 1 }).toArray();
+  const suppressedPhones = new Set(suppressedRows.map((item) => item.phone));
+
   return NextResponse.json({
     success: true,
     contacts: contacts.map((contact) => ({
@@ -42,6 +49,7 @@ export async function GET(request) {
       name: contact.name,
       phone: contact.phone,
       optedIn: contact.optIn?.status === true,
+      suppressed: suppressedPhones.has(contact.phone),
       tags: contact.tags || [],
       createdAt: contact.createdAt?.toISOString(),
     })),
