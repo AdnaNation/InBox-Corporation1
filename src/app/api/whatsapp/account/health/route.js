@@ -33,6 +33,9 @@ export async function GET() {
           tokenExpiresAt: 1,
           dataAccessExpiresAt: 1,
           tokenExpiryKnown: 1,
+          lastHealthCheckAt: 1,
+          lastHealthStatus: 1,
+          lastHealthMessage: 1,
         },
       },
     );
@@ -147,6 +150,9 @@ export async function GET() {
         qualityRating: result.quality_rating || "UNKNOWN",
         codeVerificationStatus: result.code_verification_status || "UNKNOWN",
         platformType: result.platform_type || "UNKNOWN",
+        lastAutomatedCheckAt: account.lastHealthCheckAt?.toISOString?.() || account.lastHealthCheckAt || null,
+        lastAutomatedStatus: account.lastHealthStatus || "not_checked",
+        lastAutomatedMessage: account.lastHealthMessage || "Scheduled monitoring has not run yet.",
       },
     });
   } catch (error) {
