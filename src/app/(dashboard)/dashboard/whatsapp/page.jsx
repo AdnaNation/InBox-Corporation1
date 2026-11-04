@@ -224,6 +224,42 @@ export default function WhatsAppPage() {
       )}
 
       {account && (
+        <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-6">
+          <div className="flex items-center gap-3">
+            <span className="rounded-xl bg-blue-50 p-3 text-blue-700"><Activity size={20} /></span>
+            <div>
+              <h2 className="font-semibold">Automated health monitoring</h2>
+              <p className="mt-1 text-xs text-slate-500">Scheduled checks record connection changes and recovery events.</p>
+            </div>
+          </div>
+          <div className="mt-4 rounded-xl bg-slate-50 p-4 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-slate-500">Latest scheduled check</span>
+              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                health?.lastAutomatedStatus === "healthy" ? "bg-green-100 text-green-800" :
+                health?.lastAutomatedStatus === "attention" ? "bg-amber-100 text-amber-900" :
+                health?.lastAutomatedStatus === "unavailable" ? "bg-slate-200 text-slate-700" :
+                "bg-slate-200 text-slate-700"
+              }`}>
+                {health?.lastAutomatedStatus === "not_checked" || !health?.lastAutomatedStatus
+                  ? "Not checked yet"
+                  : health.lastAutomatedStatus.replaceAll("_", " ")}
+              </span>
+            </div>
+            <p className="mt-2 text-slate-700">{health?.lastAutomatedMessage || "Scheduled monitoring has not run yet."}</p>
+            <p className="mt-2 text-xs text-slate-500">
+              {health?.lastAutomatedCheckAt
+                ? `Last checked: ${new Date(health.lastAutomatedCheckAt).toLocaleString()}`
+                : "No scheduled check has been recorded."}
+            </p>
+          </div>
+          <p className="mt-3 text-xs leading-5 text-slate-500">
+            To enable automatic checks, add a cron job that calls <code>/api/cron/whatsapp-health</code> every 5 minutes with the same Authorization Bearer secret used by your campaign worker. This monitor records status changes; it does not send email or SMS alerts.
+          </p>
+        </section>
+      )}
+
+      {account && (
         <form onSubmit={updateAccessToken} className="mb-5 rounded-2xl border border-slate-200 bg-white p-6">
           <div className="mb-3 flex items-center gap-3">
             <span className="rounded-xl bg-green-50 p-3 text-green-700"><ShieldCheck size={20} /></span>
