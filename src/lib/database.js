@@ -11,6 +11,7 @@ export async function initializeDatabase() {
         db.collection("users").createIndex({ email: 1 }, { unique: true }),
         db.collection("apiKeys").createIndex({ keyHash: 1 }, { unique: true }),
         db.collection("apiKeys").createIndex({ workspaceId: 1, createdAt: -1 }),
+        db.collection("platformAdminAuditLogs").createIndex({ targetWorkspaceId: 1, createdAt: -1 }),
         db.collection("workspaceInvitations").createIndex({ tokenHash: 1 }, { unique: true }),
         db.collection("workspaceInvitations").createIndex({ workspaceId: 1, email: 1 }, { unique: true, partialFilterExpression: { status: "pending" } }),
         db.collection("workspaceInvitations").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
