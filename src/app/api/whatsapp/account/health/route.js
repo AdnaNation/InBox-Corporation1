@@ -30,6 +30,9 @@ export async function GET() {
           wabaId: 1,
           accessTokenEncrypted: 1,
           updatedAt: 1,
+          tokenExpiresAt: 1,
+          dataAccessExpiresAt: 1,
+          tokenExpiryKnown: 1,
         },
       },
     );
@@ -55,6 +58,26 @@ export async function GET() {
         },
       });
     }
+
+    const now = new Date();
+    const tokenExpiresAt = account.tokenExpiresAt instanceof Date
+      ? account.tokenExpiresAt
+      : account.tokenExpiresAt
+        ? new Date(account.tokenExpiresAt)
+        : null;
+    const dataAccessExpiresAt = account.dataAccessExpiresAt instanceof Date
+      ? account.dataAccessExpiresAt
+      : account.dataAccessExpiresAt
+        ? new Date(account.dataAccessExpiresAt)
+        : null;
+    const remainingMs = tokenExpiresAt ? tokenExpiresAt.getTime() - now.getTime() : null;
+    const tokenExpiryStatus = remainingMs === null
+      ? "unknown"
+      : remainingMs <= 0
+        ? "expired"
+        : remainingMs <= 7 * 24 * 60 * 60 * 1000
+          ? "expiring"
+          : "valid";
 
     const accessToken = decryptSecret(account.accessTokenEncrypted);
     const apiVersion = process.env.META_GRAPH_API_VERSION || "v26.0";
@@ -86,6 +109,9 @@ export async function GET() {
         checkedAt: new Date().toISOString(),
         health: {
           tokenStatus,
+          tokenExpiryStatus,
+          tokenExpiresAt: tokenExpiresAt?.toISOString() || null,
+          dataAccessExpiresAt: dataAccessExpiresAt?.toISOString() || null,
           connectionStatus: "attention",
           message: tokenStatus === "invalid"
             ? "Meta rejected the saved access token. Generate a valid token and reconnect."
@@ -103,7 +129,17 @@ export async function GET() {
       checkedAt: new Date().toISOString(),
       health: {
         tokenStatus: "valid",
-        connectionStatus: "healthy",
+        tokenExpiryStatus,
+        tokenExpiresAt: tokenExpiresAt?.toISOString() || null,
+        dataAccessExpiresAt: dataAccessExpiresAt?.toISOString() || null,
+        connectionStatus: tokenExpiryStatus === "expired" || tokenExpiryStatus === "expiring" ? "attention" : "healthy",
+        message: tokenExpiryStatus === "expired"
+          ? "The saved token has passed its recorded expiry date. Reconnect with Meta to restore reliable access."
+          : tokenExpiryStatus === "expiring"
+            ? "The saved token is due to expire within 7 days. Reconnect with Meta before access is interrupted."
+            : tokenExpiryStatus === "unknown"
+              ? "Meta accepted the saved token. Its expiry date was not supplied, so continue monitoring account health."
+              : "WhatsApp account and token are healthy.",
         businessName: account.businessName || "",
         displayPhoneNumber: result.display_phone_number || account.displayPhoneNumber || "",
         phoneNumberId: result.id || account.phoneNumberId,
