@@ -185,7 +185,7 @@ export default function WhatsAppPage() {
               )}
               {health.tokenStatus === "valid" && (
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Access token</p><p className="mt-1 flex items-center gap-2 text-sm font-semibold text-green-700"><CheckCircle2 size={15} /> Valid</p></div>
+                  <div className="rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Access token</p><p className="mt-1 flex items-center gap-2 text-sm font-semibold text-green-700"><CheckCircle2 size={15} /> Accepted by Meta</p></div>
                   <div className="rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Phone number quality</p><p className="mt-1 text-sm font-semibold text-slate-800">{health.qualityRating || "Unknown"}</p></div>
                   <div className="rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Verified business name</p><p className="mt-1 text-sm font-semibold text-slate-800">{health.verifiedName || "Not provided by Meta"}</p></div>
                   <div className="rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Number verification</p><p className="mt-1 text-sm font-semibold text-slate-800">{health.codeVerificationStatus || "Unknown"}</p></div>
