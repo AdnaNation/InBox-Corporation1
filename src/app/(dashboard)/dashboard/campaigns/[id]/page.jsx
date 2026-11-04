@@ -24,6 +24,7 @@ function Status({ value }) {
     unknown: "bg-orange-50 text-orange-700",
     processing: "bg-amber-50 text-amber-700",
     queued: "bg-blue-50 text-blue-700",
+    scheduled: "bg-indigo-50 text-indigo-700",
     sending: "bg-blue-50 text-blue-700",
     paused: "bg-amber-50 text-amber-700",
     completed: "bg-green-50 text-green-700",
@@ -197,6 +198,7 @@ export default async function CampaignReviewPage({ params, searchParams }) {
           campaignId={campaign._id.toString()}
           initialStatus={campaign.status}
           recipientCount={totalRecipients}
+          initialScheduledAt={campaign.scheduledAt?.toISOString?.() || null}
         />
         <CampaignControls
           campaignId={campaign._id.toString()}

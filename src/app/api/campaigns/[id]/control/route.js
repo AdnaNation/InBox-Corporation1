@@ -21,8 +21,8 @@ export async function POST(request, { params }) {
 
     const body = await request.json();
     const action = body?.action;
-    if (!["pause", "resume"].includes(action)) {
-      return NextResponse.json({ success: false, message: "Choose pause or resume." }, { status: 400 });
+    if (!["pause", "resume", "cancel_schedule", "reschedule"].includes(action)) {
+      return NextResponse.json({ success: false, message: "Choose a valid campaign action." }, { status: 400 });
     }
 
     const db = await getDatabase();
@@ -30,6 +30,29 @@ export async function POST(request, { params }) {
     const campaignId = new ObjectId(id);
     const campaign = await db.collection("campaigns").findOne({ _id: campaignId, workspaceId });
     if (!campaign) return NextResponse.json({ success: false, message: "Campaign not found." }, { status: 404 });
+
+    if (action === "cancel_schedule") {
+      const result = await db.collection("campaigns").updateOne(
+        { _id: campaignId, workspaceId, status: "scheduled" },
+        { $set: { status: "draft", updatedAt: new Date() }, $unset: { scheduledAt: "", scheduledBy: "", queuedAt: "", queuedBy: "", templateVerification: "", templateVerificationMessage: "" } },
+      );
+      if (!result.modifiedCount) return NextResponse.json({ success: false, message: "Only a scheduled campaign can be cancelled." }, { status: 409 });
+      return NextResponse.json({ success: true, status: "draft", message: "Schedule cancelled. The campaign is back in drafts and no messages were sent." });
+    }
+
+    if (action === "reschedule") {
+      const scheduledAt = new Date(body.scheduledAt);
+      const now = Date.now();
+      if (Number.isNaN(scheduledAt.getTime()) || scheduledAt.getTime() < now + 2 * 60 * 1000 || scheduledAt.getTime() > now + 365 * 24 * 60 * 60 * 1000) {
+        return NextResponse.json({ success: false, message: "Choose a schedule at least 2 minutes and no more than 1 year in the future." }, { status: 400 });
+      }
+      const result = await db.collection("campaigns").updateOne(
+        { _id: campaignId, workspaceId, status: "scheduled" },
+        { $set: { scheduledAt, scheduledBy: new ObjectId(session.user.id), queuedAt: scheduledAt, updatedAt: new Date() } },
+      );
+      if (!result.modifiedCount) return NextResponse.json({ success: false, message: "Only a scheduled campaign can be changed." }, { status: 409 });
+      return NextResponse.json({ success: true, status: "scheduled", message: "Campaign schedule updated." });
+    }
 
     if (action === "pause") {
       if (!["queued", "sending"].includes(campaign.status)) {

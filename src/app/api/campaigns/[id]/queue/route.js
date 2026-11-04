@@ -20,6 +20,16 @@ export async function POST(request, { params }) {
     const { id } = await params;
     if (!ObjectId.isValid(id)) return NextResponse.json({ success: false, message: "Invalid campaign ID." }, { status: 400 });
 
+    const body = await request.json().catch(() => ({}));
+    let scheduledAt = null;
+    if (body.scheduledAt) {
+      scheduledAt = new Date(body.scheduledAt);
+      const now = Date.now();
+      if (Number.isNaN(scheduledAt.getTime()) || scheduledAt.getTime() < now + 2 * 60 * 1000 || scheduledAt.getTime() > now + 365 * 24 * 60 * 60 * 1000) {
+        return NextResponse.json({ success: false, message: "Choose a schedule at least 2 minutes and no more than 1 year in the future." }, { status: 400 });
+      }
+    }
+
     const db = await getDatabase();
     const workspaceId = new ObjectId(session.workspace.id);
     const campaignId = new ObjectId(id);
@@ -62,8 +72,8 @@ export async function POST(request, { params }) {
       return NextResponse.json({ success: false, message: "The exact template and language must currently be approved by Meta." }, { status: 409 });
     }
 
-    const body = (template.components || []).find((item) => item.type === "BODY");
-    const variableCount = new Set((body?.text || "").match(/\{\{\d+\}\}/g) || []).size;
+    const templateBody = (template.components || []).find((item) => item.type === "BODY");
+    const variableCount = new Set((templateBody?.text || "").match(/\{\{\d+\}\}/g) || []).size;
     if (variableCount !== parameters.length) {
       return NextResponse.json({ success: false, message: "Meta's current template requires " + variableCount + " body parameter(s); this draft has " + parameters.length + "." }, { status: 409 });
     }
@@ -73,7 +83,8 @@ export async function POST(request, { params }) {
       { _id: campaignId, workspaceId, status: "draft", recipientCount },
       {
         $set: {
-          status: "queued",
+          status: scheduledAt ? "scheduled" : "queued",
+          ...(scheduledAt ? { scheduledAt, scheduledBy: new ObjectId(session.user.id) } : {}),
           templateVerification: "approved",
           templateVerificationMessage: "Rechecked and approved by Meta during queue preparation.",
           template: {
@@ -84,7 +95,7 @@ export async function POST(request, { params }) {
             parameterFormat: template.parameter_format || null,
             bodyVariableCount: variableCount,
           },
-          queuedAt: now,
+          queuedAt: scheduledAt || now,
           queuedBy: new ObjectId(session.user.id),
           updatedAt: now,
           queueVersion: 1,
@@ -96,10 +107,10 @@ export async function POST(request, { params }) {
 
     return NextResponse.json({
       success: true,
-      message: "Campaign validated and queued. No messages have been sent yet.",
+      message: (scheduledAt ? "Campaign validated and scheduled. It will enter the delivery queue at the selected time." : "Campaign validated and queued. No messages have been sent yet."),
       campaignId: id,
       recipientCount,
-      status: "queued",
+      status: scheduledAt ? "scheduled" : "queued",
     });
   } catch (error) {
     console.error("Queue campaign error:", error);
