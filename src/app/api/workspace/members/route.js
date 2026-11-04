@@ -74,10 +74,15 @@ export async function DELETE(request) {
     if (!target) return NextResponse.json({success:false,message:"Active member not found."},{status:404});
     if (target.role === "owner") return NextResponse.json({success:false,message:"The workspace owner cannot be removed."},{status:403});
     if (target.role === "admin" && actorRole !== "owner") return NextResponse.json({success:false,message:"Only the owner can remove an admin."},{status:403});
+    const now = new Date();
     await db.collection("memberships").updateOne(
       {_id:target._id,workspaceId,status:"active"},
-      {$set:{status:"removed",removedAt:new Date(),removedBy:new ObjectId(session.user.id)}}
+      {$set:{status:"removed",removedAt:now,removedBy:new ObjectId(session.user.id)}}
     );
+    await db.collection("workspaceAuditLogs").insertOne({
+      workspaceId, action:"member_removed", actorId:new ObjectId(session.user.id), targetUserId:targetId,
+      details:{ role:target.role }, createdAt:now,
+    });
     return NextResponse.json({success:true,message:"Member removed from this workspace."});
   } catch(error) {
     console.error("Remove workspace member error:",error);
