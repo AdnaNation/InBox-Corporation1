@@ -124,6 +124,13 @@ export async function POST(request) {
     await metaRequest(subscribeUrl, { method: "POST", headers: authHeaders });
 
     const now = new Date();
+    const expiresInSeconds = Number(tokenData.expires_in);
+    const tokenExpiresAt = Number.isFinite(expiresInSeconds) && expiresInSeconds > 0
+      ? new Date(now.getTime() + expiresInSeconds * 1000)
+      : null;
+    const dataAccessExpiresAt = Number(tokenData.data_access_expires_at) > 0
+      ? new Date(Number(tokenData.data_access_expires_at) * 1000)
+      : null;
     const account = {
       workspaceId,
       wabaId,
@@ -133,6 +140,10 @@ export async function POST(request) {
       accessTokenEncrypted: encryptSecret(accessToken),
       status: "connected",
       connectionMethod: "embedded_signup_v4",
+      tokenIssuedAt: now,
+      tokenExpiresAt,
+      dataAccessExpiresAt,
+      tokenExpiryKnown: Boolean(tokenExpiresAt),
       updatedAt: now,
     };
 
