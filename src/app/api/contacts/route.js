@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { contactSchema } from "@/lib/schemas";
 import { normalizePhoneNumbers } from "@/lib/contact-utils";
 import { isSameOrigin } from "@/lib/security";
+import { checkWorkspacePlanLimit } from "@/lib/plan-limits";
 
 export const runtime = "nodejs";
 
@@ -132,6 +133,11 @@ export async function POST(request) {
       duplicates: existingNumbers.size,
       invalid,
     });
+  }
+
+  const quota = await checkWorkspacePlanLimit(db, workspaceId, "contacts", newNumbers.length);
+  if (!quota.allowed) {
+    return NextResponse.json({ success: false, code: "PLAN_LIMIT_REACHED", message: quota.reason, plan: quota.plan, usage: quota.usage, limits: quota.limits }, { status: 429 });
   }
 
   const now = new Date();
