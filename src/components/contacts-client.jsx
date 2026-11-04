@@ -650,7 +650,7 @@ export default function ContactsClient({ initialContacts = [] }) {
 
                         <button
                           type="button"
-                          onClick={() => removeContact(contact.id)
+                          onClick={() => removeContact(contact.id)}
                           title="Delete contact"
                           className="flex items-center gap-1 text-xs font-medium text-red-600 hover:underline"
                         >
