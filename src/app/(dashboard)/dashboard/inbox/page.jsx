@@ -199,7 +199,7 @@ export default function InboxPage() {
 
   useEffect(() => {
     let active = true;
-    fetch("/api/workspace/members", { cache: "no-store" })
+    fetch("/api/workspace/assignees", { cache: "no-store" })
       .then((response) => response.json())
       .then((data) => {
         if (active && data.success) setTeamMembers(data.members || []);
