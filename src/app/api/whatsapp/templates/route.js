@@ -52,9 +52,7 @@ export async function PATCH(request) {
     const body = await request.json();
     const templateId = typeof body.templateId === "string" ? body.templateId.trim() : "";
     const components = body.components;
-    const status = typeof body.status === "string" ? body.status.toUpperCase() : "";
     if (!/^\d+$/.test(templateId)) return NextResponse.json({ success: false, message: "A valid Meta template ID is required." }, { status: 400 });
-    if (!["APPROVED", "REJECTED", "PAUSED"].includes(status)) return NextResponse.json({ success: false, message: "Only approved, rejected, or paused templates can be edited. Pending and disabled templates cannot be changed." }, { status: 409 });
     const allowedTypes = ["HEADER", "BODY", "FOOTER", "BUTTONS", "LIMITED_TIME_OFFER", "CAROUSEL"];
     if (!Array.isArray(components) || components.length === 0 || components.length > 10 || components.some((item) => !item || typeof item !== "object" || Array.isArray(item) || !allowedTypes.includes(String(item.type || "").toUpperCase()))) return NextResponse.json({ success: false, message: "Provide the complete Meta components array, including every component you want to keep." }, { status: 400 });
     const db = await getDatabase();
@@ -63,6 +61,15 @@ export async function PATCH(request) {
     if (!account?.accessTokenEncrypted || !account.wabaId) return NextResponse.json({ success: false, message: "Connect a WhatsApp Business Account first." }, { status: 404 });
     const accessToken = decryptSecret(account.accessTokenEncrypted);
     const apiVersion = process.env.META_GRAPH_API_VERSION || "v26.0";
+    const currentResponse = await fetch("https://graph.facebook.com/" + apiVersion + "/" + templateId + "?fields=id,status", {
+      headers: { Authorization: "Bearer " + accessToken },
+      cache: "no-store",
+    });
+    const currentTemplate = await currentResponse.json();
+    if (!currentResponse.ok || currentTemplate.error) return NextResponse.json({ success: false, message: currentTemplate?.error?.message || "Could not verify this template with Meta." }, { status: 502 });
+    if (!["APPROVED", "REJECTED", "PAUSED"].includes(String(currentTemplate.status || "").toUpperCase())) {
+      return NextResponse.json({ success: false, message: "Meta only allows edits to approved, rejected, or paused templates. This template is currently " + (currentTemplate.status || "not editable") + "." }, { status: 409 });
+    }
     const response = await fetch("https://graph.facebook.com/" + apiVersion + "/" + templateId, {
       method: "POST",
       headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
