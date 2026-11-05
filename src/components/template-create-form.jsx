@@ -83,7 +83,7 @@ export default function TemplateCreateForm({ onCreated }) {
           </label>
           <label className="block text-sm font-medium text-slate-700">Body
             <textarea required maxLength={1024} rows={5} value={form.body} onChange={(e) => change("body", e.target.value)} placeholder="Hello {{1}}, your order {{2}} is ready." className={field + " mt-1.5"} />
-            <span className="mt-1 block text-xs font-normal text-slate-400">Use sequential variables: {{1}}, {{2}}, and so on. Maximum 1,024 characters.</span>
+            <span className="mt-1 block text-xs font-normal text-slate-400">Use sequential variables: {"{{1}}"}, {"{{2}}"}, and so on. Maximum 1,024 characters.</span>
           </label>
           <label className="block text-sm font-medium text-slate-700">Footer (optional)
             <input maxLength={60} value={form.footer} onChange={(e) => change("footer", e.target.value)} placeholder="Thank you for choosing us." className={field + " mt-1.5"} />
