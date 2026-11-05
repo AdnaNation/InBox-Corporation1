@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Facebook, Loader2, ShieldCheck } from "lucide-react";
 
-export default function WhatsAppEmbeddedSignup({ connected, onConnected }) {
+export default function WhatsAppEmbeddedSignup({ onConnected }) {
   const [config, setConfig] = useState(null);
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [busy, setBusy] = useState(false);
