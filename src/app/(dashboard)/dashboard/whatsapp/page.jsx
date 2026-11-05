@@ -164,7 +164,7 @@ export default function WhatsAppPage() {
     <div className="mx-auto max-w-3xl p-5 sm:p-8">
       <div className="mb-7">
         <h1 className="text-2xl font-bold">WhatsApp connection</h1>
-        <p className="mt-1 text-sm text-slate-500">Manage the WhatsApp Business Platform number connected to this workspace.</p>
+        <p className="mt-1 text-sm text-slate-500">Manage the WhatsApp Business numbers connected to this workspace.</p>
       </div>
 
       <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-6">
@@ -346,7 +346,7 @@ export default function WhatsAppPage() {
         </form>
       )}
 
-      {!loadingAccount && <WhatsAppEmbeddedSignup connected={Boolean(account)} onConnected={loadAccount} />}
+      {!loadingAccount && <WhatsAppEmbeddedSignup onConnected={loadAccount} />}
 
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
         <div className="flex items-center gap-2 font-semibold"><AlertTriangle size={18} />Developer setup required</div>
