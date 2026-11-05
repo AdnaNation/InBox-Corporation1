@@ -62,6 +62,7 @@ export async function POST(request) {
     const header = typeof body.header === "string" ? body.header.trim() : "";
     const text = typeof body.body === "string" ? body.body.trim() : "";
     const footer = typeof body.footer === "string" ? body.footer.trim() : "";
+    const button = body.button && typeof body.button === "object" ? body.button : null;
 
     if (!/^[a-z0-9_]{1,512}$/.test(name)) {
       return NextResponse.json({ success: false, message: "Use a template name with lowercase letters, numbers, and underscores only." }, { status: 400 });
@@ -82,6 +83,38 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: "Use sequential body variables starting at {{1}}, with no gaps (maximum 10)." }, { status: 400 });
     }
 
+    let urlButton = null;
+    if (button) {
+      const buttonText = typeof button.text === "string" ? button.text.trim() : "";
+      const buttonUrl = typeof button.url === "string" ? button.url.trim() : "";
+      const isDynamic = button.dynamic === true;
+      const urlForValidation = isDynamic ? buttonUrl.replace(/\\{\\{1\\}\\}$/, "sample-value") : buttonUrl;
+      let parsedUrl;
+      try {
+        parsedUrl = new URL(urlForValidation);
+      } catch {
+        return NextResponse.json({ success: false, message: "Enter a valid HTTPS website URL." }, { status: 400 });
+      }
+      if (!buttonText || buttonText.length > 25 || parsedUrl.protocol !== "https:" || parsedUrl.username || parsedUrl.password) {
+        return NextResponse.json({ success: false, message: "URL button text is required (maximum 25 characters) and the link must be a valid HTTPS URL." }, { status: 400 });
+      }
+      if (isDynamic && !/\\{\\{1\\}\\}$/.test(buttonUrl)) {
+        return NextResponse.json({ success: false, message: "A dynamic URL must end with {{1}}." }, { status: 400 });
+      }
+      if (!isDynamic && /\\{\\{\\d+\\}\\}/.test(buttonUrl)) {
+        return NextResponse.json({ success: false, message: "Use Static URL mode for fixed links, or Dynamic URL mode for a link ending in {{1}}." }, { status: 400 });
+      }
+      if (buttonUrl.length > 2000) {
+        return NextResponse.json({ success: false, message: "The URL is too long." }, { status: 400 });
+      }
+      urlButton = {
+        type: "URL",
+        text: buttonText,
+        url: buttonUrl,
+        ...(isDynamic ? { example: [buttonUrl.replace(/\\{\\{1\\}\\}$/, "sample-value")] } : {}),
+      };
+    }
+
     const components = [];
     if (header) components.push({ type: "HEADER", format: "TEXT", text: header });
     components.push({
@@ -92,6 +125,7 @@ export async function POST(request) {
         : {}),
     });
     if (footer) components.push({ type: "FOOTER", text: footer });
+    if (urlButton) components.push({ type: "BUTTONS", buttons: [urlButton] });
 
     const db = await getDatabase();
     const workspaceId = new ObjectId(session.workspace.id);
