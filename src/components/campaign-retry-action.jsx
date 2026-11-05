@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { showConfirm } from "@/lib/swal";
 
 export default function CampaignRetryAction({ campaignId, failedCount }) {
   const router = useRouter();
@@ -10,9 +11,11 @@ export default function CampaignRetryAction({ campaignId, failedCount }) {
   const [error, setError] = useState("");
 
   async function retryFailed() {
-    const confirmed = window.confirm(
-      "Retry only " + failedCount + " failed recipient(s)? Recipients already accepted, delivered, read, skipped, or marked unknown will not be resent."
-    );
+    const confirmed = await showConfirm({
+      title: "Retry failed recipients?",
+      text: "Retry only " + failedCount + " failed recipient(s)? Recipients already accepted, delivered, read, skipped, or marked unknown will not be resent.",
+      confirmButtonText: "Retry failed",
+    });
     if (!confirmed) return;
 
     setLoading(true);

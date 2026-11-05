@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { showConfirm } from "@/lib/swal";
 
 export default function CampaignControls({ campaignId, initialStatus }) {
   const router = useRouter();
@@ -16,7 +17,7 @@ export default function CampaignControls({ campaignId, initialStatus }) {
     const prompt = action === "pause"
       ? "Pause this campaign? A message already being sent may still finish."
       : "Resume this campaign? Only recipients still pending or due for retry will be processed.";
-    if (!window.confirm(prompt)) return;
+    if (!(await showConfirm({ title: action === "pause" ? "Pause campaign?" : "Resume campaign?", text: prompt, confirmButtonText: action === "pause" ? "Pause campaign" : "Resume campaign" }))) return;
 
     setLoading(true);
     setMessage("");

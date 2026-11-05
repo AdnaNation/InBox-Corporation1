@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import ContactCsvImport from "@/components/contact-csv-import";
+import { showAlert, showConfirm } from "@/lib/swal";
 
 export default function ContactsClient({ initialContacts = [] }) {
   const [contacts, setContacts] = useState(initialContacts);
@@ -177,13 +178,13 @@ export default function ContactsClient({ initialContacts = [] }) {
   }
 
   // Add a tag to the editor
-  function addTag() {
+  async function addTag() {
     const tag = tagInput.trim().toLowerCase();
 
     if (!tag) return;
 
     if (tag.length > 30) {
-      alert("Each tag must be 30 characters or fewer.");
+      await showAlert({ title: "Tag is too long", text: "Each tag must be 30 characters or fewer.", icon: "warning" });
       return;
     }
 
@@ -193,7 +194,7 @@ export default function ContactsClient({ initialContacts = [] }) {
     }
 
     if (tagDraft.length >= 10) {
-      alert("Maximum 10 tags allowed.");
+      await showAlert({ title: "Tag limit reached", text: "Maximum 10 tags allowed.", icon: "warning" });
       return;
     }
 
@@ -219,7 +220,7 @@ export default function ContactsClient({ initialContacts = [] }) {
       const data = await response.json();
 
       if (!response.ok) {
-        alert(data.message || "Could not update tags.");
+        await showAlert({ title: "Could not update tags", text: data.message || "Please try again.", icon: "error" });
         return;
       }
 
@@ -234,7 +235,7 @@ export default function ContactsClient({ initialContacts = [] }) {
       setTagInput("");
     } catch (error) {
       console.error(error);
-      alert("Network error. Please try again.");
+      await showAlert({ title: "Network error", text: "Please check your connection and try again.", icon: "error" });
     } finally {
       setSavingTags(false);
     }
@@ -255,7 +256,7 @@ export default function ContactsClient({ initialContacts = [] }) {
       });
       const data = await response.json();
       if (!response.ok) {
-        alert(data.message || "Could not record renewed consent.");
+        await showAlert({ title: "Could not record consent", text: data.message || "Please try again.", icon: "error" });
         return;
       }
       setContacts((current) => current.map((contact) =>
@@ -269,7 +270,7 @@ export default function ContactsClient({ initialContacts = [] }) {
       setNotice("Fresh consent recorded. This contact is eligible for future campaigns.");
     } catch (error) {
       console.error(error);
-      alert("Network error. Please try again.");
+      await showAlert({ title: "Network error", text: "Please check your connection and try again.", icon: "error" });
     } finally {
       setSavingConsent(false);
     }
@@ -277,7 +278,7 @@ export default function ContactsClient({ initialContacts = [] }) {
 
   // Delete contact
   async function removeContact(id) {
-    if (!confirm("Are you sure you want to delete this contact?")) {
+    if (!(await showConfirm({ title: "Delete contact?", text: "This contact will be removed from your workspace.", confirmButtonText: "Delete contact" }))) {
       return;
     }
 
@@ -289,13 +290,13 @@ export default function ContactsClient({ initialContacts = [] }) {
       const data = await response.json();
 
       if (!response.ok) {
-        alert(data.message || "Could not delete contact.");
+        await showAlert({ title: "Could not delete contact", text: data.message || "Please try again.", icon: "error" });
         return;
       }
 
       setContacts((current) => current.filter((contact) => contact.id !== id));
     } catch {
-      alert("Network error. Please try again.");
+      await showAlert({ title: "Network error", text: "Please check your connection and try again.", icon: "error" });
     }
   }
 

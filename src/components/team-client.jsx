@@ -2,6 +2,7 @@
 
 import {useCallback,useEffect,useState} from "react";
 import {Copy,Loader2,RefreshCw,UserPlus,Users,UserX,Clock} from "lucide-react";
+import { showConfirm } from "@/lib/swal";
 
 export default function TeamClient({currentRole}){
   const [members,setMembers]=useState([]);
@@ -45,7 +46,7 @@ export default function TeamClient({currentRole}){
     }catch(e){setError(e.message);}
   }
   async function removeMember(userId){
-    if(!window.confirm("Remove this person from the workspace? They will lose access to this workspace."))return;
+    if(!(await showConfirm({title:"Remove team member?",text:"They will lose access to this workspace.",confirmButtonText:"Remove member"})))return;
     setError("");setNotice("");
     try{
       const response=await fetch("/api/workspace/members",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({userId})});
@@ -54,7 +55,7 @@ export default function TeamClient({currentRole}){
     }catch(e){setError(e.message);}
   }
   async function revoke(id){
-    if(!window.confirm("Revoke this invitation? The link will stop working."))return;
+    if(!(await showConfirm({title:"Revoke invitation?",text:"The invitation link will stop working.",confirmButtonText:"Revoke invitation"})))return;
     setError("");setNotice("");
     try{
       const response=await fetch("/api/workspace/invitations",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});

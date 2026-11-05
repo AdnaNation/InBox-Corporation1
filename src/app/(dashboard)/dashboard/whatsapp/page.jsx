@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Plug, ShieldCheck, Loader2, AlertTriangle, Unplug, RefreshCw, Activity, CheckCircle2 } from "lucide-react";
 import WhatsAppEmbeddedSignup from "@/components/whatsapp-embedded-signup";
+import { showConfirm } from "@/lib/swal";
 
 const emptyForm = {
   phoneNumberId: "",
@@ -63,7 +64,7 @@ export default function WhatsAppPage() {
   async function submit(e) {
     e.preventDefault();
     const replacingDifferentNumber = Boolean(account && account.phoneNumberId !== form.phoneNumberId.trim());
-    if (replacingDifferentNumber && !window.confirm("Replace the currently connected WhatsApp number? Active campaigns must be paused or completed first.")) return;
+    if (replacingDifferentNumber && !(await showConfirm({ title: "Replace WhatsApp number?", text: "Active campaigns must be paused or completed first.", confirmButtonText: "Replace number" }))) return;
     setLoading(true);
     setMessage("");
     setMessageError(false);
@@ -112,7 +113,7 @@ export default function WhatsAppPage() {
   }
 
   async function disconnect() {
-    if (!window.confirm("Disconnect this WhatsApp number from your workspace? Active campaigns must be paused or completed first.")) return;
+    if (!(await showConfirm({ title: "Disconnect WhatsApp number?", text: "Active campaigns must be paused or completed first.", confirmButtonText: "Disconnect number" }))) return;
     setDisconnecting(true);
     setMessage("");
     setMessageError(false);

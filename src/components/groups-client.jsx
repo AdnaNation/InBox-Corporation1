@@ -1,5 +1,7 @@
 "use client";
 
+import { showAlert, showConfirm } from "@/lib/swal";
+
 import { useEffect, useMemo, useState } from "react";
 import {
   Users,
@@ -165,9 +167,11 @@ export default function GroupsClient() {
   }
 
   async function deleteGroup(groupId) {
-    const confirmed = confirm(
-      "Delete this group? Your contacts will not be deleted.",
-    );
+    const confirmed = await showConfirm({
+      title: "Delete group?",
+      text: "Your contacts will not be deleted.",
+      confirmButtonText: "Delete group",
+    });
 
     if (!confirmed) return;
 
@@ -179,7 +183,7 @@ export default function GroupsClient() {
       const data = await response.json();
 
       if (!response.ok) {
-        alert(data.message || "Could not delete group.");
+        await showAlert({ title: "Could not delete group", text: data.message || "Please try again.", icon: "error" });
         return;
       }
 
@@ -187,7 +191,7 @@ export default function GroupsClient() {
 
       if (editingId === groupId) resetForm();
     } catch {
-      alert("Network error. Please try again.");
+      await showAlert({ title: "Network error", text: "Please check your connection and try again.", icon: "error" });
     }
   }
 
