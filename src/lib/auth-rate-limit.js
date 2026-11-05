@@ -22,35 +22,35 @@ function makeBucketId(scope, identity, now) {
     .digest("hex");
   return {
     id: `${scope}:${bucket}:${digest}`,
+    resetAt: new Date((bucket + 1) * WINDOW_MS),
     expiresAt: new Date((bucket + 2) * WINDOW_MS),
   };
 }
 
 async function incrementBucket(collection, id, expiresAt, now) {
+  const update = {
+    $inc: { count: 1 },
+    $setOnInsert: { createdAt: now, expiresAt },
+    $set: { updatedAt: now },
+  };
+
   try {
-    await collection.updateOne(
+    const result = await collection.findOneAndUpdate(
       { _id: id },
-      {
-        $inc: { count: 1 },
-        $setOnInsert: { createdAt: now, expiresAt },
-        $set: { updatedAt: now },
-      },
-      { upsert: true },
+      update,
+      { upsert: true, returnDocument: "after" },
     );
+    return result?.count || 0;
   } catch (error) {
     // Concurrent first requests can race to create the same bucket.
     if (error.code !== 11000) throw error;
-    await collection.updateOne(
+    const result = await collection.findOneAndUpdate(
       { _id: id },
-      { $inc: { count: 1 }, $set: { updatedAt: now } },
+      update,
+      { returnDocument: "after" },
     );
+    return result?.count || 0;
   }
-
-  const record = await collection.findOne(
-    { _id: id },
-    { projection: { count: 1 } },
-  );
-  return record?.count || 0;
 }
 
 /**
@@ -63,11 +63,11 @@ export async function consumeAuthRateLimits(db, checks) {
 
   const collection = db.collection("authRateLimits");
   const results = await Promise.all(checks.filter((check) => check?.identity).map(async (check) => {
-    const { id, expiresAt } = makeBucketId(check.scope, check.identity, now);
+    const { id, resetAt, expiresAt } = makeBucketId(check.scope, check.identity, now);
     const count = await incrementBucket(collection, id, expiresAt, now);
     return {
       allowed: count <= check.limit,
-      retryAfterSeconds: Math.max(1, Math.ceil((expiresAt.getTime() - now.getTime()) / 1000)),
+      retryAfterSeconds: Math.max(1, Math.ceil((resetAt.getTime() - now.getTime()) / 1000)),
     };
   }));
 
