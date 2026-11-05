@@ -162,6 +162,20 @@ export async function PATCH(request) {
   const accounts = db.collection("whatsappAccounts");
   const target = await accounts.findOne({ workspaceId, phoneNumberId, status: "connected" });
   if (!target) return NextResponse.json({ success: false, message: "That WhatsApp number is not connected." }, { status: 404 });
+
+  // Preserve the sender number for campaigns queued before multi-number support.
+  const currentActive = await accounts.findOne({ workspaceId, status: "connected", isActive: true });
+  if (currentActive?.phoneNumberId) {
+    await db.collection("campaigns").updateMany(
+      {
+        workspaceId,
+        status: { $in: ["scheduled", "queued", "sending"] },
+        phoneNumberId: { $exists: false },
+      },
+      { $set: { phoneNumberId: currentActive.phoneNumberId, updatedAt: new Date() } },
+    );
+  }
+
   await accounts.updateMany({ workspaceId, status: "connected" }, { $set: { isActive: false, updatedAt: new Date() } });
   await accounts.updateOne({ _id: target._id, workspaceId }, { $set: { isActive: true, updatedAt: new Date() } });
   return NextResponse.json({ success: true, message: "Active WhatsApp number switched successfully." });
