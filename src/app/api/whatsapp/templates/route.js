@@ -133,10 +133,10 @@ export async function POST(request) {
     if (headerFormat !== "TEXT" && headerFormat !== "NONE" && !headerMediaHandle) {
       return NextResponse.json({ success: false, message: "Upload a media sample for the selected header type." }, { status: 400 });
     }
-    if (templateType === "COUPON_CODE" && !["NONE", "IMAGE"].includes(headerFormat)) {
+    if (templateType === "COUPON_CODE" && headerFormat !== "NONE") {
       return NextResponse.json({ success: false, message: "Coupon-code templates support no header or an image header." }, { status: 400 });
     }
-    if (templateType === "LIMITED_TIME_OFFER" && !["NONE", "IMAGE", "VIDEO"].includes(headerFormat)) {
+    if (templateType === "LIMITED_TIME_OFFER" && headerFormat !== "NONE") {
       return NextResponse.json({ success: false, message: "Limited-time offers support no header, an image header, or a video header." }, { status: 400 });
     }
     if (templateType !== "STANDARD" && footer) {
