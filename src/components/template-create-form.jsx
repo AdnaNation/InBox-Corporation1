@@ -234,7 +234,7 @@ export default function TemplateCreateForm({ onCreated }) {
                 <h3 className="text-sm font-semibold text-slate-800">Template buttons (optional)</h3>
                 <p className="mt-1 text-xs text-slate-500">Choose up to 3 quick replies, or up to 2 call-to-action buttons.</p>
               </div>
-              <select value={form.buttonGroup} onChange={(event) => change("buttonGroup", event.target.value)} className={field + " max-w-48"}>
+              <select value={form.buttonGroup} onChange={(event) => setForm((current) => ({ ...current, buttonGroup: event.target.value, buttons: [] }))} className={field + " max-w-48"}>
                 <option value="QUICK_REPLY">Quick replies</option>
                 <option value="CALL_TO_ACTION">Call-to-action</option>
               </select>
