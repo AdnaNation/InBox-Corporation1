@@ -44,8 +44,12 @@ export async function POST(request) {
 
     const db = await getDatabase();
     const workspaceId = new ObjectId(session.workspace.id);
+    const phoneNumberId = typeof body.phoneNumberId === "string" ? body.phoneNumberId.trim() : "";
+    const accountFilter = { workspaceId, status: "connected" };
+    if (phoneNumberId) accountFilter.phoneNumberId = phoneNumberId;
+    else accountFilter.isActive = true;
     const account = await db.collection("whatsappAccounts").findOne(
-      { workspaceId, status: "connected" },
+      accountFilter,
       { projection: { phoneNumberId: 1 } },
     );
 
