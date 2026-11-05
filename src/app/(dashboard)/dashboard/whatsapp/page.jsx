@@ -99,7 +99,7 @@ export default function WhatsAppPage() {
       const response = await fetch("/api/whatsapp/account/token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken: replacementToken.trim() }),
+        body: JSON.stringify({ accessToken: replacementToken.trim(), phoneNumberId: account?.phoneNumberId }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Could not update access token.");
