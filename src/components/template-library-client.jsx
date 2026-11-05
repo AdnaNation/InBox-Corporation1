@@ -33,6 +33,7 @@ function StatusIcon({ status }) {
 }
 
 function TemplateCard({ template, onEdit }) {
+  const [copyState, setCopyState] = useState("idle");
   const components = template.components || [];
 
   const header = components.find((item) => item.type === "HEADER");
@@ -45,7 +46,26 @@ function TemplateCard({ template, onEdit }) {
   ];
 
   async function copyName() {
-    await navigator.clipboard.writeText(template.name);
+    try {
+      if (navigator.clipboard?.writeText && window.isSecureContext) {
+        await navigator.clipboard.writeText(template.name);
+      } else {
+        const field = document.createElement("textarea");
+        field.value = template.name;
+        field.setAttribute("readonly", "");
+        field.style.position = "fixed";
+        field.style.opacity = "0";
+        document.body.appendChild(field);
+        field.select();
+        const copied = document.execCommand("copy");
+        document.body.removeChild(field);
+        if (!copied) throw new Error("Clipboard access was blocked by the browser.");
+      }
+      setCopyState("copied");
+    } catch (error) {
+      console.error("Copy template name failed:", error);
+      setCopyState("error");
+    }
   }
 
   return (
@@ -138,8 +158,8 @@ function TemplateCard({ template, onEdit }) {
               <Pencil size={14} /> Edit template
             </button>
           )}
-          <button type="button" onClick={copyName} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
-            <Copy size={14} /> Copy name
+          <button type="button" onClick={copyName} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50" aria-live="polite">
+            <Copy size={14} /> {copyState === "copied" ? "Copied!" : copyState === "error" ? "Copy failed — retry" : "Copy name"}
           </button>
         </div>
       </div>
