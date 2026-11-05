@@ -101,7 +101,7 @@ export default function TemplateCreateForm({ onCreated }) {
 
   const field = "w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-green-500";
   const dynamicUrlValid = form.buttonMode !== "dynamic" || /\{\{1\}\}$/.test(form.buttonUrl.trim());
-  const canSubmit = form.name.trim() && form.body.trim() && (form.headerFormat === "TEXT" || form.headerMediaHandle) &&
+  const canSubmit = !mediaBusy && form.name.trim() && form.body.trim() && (form.headerFormat === "TEXT" || form.headerMediaHandle) &&
     (!form.addUrlButton || (form.buttonText.trim() && form.buttonUrl.trim() && dynamicUrlValid));
 
   return (
