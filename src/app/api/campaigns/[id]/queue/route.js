@@ -109,6 +109,7 @@ export async function POST(request, { params }) {
         $set: {
           status: scheduledAt ? "scheduled" : "queued",
           ...(scheduledAt ? { scheduledAt, scheduledBy: new ObjectId(session.user.id) } : {}),
+          phoneNumberId: account.phoneNumberId,
           templateVerification: "approved",
           templateVerificationMessage: "Rechecked and approved by Meta during queue preparation.",
           template: {
