@@ -320,12 +320,12 @@ export default function TemplateCreateForm({ onCreated }) {
                       {form.templateType === "STANDARD" && <label className="flex items-center gap-2 text-xs text-slate-600">
                         <input type="checkbox" checked={Boolean(button.dynamic)} onChange={(event) => updateButton(index, "dynamic", event.target.checked)} className="accent-green-600" />
                         Dynamic URL (ends with {"{{1}}"})
-                      </label>
+                      </label>}
                       {form.templateType === "STANDARD" && button.dynamic && (
                         <label className="block text-xs font-medium text-slate-600">Example value for {"{{1}}"}
                           <input required value={button.example || ""} onChange={(event) => updateButton(index, "example", event.target.value)} placeholder="10" className={field + " mt-1.5"} />
                         </label>
-                      )}}
+                      )}
                     </div>
                   )}
                   {form.templateType === "STANDARD" && button.type === "PHONE_NUMBER" && (
