@@ -101,7 +101,7 @@ export async function POST(request) {
       if (isDynamic && !/\{\{1\}\}$/.test(buttonUrl)) {
         return NextResponse.json({ success: false, message: "A dynamic URL must end with {{1}}." }, { status: 400 });
       }
-      if (!isDynamic && /\{\{\\d+\}\}/.test(buttonUrl)) {
+      if (!isDynamic && /\{\{\d+\}\}/.test(buttonUrl)) {
         return NextResponse.json({ success: false, message: "Use Static URL mode for fixed links, or Dynamic URL mode for a link ending in {{1}}." }, { status: 400 });
       }
       if (buttonUrl.length > 2000) {
