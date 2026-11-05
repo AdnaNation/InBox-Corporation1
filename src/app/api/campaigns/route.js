@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
+import { getActiveWhatsAppAccount } from "@/lib/whatsapp-account";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
 import { checkWorkspacePlanLimit } from "@/lib/plan-limits";
@@ -63,11 +64,7 @@ export async function POST(request) {
     const workspaceId = new ObjectId(session.workspace.id);
 
     // A connected account is required, but we do not call Meta here.
-    const account = await db.collection("whatsappAccounts").findOne({
-      workspaceId,
-      status: "connected",
-      isActive: true,
-    });
+    const account = await getActiveWhatsAppAccount(db, workspaceId);
 
     if (!account) {
       return NextResponse.json(
