@@ -172,6 +172,10 @@ export async function POST(request) {
       expirationTimeMs = expiry.getTime();
     }
 
+    if (String(matchedTemplate.parameter_format || "").toUpperCase() === "NAMED") {
+      return NextResponse.json({ success: false, message: "Named-parameter templates are not supported by this sender yet." }, { status: 400 });
+    }
+
     const bodyComponent = (matchedTemplate.components || []).find(
       (component) => component.type === "BODY",
     );
