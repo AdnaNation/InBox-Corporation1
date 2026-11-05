@@ -33,7 +33,7 @@ export async function POST(request) {
     if (!campaign) campaign = await db.collection("campaigns").findOne({ status: "sending" });
     if (!campaign) return NextResponse.json({ success: true, processed: 0, message: "No queued campaigns." });
 
-    const account = await db.collection("whatsappAccounts").findOne({ workspaceId: campaign.workspaceId, status: "connected" });
+    const account = await db.collection("whatsappAccounts").findOne({ workspaceId: campaign.workspaceId, status: "connected", ...(campaign.phoneNumberId ? { phoneNumberId: campaign.phoneNumberId } : { isActive: true }) });
     if (!account?.phoneNumberId || !account?.accessTokenEncrypted) {
       await db.collection("campaigns").updateOne({ _id: campaign._id, status: "sending" }, { $set: { status: "paused", pauseReason: "WhatsApp account disconnected.", updatedAt: new Date() } });
       return NextResponse.json({ success: false, message: "Campaign paused: WhatsApp account disconnected." }, { status: 409 });
