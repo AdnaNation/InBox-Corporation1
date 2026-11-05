@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { showConfirm, showPrompt } from "@/lib/swal";
 
 export default function CampaignRecipientReview({ campaignId, recipientId }) {
   const router = useRouter();
@@ -10,18 +11,25 @@ export default function CampaignRecipientReview({ campaignId, recipientId }) {
 
   async function review(outcome) {
     const label = outcome === "delivered" ? "confirmed delivered" : "confirmed not delivered";
-    const note = window.prompt(
-      "Explain why this recipient is " + label + ". This note is saved in the audit record (5–500 characters).",
-    );
+    const note = await showPrompt({
+      title: "Add review note",
+      text: "Explain why this recipient is " + label + ". This note is saved in the audit record.",
+      inputLabel: "Audit note",
+      inputPlaceholder: "Enter the reason for this delivery review…",
+      minLength: 5,
+      maxLength: 500,
+    });
     if (note === null) return;
     if (note.trim().length < 5 || note.trim().length > 500) {
       setError("Please enter a review note between 5 and 500 characters.");
       return;
     }
 
-    if (!window.confirm(
-      "Save this recipient as " + label + "? This does not send or retry any WhatsApp message.",
-    )) return;
+    if (!(await showConfirm({
+      title: "Confirm delivery review?",
+      text: "Save this recipient as " + label + "? This does not send or retry any WhatsApp message.",
+      confirmButtonText: "Save review",
+    }))) return;
 
     setLoading(true);
     setError("");
