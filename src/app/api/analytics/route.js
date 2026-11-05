@@ -8,6 +8,41 @@ export const dynamic = "force-dynamic";
 
 const ALLOWED_RANGES = new Set(["7d", "30d", "90d"]);
 
+let analyticsIndexesPromise;
+
+async function ensureAnalyticsIndexes(db) {
+  if (!analyticsIndexesPromise) {
+    analyticsIndexesPromise = Promise.all([
+      db.collection("messages").createIndex(
+        { workspaceId: 1, timestamp: -1 },
+        { name: "analytics_messages_workspace_timestamp" },
+      ),
+      db.collection("campaigns").createIndex(
+        { workspaceId: 1, createdAt: -1 },
+        { name: "analytics_campaigns_workspace_created" },
+      ),
+      db.collection("campaignRecipients").createIndex(
+        { workspaceId: 1, createdAt: -1 },
+        { name: "analytics_recipients_workspace_created" },
+      ),
+      db.collection("conversations").createIndex(
+        { workspaceId: 1, status: 1 },
+        { name: "analytics_conversations_workspace_status" },
+      ),
+      db.collection("conversations").createIndex(
+        { workspaceId: 1, createdAt: -1 },
+        { name: "analytics_conversations_workspace_created" },
+      ),
+    ]).catch((error) => {
+      analyticsIndexesPromise = null;
+      throw error;
+    });
+  }
+
+  return analyticsIndexesPromise;
+}
+
+
 function getRangeStart(range) {
   const days = range === "7d" ? 7 : range === "90d" ? 90 : 30;
   const start = new Date();
@@ -29,6 +64,7 @@ export async function GET(request) {
     const { days, start } = getRangeStart(range);
     const workspaceId = new ObjectId(session.workspace.id);
     const db = await getDatabase();
+    await ensureAnalyticsIndexes(db);
 
     const [messageGroups, campaignGroups, recipientGroups, openConversations, conversationCount] = await Promise.all([
       db.collection("messages").aggregate([
