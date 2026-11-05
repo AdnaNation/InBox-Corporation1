@@ -62,7 +62,7 @@ export default function TemplateCreateForm({ onCreated }) {
   }
 
   const field = "w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-green-500";
-  const dynamicUrlValid = form.buttonMode !== "dynamic" || /\\{\\{1\\}\\}$/.test(form.buttonUrl.trim());
+  const dynamicUrlValid = form.buttonMode !== "dynamic" || /\{\{1\}\}$/.test(form.buttonUrl.trim());
   const canSubmit = form.name.trim() && form.body.trim() &&
     (!form.addUrlButton || (form.buttonText.trim() && form.buttonUrl.trim() && dynamicUrlValid));
 
@@ -135,7 +135,7 @@ export default function TemplateCreateForm({ onCreated }) {
                   </label>
                 </div>
                 <label className="block text-sm font-medium text-slate-700">Website URL
-                  <input required type="url" value={form.buttonUrl} onChange={(e) => change("buttonUrl", e.target.value)} placeholder={form.buttonMode === "dynamic" ? "https://example.com/orders/{{1}}" : "https://example.com/orders"} className={field + " mt-1.5"} />
+                  <input required type="text" inputMode="url" value={form.buttonUrl} onChange={(e) => change("buttonUrl", e.target.value)} placeholder={form.buttonMode === "dynamic" ? "https://example.com/orders/{{1}}" : "https://example.com/orders"} className={field + " mt-1.5"} />
                   <span className="mt-1 block text-xs font-normal text-slate-500">
                     {form.buttonMode === "dynamic"
                       ? 'Add {{1}} at the end of the URL. The changing part will be provided when sending the template.'
