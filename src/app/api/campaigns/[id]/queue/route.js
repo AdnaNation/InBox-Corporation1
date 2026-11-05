@@ -72,6 +72,9 @@ export async function POST(request, { params }) {
       return NextResponse.json({ success: false, message: "The exact template and language must currently be approved by Meta." }, { status: 409 });
     }
 
+    if (String(template.parameter_format || "").toUpperCase() === "NAMED") {
+      return NextResponse.json({ success: false, message: "Named-parameter templates are not supported by campaign delivery yet." }, { status: 409 });
+    }
     const templateBody = (template.components || []).find((item) => item.type === "BODY");
     const variableCount = new Set((templateBody?.text || "").match(/\{\{\d+\}\}/g) || []).size;
     const templateButtons = template.components?.find((item) => item.type === "BUTTONS")?.buttons || [];
