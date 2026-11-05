@@ -105,7 +105,11 @@ export async function POST(request) {
     const headerMediaHandle = typeof body.headerMediaHandle === "string" ? body.headerMediaHandle.trim() : "";
     const text = typeof body.body === "string" ? body.body.trim() : "";
     const footer = typeof body.footer === "string" ? body.footer.trim() : "";
-    const button = body.button && typeof body.button === "object" ? body.button : null;
+    const requestedButtons = Array.isArray(body.buttons)
+      ? body.buttons
+      : body.button && typeof body.button === "object"
+        ? [body.button]
+        : [];
     const bodyExamples = body.bodyExamples && typeof body.bodyExamples === "object" ? body.bodyExamples : {};
 
     if (!/^[a-z0-9_]{1,512}$/.test(name)) {
@@ -140,12 +144,47 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: "Enter an example value for every BODY variable." }, { status: 400 });
     }
 
-    let urlButton = null;
-    if (button) {
-      const buttonText = typeof button.text === "string" ? button.text.trim() : "";
-      const buttonUrl = typeof button.url === "string" ? button.url.trim() : "";
-      const isDynamic = button.dynamic === true;
-      const buttonExample = typeof button.example === "string" ? button.example.trim() : "";
+    const templateButtons = [];
+    if (requestedButtons.length > 3) {
+      return NextResponse.json({ success: false, message: "A template can have up to 3 quick reply buttons." }, { status: 400 });
+    }
+    const buttonTypes = requestedButtons.map((item) => String(item?.type || "").toUpperCase());
+    const hasQuickReplies = buttonTypes.some((type) => type === "QUICK_REPLY");
+    const hasCallToAction = buttonTypes.some((type) => ["URL", "PHONE_NUMBER"].includes(type));
+    if (hasQuickReplies && hasCallToAction) {
+      return NextResponse.json({ success: false, message: "Quick reply buttons cannot be mixed with call-to-action buttons." }, { status: 400 });
+    }
+    if (hasCallToAction && requestedButtons.length > 2) {
+      return NextResponse.json({ success: false, message: "A template can have up to 2 call-to-action buttons." }, { status: 400 });
+    }
+
+    for (const item of requestedButtons) {
+      const type = String(item?.type || "").toUpperCase();
+      const buttonText = typeof item?.text === "string" ? item.text.trim() : "";
+      if (!["QUICK_REPLY", "URL", "PHONE_NUMBER"].includes(type)) {
+        return NextResponse.json({ success: false, message: "Choose Quick Reply, Website URL, or Phone Number for each button." }, { status: 400 });
+      }
+      if (!buttonText || buttonText.length > 25) {
+        return NextResponse.json({ success: false, message: "Every button needs a label of 1–25 characters." }, { status: 400 });
+      }
+
+      if (type === "QUICK_REPLY") {
+        templateButtons.push({ type: "QUICK_REPLY", text: buttonText });
+        continue;
+      }
+
+      if (type === "PHONE_NUMBER") {
+        const phoneNumber = typeof item.phone_number === "string" ? item.phone_number.trim() : "";
+        if (!/^\+[1-9]\d{7,14}$/.test(phoneNumber)) {
+          return NextResponse.json({ success: false, message: "Enter a phone number in international E.164 format, such as +8801XXXXXXXXX." }, { status: 400 });
+        }
+        templateButtons.push({ type: "PHONE_NUMBER", text: buttonText, phone_number: phoneNumber });
+        continue;
+      }
+
+      const buttonUrl = typeof item.url === "string" ? item.url.trim() : "";
+      const isDynamic = item.dynamic === true;
+      const buttonExample = typeof item.example === "string" ? item.example.trim() : "";
       const urlForValidation = isDynamic ? buttonUrl.replace(/\{\{1\}\}$/, "sample-value") : buttonUrl;
       let parsedUrl;
       try {
@@ -153,27 +192,21 @@ export async function POST(request) {
       } catch {
         return NextResponse.json({ success: false, message: "Enter a valid HTTPS website URL." }, { status: 400 });
       }
-      if (!buttonText || buttonText.length > 25 || parsedUrl.protocol !== "https:" || parsedUrl.username || parsedUrl.password) {
-        return NextResponse.json({ success: false, message: "URL button text is required (maximum 25 characters) and the link must be a valid HTTPS URL." }, { status: 400 });
+      if (parsedUrl.protocol !== "https:" || parsedUrl.username || parsedUrl.password || buttonUrl.length > 2000) {
+        return NextResponse.json({ success: false, message: "The website button must use a valid HTTPS URL." }, { status: 400 });
       }
-      if (isDynamic && !/\{\{1\}\}$/.test(buttonUrl)) {
-        return NextResponse.json({ success: false, message: "A dynamic URL must end with {{1}}." }, { status: 400 });
-      }
-      if (isDynamic && (!buttonExample || buttonExample.length > 200)) {
-        return NextResponse.json({ success: false, message: "Enter a sample value for the dynamic button URL variable." }, { status: 400 });
+      if (isDynamic && (!/\{\{1\}\}$/.test(buttonUrl) || !buttonExample || buttonExample.length > 200)) {
+        return NextResponse.json({ success: false, message: "A dynamic URL must end with {{1}} and include a sample value." }, { status: 400 });
       }
       if (!isDynamic && /\{\{\d+\}\}/.test(buttonUrl)) {
-        return NextResponse.json({ success: false, message: "Use Static URL mode for fixed links, or Dynamic URL mode for a link ending in {{1}}." }, { status: 400 });
+        return NextResponse.json({ success: false, message: "Use Dynamic URL mode for a URL containing a variable." }, { status: 400 });
       }
-      if (buttonUrl.length > 2000) {
-        return NextResponse.json({ success: false, message: "The URL is too long." }, { status: 400 });
-      }
-      urlButton = {
+      templateButtons.push({
         type: "URL",
         text: buttonText,
         url: buttonUrl,
         ...(isDynamic ? { example: [buttonUrl.replace(/\{\{1\}\}$/, buttonExample)] } : {}),
-      };
+      });
     }
 
     const components = [];
@@ -187,7 +220,7 @@ export async function POST(request) {
         : {}),
     });
     if (footer) components.push({ type: "FOOTER", text: footer });
-    if (urlButton) components.push({ type: "BUTTONS", buttons: [urlButton] });
+    if (templateButtons.length) components.push({ type: "BUTTONS", buttons: templateButtons });
 
     const db = await getDatabase();
     const workspaceId = new ObjectId(session.workspace.id);
