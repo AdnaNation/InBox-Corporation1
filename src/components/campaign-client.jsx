@@ -552,7 +552,7 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
           {hasCopyCode && (
             <div className="lg:col-span-2 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
               <label className="block text-sm font-semibold text-slate-800">Campaign coupon code
-                <input required maxLength={isLimitedTimeOffer ? 15 : 20} value={campaignCouponCode} onChange={(event) => setCampaignCouponCode(event.target.value.replace(/\\s/g, "").slice(0, isLimitedTimeOffer ? 15 : 20))} placeholder="SAVE20" className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-green-500" />
+                <input required maxLength={isLimitedTimeOffer ? 15 : 20} value={campaignCouponCode} onChange={(event) => setCampaignCouponCode(event.target.value.replace(/\s/g, "").slice(0, isLimitedTimeOffer ? 15 : 20))} placeholder="SAVE20" className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-green-500" />
               </label>
               <p className="mt-1 text-xs text-slate-600">This same code will be included in each recipient’s copy-code button. Use a code intended for the entire selected audience.</p>
             </div>
@@ -684,7 +684,7 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
 
           {hasCopyCode && (
             <label className="mt-4 block text-sm font-medium text-slate-700">Coupon code
-              <input required maxLength={isLimitedTimeOffer ? 15 : 20} value={form.couponCode} onChange={(event) => setForm((current) => ({ ...current, couponCode: event.target.value.replace(/\\s/g, "").slice(0, isLimitedTimeOffer ? 15 : 20) }))} placeholder="SAVE20" className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-green-500" />
+              <input required maxLength={isLimitedTimeOffer ? 15 : 20} value={form.couponCode} onChange={(event) => setForm((current) => ({ ...current, couponCode: event.target.value.replace(/\s/g, "").slice(0, isLimitedTimeOffer ? 15 : 20) }))} placeholder="SAVE20" className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-green-500" />
               <span className="mt-1 block text-xs font-normal text-slate-500">This code will be shown in the copy-code button.</span>
             </label>
           )}
