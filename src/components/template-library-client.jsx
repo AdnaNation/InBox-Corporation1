@@ -14,6 +14,7 @@ import {
   Pencil,
   X,
   Save,
+  Trash2,
 } from "lucide-react";
 
 const statusStyles = {
@@ -51,7 +52,7 @@ function renderWhatsAppText(value) {
   });
 }
 
-function TemplateCard({ template, onEdit }) {
+function TemplateCard({ template, onEdit, onDelete, deleting }) {
   const [copyState, setCopyState] = useState("idle");
   const components = template.components || [];
 
@@ -180,6 +181,11 @@ function TemplateCard({ template, onEdit }) {
           <button type="button" onClick={copyName} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50" aria-live="polite">
             <Copy size={14} /> {copyState === "copied" ? "Copied!" : copyState === "error" ? "Copy failed — retry" : "Copy name"}
           </button>
+          {template.status !== "DISABLED" && (
+            <button type="button" onClick={() => onDelete(template)} disabled={deleting} className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50">
+              <Trash2 size={14} /> {deleting ? "Deleting…" : "Delete"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -210,11 +216,38 @@ export default function TemplateLibraryClient() {
   const [componentsDraft, setComponentsDraft] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
   const [editError, setEditError] = useState("");
+  const [deletingTemplateId, setDeletingTemplateId] = useState("");
+  const [deleteError, setDeleteError] = useState("");
 
   function startEditing(template) {
     setEditingTemplate(template);
     setComponentsDraft(JSON.stringify(template.components || [], null, 2));
     setEditError("");
+  }
+
+  async function deleteTemplate(template) {
+    const confirmed = window.confirm(
+      `Delete "${template.name}" (${template.language}) from this WhatsApp Business Account? This removes only this language version, not other languages with the same name. This action cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingTemplateId(template.id);
+    setDeleteError("");
+    try {
+      const response = await fetch("/api/whatsapp/templates", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateId: template.id, name: template.name }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.message || "Could not delete template.");
+      setTemplates((current) => current.filter((item) => item.id !== template.id));
+      if (editingTemplate?.id === template.id) setEditingTemplate(null);
+    } catch (err) {
+      setDeleteError(err.message || "Could not delete template.");
+    } finally {
+      setDeletingTemplateId("");
+    }
   }
 
   async function saveTemplateEdit(event) {
@@ -316,6 +349,12 @@ export default function TemplateLibraryClient() {
       )}
 
       {account && <TemplateCreateForm onCreated={loadTemplates} />}
+
+      {deleteError && (
+        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {deleteError}
+        </div>
+      )}
 
       {editingTemplate && (
         <section className="rounded-2xl border border-green-200 bg-white p-5 shadow-sm">
@@ -440,7 +479,13 @@ export default function TemplateLibraryClient() {
         ) : filteredTemplates.length > 0 ? (
           <div className="mt-5 grid gap-4 lg:grid-cols-2">
             {filteredTemplates.map((template) => (
-              <TemplateCard key={template.id} template={template} onEdit={startEditing} />
+              <TemplateCard
+                key={template.id}
+                template={template}
+                onEdit={startEditing}
+                onDelete={deleteTemplate}
+                deleting={deletingTemplateId === template.id}
+              />
             ))}
           </div>
         ) : (

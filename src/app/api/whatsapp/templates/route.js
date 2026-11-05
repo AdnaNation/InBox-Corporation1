@@ -257,3 +257,58 @@ export async function POST(request) {
     return NextResponse.json({ success: false, message: "Could not submit the template to Meta." }, { status: 500 });
   }
 }
+
+
+export async function DELETE(request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ success: false, message: "Invalid request origin." }, { status: 403 });
+  }
+
+  const session = await getSession();
+  if (!session) return NextResponse.json({ success: false, message: "Unauthorized." }, { status: 401 });
+  if (!["owner", "admin"].includes(session.membership?.role)) {
+    return NextResponse.json({ success: false, message: "Only workspace owners and admins can delete templates." }, { status: 403 });
+  }
+
+  try {
+    const body = await request.json();
+    const templateId = typeof body.templateId === "string" ? body.templateId.trim() : "";
+    const name = typeof body.name === "string" ? body.name.trim().toLowerCase() : "";
+    if (!/^\d+$/.test(templateId) || !/^[a-z0-9_]{1,512}$/.test(name)) {
+      return NextResponse.json({ success: false, message: "A valid Meta template ID and template name are required." }, { status: 400 });
+    }
+
+    const workspaceId = new ObjectId(session.workspace.id);
+    const db = await getDatabase();
+    const account = await db.collection("whatsappAccounts").findOne({ workspaceId, status: "connected" });
+    if (!account?.accessTokenEncrypted || !account.wabaId) {
+      return NextResponse.json({ success: false, message: "Connect a WhatsApp Business Account first." }, { status: 404 });
+    }
+
+    const accessToken = decryptSecret(account.accessTokenEncrypted);
+    const apiVersion = process.env.META_GRAPH_API_VERSION || "v26.0";
+    const url = new URL(`https://graph.facebook.com/${apiVersion}/${account.wabaId}/message_templates`);
+    url.searchParams.set("hsm_id", templateId);
+    url.searchParams.set("name", name);
+
+    const response = await fetch(url, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+    });
+    const result = await response.json();
+    if (!response.ok || result.error || result.success === false) {
+      return NextResponse.json({
+        success: false,
+        message: result?.error?.error_user_msg || result?.error?.message || "Meta could not delete this template.",
+        metaErrorCode: result?.error?.code || null,
+        metaErrorSubcode: result?.error?.error_subcode || null,
+      }, { status: 502 });
+    }
+
+    return NextResponse.json({ success: true, message: "Template language version deleted from Meta." });
+  } catch (error) {
+    console.error("Delete WhatsApp template error:", error);
+    return NextResponse.json({ success: false, message: "Could not delete the template." }, { status: 500 });
+  }
+}
