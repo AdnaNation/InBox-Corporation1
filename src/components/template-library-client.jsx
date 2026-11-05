@@ -61,6 +61,7 @@ function TemplateCard({ template, onEdit, onDelete, deleting }) {
   const body = components.find((item) => item.type === "BODY");
   const footer = components.find((item) => item.type === "FOOTER");
   const buttons = components.find((item) => item.type === "BUTTONS");
+  const offer = components.find((item) => item.type === "LIMITED_TIME_OFFER");
 
   const variables = [
     ...new Set((body?.text || "").match(/\{\{\d+\}\}/g) || []),
@@ -129,6 +130,12 @@ function TemplateCard({ template, onEdit, onDelete, deleting }) {
           </div>
         )}
 
+        {offer && (
+          <div className="mb-3 inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+            {offer.limited_time_offer?.text || "Limited-time offer"} · Countdown enabled
+          </div>
+        )}
+
         {body && (
           <div>
             <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
@@ -154,7 +161,7 @@ function TemplateCard({ template, onEdit, onDelete, deleting }) {
                 key={index}
                 className="rounded-lg bg-white px-3 py-2 text-center text-xs font-medium text-green-700"
               >
-                {button.text || button.type}
+                {button.text || (String(button.type).toUpperCase() === "COPY_CODE" ? "Copy code" : button.type)}
               </p>
             ))}
           </div>
