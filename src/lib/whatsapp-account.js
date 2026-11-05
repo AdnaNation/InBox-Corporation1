@@ -12,6 +12,15 @@
  */
 export async function ensureWhatsAppAccountIndexes(db) {
   const accounts = db.collection("whatsappAccounts");
+  const collectionExists = await db.listCollections({ name: "whatsappAccounts" }, { nameOnly: true }).hasNext();
+  if (!collectionExists) {
+    try {
+      await db.createCollection("whatsappAccounts");
+    } catch (error) {
+      // Another server instance may have created it after our existence check.
+      if (error?.code !== 48) throw error;
+    }
+  }
   const indexes = await accounts.listIndexes().toArray();
   const indexNames = new Set(indexes.map((index) => index.name));
 
@@ -56,6 +65,17 @@ export async function ensureWhatsAppAccountIndexes(db) {
   }
 
   if (!indexNames.has("uniq_connected_whatsapp_phone_number_id")) {
+    const duplicatePhoneNumbers = await accounts.aggregate([
+      { $match: { status: "connected", phoneNumberId: { $type: "string" } } },
+      { $group: { _id: "$phoneNumberId", count: { $sum: 1 }, workspaceIds: { $addToSet: "$workspaceId" } } },
+      { $match: { count: { $gt: 1 } } },
+      { $limit: 1 },
+    ]).toArray();
+    if (duplicatePhoneNumbers.length) {
+      const error = new Error("Duplicate connected WhatsApp Phone Number IDs exist. Resolve the duplicate account records before enabling number ownership protection.");
+      error.code = "WHATSAPP_DUPLICATE_PHONE_NUMBER_ID";
+      throw error;
+    }
     await accounts.createIndex(
       { phoneNumberId: 1 },
       {
