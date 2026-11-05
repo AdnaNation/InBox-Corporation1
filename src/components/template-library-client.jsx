@@ -32,6 +32,25 @@ function StatusIcon({ status }) {
   return <AlertCircle size={15} />;
 }
 
+function renderWhatsAppText(value) {
+  const parts = String(value || "").split(/(```[\s\S]+?```|\*[^*\n]+\*|_[^_\n]+_|~[^~\n]+~)/g);
+  return parts.map((part, index) => {
+    if (part.startsWith("*") && part.endsWith("*")) {
+      return <strong key={index}>{part.slice(1, -1)}</strong>;
+    }
+    if (part.startsWith("_") && part.endsWith("_")) {
+      return <em key={index}>{part.slice(1, -1)}</em>;
+    }
+    if (part.startsWith("~") && part.endsWith("~")) {
+      return <s key={index}>{part.slice(1, -1)}</s>;
+    }
+    if (part.startsWith("```") && part.endsWith("```")) {
+      return <code key={index} className="rounded bg-slate-200 px-1 font-mono text-[0.9em]">{part.slice(3, -3)}</code>;
+    }
+    return part;
+  });
+}
+
 function TemplateCard({ template, onEdit }) {
   const [copyState, setCopyState] = useState("idle");
   const components = template.components || [];
@@ -115,7 +134,7 @@ function TemplateCard({ template, onEdit }) {
             </p>
 
             <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">
-              {body.text || "No body text available."}
+              {renderWhatsAppText(body.text || "No body text available.")}
             </p>
           </div>
         )}
