@@ -60,6 +60,8 @@ export async function POST(request) {
     const language = typeof body.language === "string" ? body.language.trim() : "";
     const category = typeof body.category === "string" ? body.category.trim().toUpperCase() : "";
     const header = typeof body.header === "string" ? body.header.trim() : "";
+    const headerFormat = typeof body.headerFormat === "string" ? body.headerFormat.toUpperCase() : "TEXT";
+    const headerMediaHandle = typeof body.headerMediaHandle === "string" ? body.headerMediaHandle.trim() : "";
     const text = typeof body.body === "string" ? body.body.trim() : "";
     const footer = typeof body.footer === "string" ? body.footer.trim() : "";
     const button = body.button && typeof body.button === "object" ? body.button : null;
@@ -74,7 +76,13 @@ export async function POST(request) {
     if (!["UTILITY", "MARKETING"].includes(category)) {
       return NextResponse.json({ success: false, message: "Choose Utility or Marketing. Authentication templates use a separate Meta flow." }, { status: 400 });
     }
-    if (!text || text.length > 1024 || header.length > 60 || footer.length > 60) {
+    if (!["TEXT", "IMAGE", "VIDEO", "DOCUMENT"].includes(headerFormat)) {
+      return NextResponse.json({ success: false, message: "Choose a supported header format." }, { status: 400 });
+    }
+    if (headerFormat !== "TEXT" && !headerMediaHandle) {
+      return NextResponse.json({ success: false, message: "Upload a media sample for the selected header type." }, { status: 400 });
+    }
+    if (!text || text.length > 1024 || (headerFormat === "TEXT" && header.length > 60) || footer.length > 60) {
       return NextResponse.json({ success: false, message: "Body is required (maximum 1,024 characters); header and footer are limited to 60 characters." }, { status: 400 });
     }
 
@@ -128,7 +136,8 @@ export async function POST(request) {
     }
 
     const components = [];
-    if (header) components.push({ type: "HEADER", format: "TEXT", text: header });
+    if (headerFormat === "TEXT" && header) components.push({ type: "HEADER", format: "TEXT", text: header });
+    if (headerFormat !== "TEXT") components.push({ type: "HEADER", format: headerFormat, example: { header_handle: [headerMediaHandle] } });
     components.push({
       type: "BODY",
       text,
