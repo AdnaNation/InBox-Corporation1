@@ -234,7 +234,9 @@ export default function TemplateLibraryClient() {
         </section>
       )}
 
-      {account && <TemplateCreateForm onCreated={loadTemplates} />}\n\n      <div className="grid gap-4 sm:grid-cols-3">
+      {account && <TemplateCreateForm onCreated={loadTemplates} />}
+
+      <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
           <p className="text-sm text-slate-500">Total templates</p>
           <p className="mt-2 text-3xl font-bold">{templates.length}</p>
