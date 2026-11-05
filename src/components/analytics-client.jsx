@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, CheckCheck, MessageCircle, Send, Users, AlertCircle, RefreshCw } from "lucide-react";
+import { Activity, CheckCheck, MessageCircle, Send, Users, AlertCircle, RefreshCw, Download } from "lucide-react";
 
 const ranges = [
   { value: "7d", label: "7 days" },
@@ -61,6 +61,57 @@ export default function AnalyticsClient() {
     return Math.max(1, ...data.daily.map((item) => item.inbound + item.outbound));
   }, [data]);
 
+  function exportCsv() {
+    if (!data) return;
+
+    const rows = [
+      ["InBox Corporation Analytics"],
+      ["Period", range],
+      ["Generated at", data.generatedAt || ""],
+      [],
+      ["Overview"],
+      ["Metric", "Value"],
+      ["Total messages", data.totals.messages],
+      ["Inbound messages", data.totals.inbound],
+      ["Outbound messages", data.totals.outbound],
+      ["Delivered", data.totals.delivered],
+      ["Read", data.totals.read],
+      ["Failed", data.totals.failed],
+      ["Delivered or read", data.totals.deliveredOrRead],
+      ["Delivery rate (%)", data.totals.deliveryRate],
+      ["Open conversations", data.totals.openConversations],
+      ["Conversations created", data.totals.conversationsCreated],
+      [],
+      ["Daily message activity"],
+      ["Date (UTC)", "Inbound", "Outbound"],
+      ...(data.daily || []).map((item) => [item.date, item.inbound, item.outbound]),
+      [],
+      ["Campaign status"],
+      ["Status", "Campaigns"],
+      ...Object.entries(data.campaigns || {}),
+      [],
+      ["Recipient delivery status"],
+      ["Status", "Recipients"],
+      ...Object.entries(data.recipients || {}),
+    ];
+
+    const escapeCell = (value) => {
+      let text = String(value ?? "");
+      if (/^[=+@\-\t\r]/.test(text)) text = "'" + text;
+      return '"' + text.replaceAll('"', '""') + '"';
+    };
+    const csv = rows.map((row) => row.map(escapeCell).join(",")).join("\r\n");
+    const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `inbox-analytics-${range}-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
   const campaignTotal = Object.values(data?.campaigns || {}).reduce((sum, value) => sum + value, 0);
   const recipientTotal = Object.values(data?.recipients || {}).reduce((sum, value) => sum + value, 0);
 
@@ -79,6 +130,9 @@ export default function AnalyticsClient() {
               </button>
             ))}
           </div>
+          <button type="button" onClick={exportCsv} disabled={!data} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
+            <Download size={15} /> Export CSV
+          </button>
           <button type="button" onClick={() => load()} disabled={loading} aria-label="Refresh analytics" className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 hover:bg-slate-50 disabled:opacity-50">
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
           </button>
