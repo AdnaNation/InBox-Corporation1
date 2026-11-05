@@ -223,9 +223,7 @@ export default function TemplateCreateForm({ onCreated }) {
               <select value={form.headerFormat} onChange={(e) => { change("headerFormat", e.target.value); change("headerMediaHandle", ""); change("headerMediaName", ""); setMediaPreviewUrl(""); }} className={field + " max-w-44"}>
                 <option value="NONE">No header</option>
                 {form.templateType === "STANDARD" && <><option value="TEXT">Text</option><option value="DOCUMENT">Document (PDF)</option></>}
-                {form.templateType !== "STANDARD" && form.templateType !== "LIMITED_TIME_OFFER" && <option value="TEXT">Text</option>}
-                <option value="IMAGE">Image</option>
-                {(form.templateType === "STANDARD" || form.templateType === "LIMITED_TIME_OFFER") && <option value="VIDEO">Video</option>}
+                {form.templateType === "STANDARD" && <><option value="IMAGE">Image</option><option value="VIDEO">Video</option></> }
               </select>
             </div>
             {form.headerFormat === "NONE" ? (
@@ -299,7 +297,7 @@ export default function TemplateCreateForm({ onCreated }) {
                 <div key={index} className="rounded-xl border border-slate-200 p-3">
                   <div className="mb-3 flex items-center justify-between">
                     <p className="text-xs font-semibold text-slate-600">Button {index + 1}</p>
-                    <button type="button" onClick={() => change("buttons", form.buttons.filter((_, buttonIndex) => buttonIndex !== index))} className="text-xs font-medium text-red-600">Remove</button>
+                    {form.templateType !== "LIMITED_TIME_OFFER" && <button type="button" onClick={() => change("buttons", form.buttons.filter((_, buttonIndex) => buttonIndex !== index))} className="text-xs font-medium text-red-600">Remove</button>}
                   </div>
                   {form.buttonGroup === "CALL_TO_ACTION" && (
                     <label className="mb-3 block text-xs font-medium text-slate-600">Button type
