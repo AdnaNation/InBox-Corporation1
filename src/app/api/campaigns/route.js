@@ -66,6 +66,7 @@ export async function POST(request) {
     const account = await db.collection("whatsappAccounts").findOne({
       workspaceId,
       status: "connected",
+      isActive: true,
     });
 
     if (!account) {
