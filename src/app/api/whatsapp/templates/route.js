@@ -58,7 +58,7 @@ export async function PATCH(request) {
     if (!Array.isArray(components) || components.length === 0 || components.length > 10 || components.some((item) => !item || typeof item !== "object" || Array.isArray(item) || !allowedTypes.includes(String(item.type || "").toUpperCase()))) return NextResponse.json({ success: false, message: "Provide the complete Meta components array, including every component you want to keep." }, { status: 400 });
     const db = await getDatabase();
     const workspaceId = new ObjectId(session.workspace.id);
-    const account = await db.collection("whatsappAccounts").findOne({ workspaceId, status: "connected", isActive: true });
+    const account = await getActiveWhatsAppAccount(db, workspaceId);
     if (!account?.accessTokenEncrypted || !account.wabaId) return NextResponse.json({ success: false, message: "Connect a WhatsApp Business Account first." }, { status: 404 });
     const accessToken = decryptSecret(account.accessTokenEncrypted);
     const apiVersion = process.env.META_GRAPH_API_VERSION || "v26.0";
@@ -263,7 +263,7 @@ export async function POST(request) {
 
     const db = await getDatabase();
     const workspaceId = new ObjectId(session.workspace.id);
-    const account = await db.collection("whatsappAccounts").findOne({ workspaceId, status: "connected", isActive: true });
+    const account = await getActiveWhatsAppAccount(db, workspaceId);
     if (!account?.accessTokenEncrypted || !account.wabaId) {
       return NextResponse.json({ success: false, message: "Connect a WhatsApp Business Account first." }, { status: 404 });
     }
@@ -319,7 +319,7 @@ export async function DELETE(request) {
 
     const workspaceId = new ObjectId(session.workspace.id);
     const db = await getDatabase();
-    const account = await db.collection("whatsappAccounts").findOne({ workspaceId, status: "connected", isActive: true });
+    const account = await getActiveWhatsAppAccount(db, workspaceId);
     if (!account?.accessTokenEncrypted || !account.wabaId) {
       return NextResponse.json({ success: false, message: "Connect a WhatsApp Business Account first." }, { status: 404 });
     }
