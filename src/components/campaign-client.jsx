@@ -35,6 +35,8 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
   const [selectedTemplateKey, setSelectedTemplateKey] = useState("");
   const [campaignName, setCampaignName] = useState("");
   const [campaignBodyParameters, setCampaignBodyParameters] = useState([]);
+  const [campaignCouponCode, setCampaignCouponCode] = useState("");
+  const [offerDurationHours, setOfferDurationHours] = useState("24");
   const [createLoading, setCreateLoading] = useState(false);
   const [createResult, setCreateResult] = useState(null);
 
@@ -47,6 +49,9 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
   const bodyComponent = selectedTemplate?.components?.find(
     (component) => component.type === "BODY",
   );
+  const templateButtons = selectedTemplate?.components?.find((component) => component.type === "BUTTONS")?.buttons || [];
+  const hasCopyCode = templateButtons.some((button) => String(button.type || "").toUpperCase() === "COPY_CODE");
+  const isLimitedTimeOffer = (selectedTemplate?.components || []).some((component) => component.type === "LIMITED_TIME_OFFER");
   const bodyVariableCount = new Set(
     (bodyComponent?.text || "").match(/\{\{\d+\}\}/g) || [],
   ).size;
@@ -101,6 +106,8 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
     const body = template?.components?.find((item) => item.type === "BODY");
     const count = new Set((body?.text || "").match(/\{\{\d+\}\}/g) || []).size;
     setCampaignBodyParameters(Array(count).fill(""));
+    setCampaignCouponCode("");
+    setOfferDurationHours("24");
   }
 
   async function createCampaignDraft(event) {
@@ -124,6 +131,8 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
             language: selectedTemplate.language,
           },
           bodyParameters: campaignBodyParameters.map((value) => value.trim()),
+          couponCode: campaignCouponCode.trim(),
+          offerDurationHours: isLimitedTimeOffer ? Number(offerDurationHours) : null,
         }),
       });
       const data = await response.json();
@@ -534,6 +543,23 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
             </div>
           )}
 
+          {hasCopyCode && (
+            <div className="lg:col-span-2 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+              <label className="block text-sm font-semibold text-slate-800">Campaign coupon code
+                <input required maxLength={isLimitedTimeOffer ? 15 : 20} value={campaignCouponCode} onChange={(event) => setCampaignCouponCode(event.target.value.replace(/\\s/g, "").slice(0, isLimitedTimeOffer ? 15 : 20))} placeholder="SAVE20" className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-green-500" />
+              </label>
+              <p className="mt-1 text-xs text-slate-600">This same code will be included in each recipient’s copy-code button. Use a code intended for the entire selected audience.</p>
+            </div>
+          )}
+          {isLimitedTimeOffer && (
+            <label className="lg:col-span-2 block text-sm font-medium text-slate-800">Offer validity per recipient
+              <select required value={offerDurationHours} onChange={(event) => setOfferDurationHours(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-green-500 sm:max-w-xs">
+                <option value="1">1 hour</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24">24 hours</option><option value="48">48 hours</option><option value="72">72 hours</option><option value="168">7 days</option>
+              </select>
+              <span className="mt-1 block text-xs font-normal text-slate-500">The countdown starts separately when each recipient receives the message.</span>
+            </label>
+          )}
+
           {selectedTemplate && (
             <div className="lg:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -561,7 +587,7 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
 
           <div className="lg:col-span-2 flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-slate-500">Audience: {audiencePreview?.total ?? "Preview not run"} eligible contact(s). The server saves an opted-in recipient snapshot.</p>
-            <button type="submit" disabled={createLoading || !connected || !campaignName.trim() || !selectedTemplate || (audienceType === "group" && !groupId) || (audienceType === "tag" && !tag)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50">
+            <button type="submit" disabled={createLoading || !connected || !campaignName.trim() || !selectedTemplate || (hasCopyCode && !campaignCouponCode.trim()) || (isLimitedTimeOffer && !offerDurationHours) || (audienceType === "group" && !groupId) || (audienceType === "tag" && !tag)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50">
               {createLoading ? <Loader2 size={17} className="animate-spin" /> : <FileText size={17} />}
               Create campaign draft
             </button>
