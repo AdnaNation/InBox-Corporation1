@@ -149,6 +149,9 @@ export async function POST(request) {
     const copyCodeButtonIndex = templateButtons.findIndex((button) => String(button.type || "").toUpperCase() === "COPY_CODE");
     const hasCopyCode = copyCodeButtonIndex >= 0;
     const isLimitedTimeOffer = (matchedTemplate.components || []).some((component) => component.type === "LIMITED_TIME_OFFER");
+    if (hasCopyCode && String(matchedTemplate.category || "").toUpperCase() !== "MARKETING") {
+      return NextResponse.json({ success: false, message: "Copy-code templates must be approved as Marketing templates." }, { status: 409 });
+    }
     const couponLimit = isLimitedTimeOffer ? 15 : 20;
     const urlButtonIndex = templateButtons.findIndex((button) => String(button.type || "").toUpperCase() === "URL");
     if (isLimitedTimeOffer && (!hasCopyCode || urlButtonIndex < 0 || String(matchedTemplate.category || "").toUpperCase() !== "MARKETING")) {
