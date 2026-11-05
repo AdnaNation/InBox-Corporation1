@@ -88,7 +88,7 @@ export async function POST(request) {
       const buttonText = typeof button.text === "string" ? button.text.trim() : "";
       const buttonUrl = typeof button.url === "string" ? button.url.trim() : "";
       const isDynamic = button.dynamic === true;
-      const urlForValidation = isDynamic ? buttonUrl.replace(/\\{\\{1\\}\\}$/, "sample-value") : buttonUrl;
+      const urlForValidation = isDynamic ? buttonUrl.replace(/\{\{1\}\}$/, "sample-value") : buttonUrl;
       let parsedUrl;
       try {
         parsedUrl = new URL(urlForValidation);
@@ -98,10 +98,10 @@ export async function POST(request) {
       if (!buttonText || buttonText.length > 25 || parsedUrl.protocol !== "https:" || parsedUrl.username || parsedUrl.password) {
         return NextResponse.json({ success: false, message: "URL button text is required (maximum 25 characters) and the link must be a valid HTTPS URL." }, { status: 400 });
       }
-      if (isDynamic && !/\\{\\{1\\}\\}$/.test(buttonUrl)) {
+      if (isDynamic && !/\{\{1\}\}$/.test(buttonUrl)) {
         return NextResponse.json({ success: false, message: "A dynamic URL must end with {{1}}." }, { status: 400 });
       }
-      if (!isDynamic && /\\{\\{\\d+\\}\\}/.test(buttonUrl)) {
+      if (!isDynamic && /\{\{\\d+\}\}/.test(buttonUrl)) {
         return NextResponse.json({ success: false, message: "Use Static URL mode for fixed links, or Dynamic URL mode for a link ending in {{1}}." }, { status: 400 });
       }
       if (buttonUrl.length > 2000) {
@@ -111,7 +111,7 @@ export async function POST(request) {
         type: "URL",
         text: buttonText,
         url: buttonUrl,
-        ...(isDynamic ? { example: [buttonUrl.replace(/\\{\\{1\\}\\}$/, "sample-value")] } : {}),
+        ...(isDynamic ? { example: [buttonUrl.replace(/\{\{1\}\}$/, "sample-value")] } : {}),
       };
     }
 
