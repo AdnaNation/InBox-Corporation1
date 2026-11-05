@@ -35,6 +35,8 @@ export async function POST(request) {
     const audience = body.audience;
     const template = body.template;
     const bodyParameters = body.bodyParameters ?? [];
+    const couponCode = typeof body.couponCode === "string" ? body.couponCode.trim() : "";
+    const offerDurationHours = body.offerDurationHours === null || body.offerDurationHours === undefined ? null : Number(body.offerDurationHours);
 
     if (
       !name ||
@@ -48,7 +50,9 @@ export async function POST(request) {
       !/^[a-zA-Z0-9_-]+$/.test(template.language) ||
       !Array.isArray(bodyParameters) ||
       bodyParameters.length > 20 ||
-      !bodyParameters.every((value) => typeof value === "string" && value.length <= 1024)
+      !bodyParameters.every((value) => typeof value === "string" && value.length <= 1024) ||
+      (couponCode && (!/^[A-Za-z0-9_-]{1,20}$/.test(couponCode))) ||
+      (offerDurationHours !== null && (!Number.isInteger(offerDurationHours) || offerDurationHours < 1 || offerDurationHours > 168))
     ) {
       return NextResponse.json(
         { success: false, message: "Invalid campaign details." },
@@ -173,6 +177,8 @@ export async function POST(request) {
         category: null,
       },
       bodyParameters: bodyParameters.map((value) => value.trim()),
+      ...(couponCode ? { couponCode } : {}),
+      ...(offerDurationHours !== null ? { offerDurationHours } : {}),
       templateVerification: "pending",
       targetCount,
       recipientCount: 0,
