@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHmac } from "node:crypto";
 
 const WINDOW_MS = 15 * 60 * 1000;
 let indexesPromise;
@@ -17,7 +17,11 @@ async function ensureRateLimitIndexes(db) {
 
 function makeBucketId(scope, identity, now) {
   const bucket = Math.floor(now.getTime() / WINDOW_MS);
-  const digest = createHash("sha256")
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret.length < 32) {
+    throw new Error("JWT_SECRET must contain at least 32 characters");
+  }
+  const digest = createHmac("sha256", secret)
     .update(String(identity).trim().toLowerCase())
     .digest("hex");
   return {
