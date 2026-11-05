@@ -201,8 +201,6 @@ export async function POST(request) {
       businessName,
       accessToken,
     } = body;
-    const replaceExisting = body.replaceExisting === true;
-
     if (
       ![
         phoneNumberId,
