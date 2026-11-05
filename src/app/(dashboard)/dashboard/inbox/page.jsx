@@ -1128,7 +1128,7 @@ export default function InboxPage() {
 
                               {info.hasCopyCode && (
                                 <label className="block text-sm font-medium text-slate-700">Coupon code
-                                  <input required maxLength={info.couponCodeLimit} value={templateCouponCode} onChange={(event) => setTemplateCouponCode(event.target.value.replace(/\\s/g, "").slice(0, info.couponCodeLimit))} placeholder="SAVE20" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-green-500" />
+                                  <input required maxLength={info.couponCodeLimit} value={templateCouponCode} onChange={(event) => setTemplateCouponCode(event.target.value.replace(/\s/g, "").slice(0, info.couponCodeLimit))} placeholder="SAVE20" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-green-500" />
                                   <span className="mt-1 block text-xs font-normal text-slate-500">This code will appear in WhatsApp’s copy-code button. Maximum {info.couponCodeLimit} characters.</span>
                                 </label>
                               )}
