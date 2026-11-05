@@ -255,7 +255,7 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
           ...form,
           parameters: form.parameters.map((value) => value.trim()),
           couponCode: form.couponCode.trim(),
-          expirationTime: form.expirationTime,
+          expirationTime: form.expirationTime ? new Date(form.expirationTime).toISOString() : "",
         }),
       });
 
