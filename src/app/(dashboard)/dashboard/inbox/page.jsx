@@ -1134,7 +1134,7 @@ export default function InboxPage() {
                               )}
                               {info.isLimitedTimeOffer && (
                                 <label className="block text-sm font-medium text-slate-700">Offer expiry (your local time)
-                                  <input required type="datetime-local" min={new Date(Date.now() + 60000).toISOString().slice(0, 16)} value={templateOfferExpiresAt} onChange={(event) => setTemplateOfferExpiresAt(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-green-500" />
+                                  <input required type="datetime-local" value={templateOfferExpiresAt} onChange={(event) => setTemplateOfferExpiresAt(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-green-500" />
                                   <span className="mt-1 block text-xs font-normal text-slate-500">Meta receives this as a Unix timestamp in milliseconds.</span>
                                 </label>
                               )}
