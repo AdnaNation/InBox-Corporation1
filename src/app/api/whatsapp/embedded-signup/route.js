@@ -4,6 +4,7 @@ import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
 import { encryptSecret } from "@/lib/crypto";
+import { ensureWhatsAppAccountIndexes } from "@/lib/whatsapp-account";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -69,6 +70,7 @@ export async function POST(request) {
     }
 
     const db = await getDatabase();
+    await ensureWhatsAppAccountIndexes(db);
     const workspaceId = new ObjectId(session.workspace.id);
     const linkedElsewhere = await db.collection("whatsappAccounts").findOne({
       phoneNumberId,
