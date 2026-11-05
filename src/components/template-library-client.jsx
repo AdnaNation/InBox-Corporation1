@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import TemplateCreateForm from "./template-create-form";
+import { showConfirm } from "@/lib/swal";
 import {
   RefreshCw,
   FileText,
@@ -226,9 +227,11 @@ export default function TemplateLibraryClient() {
   }
 
   async function deleteTemplate(template) {
-    const confirmed = window.confirm(
-      `Delete "${template.name}" (${template.language}) from this WhatsApp Business Account? This removes only this language version, not other languages with the same name. This action cannot be undone.`,
-    );
+    const confirmed = await showConfirm({
+      title: "Delete this template language?",
+      text: `Delete "${template.name}" (${template.language}) from this WhatsApp Business Account? Only this language version will be removed. This action cannot be undone.`,
+      confirmButtonText: "Delete template",
+    });
     if (!confirmed) return;
 
     setDeletingTemplateId(template.id);
