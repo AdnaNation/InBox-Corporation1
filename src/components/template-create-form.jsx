@@ -9,6 +9,7 @@ const initial = {
   category: "UTILITY",
   header: "",
   body: "",
+  bodyExamples: {},
   footer: "",
   addUrlButton: false,
   buttonText: "View details",
@@ -27,6 +28,10 @@ export default function TemplateCreateForm({ onCreated }) {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
+  const bodyVariableNumbers = [...new Set(
+    [...form.body.matchAll(/\{\{(\d+)\}\}/g)].map((match) => Number(match[1])),
+  )].sort((a, b) => a - b);
+
   async function submit(event) {
     event.preventDefault();
     setBusy(true);
@@ -41,6 +46,7 @@ export default function TemplateCreateForm({ onCreated }) {
               text: form.buttonText,
               url: form.buttonUrl,
               dynamic: form.buttonMode === "dynamic",
+              example: form.buttonExample,
             }
           : null,
       };
@@ -111,6 +117,26 @@ export default function TemplateCreateForm({ onCreated }) {
             <textarea required maxLength={1024} rows={5} value={form.body} onChange={(e) => change("body", e.target.value)} placeholder="Hello {{1}}, your order {{2}} is ready." className={field + " mt-1.5"} />
             <span className="mt-1 block text-xs font-normal text-slate-400">Use sequential variables: {"{{1}}"}, {"{{2}}"}, and so on. Maximum 1,024 characters.</span>
           </label>
+          {bodyVariableNumbers.length > 0 && (
+            <section className="rounded-xl border border-slate-200 p-4">
+              <h3 className="text-sm font-semibold text-slate-800">Body variable examples for Meta</h3>
+              <p className="mt-1 text-xs text-slate-500">Enter sample values Meta can use to review each placeholder. These are examples, not the values sent to customers.</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                {bodyVariableNumbers.map((number) => (
+                  <label key={number} className="text-sm font-medium text-slate-700">
+                    Example for {"{{"}{number}{"}}"}
+                    <input
+                      required
+                      value={form.bodyExamples[number] || ""}
+                      onChange={(event) => change("bodyExamples", { ...form.bodyExamples, [number]: event.target.value })}
+                      placeholder={number === 1 ? "আদনান" : `Sample value ${number}`}
+                      className={field + " mt-1.5"}
+                    />
+                  </label>
+                ))}
+              </div>
+            </section>
+          )}
           <label className="block text-sm font-medium text-slate-700">Footer (optional)
             <input maxLength={60} value={form.footer} onChange={(e) => change("footer", e.target.value)} placeholder="Thank you for choosing us." className={field + " mt-1.5"} />
           </label>
@@ -142,6 +168,18 @@ export default function TemplateCreateForm({ onCreated }) {
                       : "Enter the complete fixed HTTPS link."}
                   </span>
                 </label>
+                {form.buttonMode === "dynamic" && (
+                  <label className="block text-sm font-medium text-slate-700">Button URL variable example for {"{{1}}"}
+                    <input
+                      required
+                      value={form.buttonExample || ""}
+                      onChange={(event) => change("buttonExample", event.target.value)}
+                      placeholder="10"
+                      className={field + " mt-1.5"}
+                    />
+                    <span className="mt-1 block text-xs font-normal text-slate-500">For https://example.com/orders/{"{{1}}"}, enter 10. Meta will receive the complete example URL.</span>
+                  </label>
+                )}
                 {form.buttonMode === "dynamic" && !dynamicUrlValid && (
                   <p className="text-xs text-amber-700">A dynamic URL must end with {"{{1}}"}.</p>
                 )}

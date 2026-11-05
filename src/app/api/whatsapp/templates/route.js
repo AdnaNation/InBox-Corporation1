@@ -63,6 +63,7 @@ export async function POST(request) {
     const text = typeof body.body === "string" ? body.body.trim() : "";
     const footer = typeof body.footer === "string" ? body.footer.trim() : "";
     const button = body.button && typeof body.button === "object" ? body.button : null;
+    const bodyExamples = body.bodyExamples && typeof body.bodyExamples === "object" ? body.bodyExamples : {};
 
     if (!/^[a-z0-9_]{1,512}$/.test(name)) {
       return NextResponse.json({ success: false, message: "Use a template name with lowercase letters, numbers, and underscores only." }, { status: 400 });
@@ -83,11 +84,19 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: "Use sequential body variables starting at {{1}}, with no gaps (maximum 10)." }, { status: 400 });
     }
 
+    const bodyExampleValues = uniqueVariables.map((number) =>
+      typeof bodyExamples[number] === "string" ? bodyExamples[number].trim() : "",
+    );
+    if (bodyExampleValues.some((value) => !value || value.length > 1024)) {
+      return NextResponse.json({ success: false, message: "Enter an example value for every BODY variable." }, { status: 400 });
+    }
+
     let urlButton = null;
     if (button) {
       const buttonText = typeof button.text === "string" ? button.text.trim() : "";
       const buttonUrl = typeof button.url === "string" ? button.url.trim() : "";
       const isDynamic = button.dynamic === true;
+      const buttonExample = typeof button.example === "string" ? button.example.trim() : "";
       const urlForValidation = isDynamic ? buttonUrl.replace(/\{\{1\}\}$/, "sample-value") : buttonUrl;
       let parsedUrl;
       try {
@@ -101,6 +110,9 @@ export async function POST(request) {
       if (isDynamic && !/\{\{1\}\}$/.test(buttonUrl)) {
         return NextResponse.json({ success: false, message: "A dynamic URL must end with {{1}}." }, { status: 400 });
       }
+      if (isDynamic && (!buttonExample || buttonExample.length > 200)) {
+        return NextResponse.json({ success: false, message: "Enter a sample value for the dynamic button URL variable." }, { status: 400 });
+      }
       if (!isDynamic && /\{\{\d+\}\}/.test(buttonUrl)) {
         return NextResponse.json({ success: false, message: "Use Static URL mode for fixed links, or Dynamic URL mode for a link ending in {{1}}." }, { status: 400 });
       }
@@ -111,7 +123,7 @@ export async function POST(request) {
         type: "URL",
         text: buttonText,
         url: buttonUrl,
-        ...(isDynamic ? { example: [buttonUrl.replace(/\{\{1\}\}$/, "sample-value")] } : {}),
+        ...(isDynamic ? { example: [buttonUrl.replace(/\{\{1\}\}$/, buttonExample)] } : {}),
       };
     }
 
@@ -121,7 +133,7 @@ export async function POST(request) {
       type: "BODY",
       text,
       ...(uniqueVariables.length
-        ? { example: { body_text: [uniqueVariables.map((number) => `Sample ${number}`)] } }
+        ? { example: { body_text: [bodyExampleValues] } }
         : {}),
     });
     if (footer) components.push({ type: "FOOTER", text: footer });
