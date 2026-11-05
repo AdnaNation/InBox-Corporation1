@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Loader2, X, Link2 } from "lucide-react";
+import { Plus, Loader2, X } from "lucide-react";
 
 const initial = {
   name: "",
@@ -14,10 +14,8 @@ const initial = {
   body: "",
   bodyExamples: {},
   footer: "",
-  addUrlButton: false,
-  buttonText: "View details",
-  buttonUrl: "",
-  buttonMode: "static",
+  buttonGroup: "QUICK_REPLY",
+  buttons: [],
 };
 
 function renderWhatsAppText(value) {
@@ -57,6 +55,26 @@ export default function TemplateCreateForm({ onCreated }) {
     [...form.body.matchAll(/\{\{(\d+)\}\}/g)].map((match) => Number(match[1])),
   )].sort((a, b) => a - b);
 
+  function updateButton(index, key, value) {
+    setForm((current) => ({
+      ...current,
+      buttons: current.buttons.map((button, buttonIndex) =>
+        buttonIndex === index ? { ...button, [key]: value } : button,
+      ),
+    }));
+  }
+
+  function addButton() {
+    const limit = form.buttonGroup === "QUICK_REPLY" ? 3 : 2;
+    if (form.buttons.length >= limit) return;
+    change("buttons", [
+      ...form.buttons,
+      form.buttonGroup === "QUICK_REPLY"
+        ? { type: "QUICK_REPLY", text: "" }
+        : { type: "URL", text: "", url: "", dynamic: false, example: "" },
+    ]);
+  }
+
   async function uploadHeaderMedia(file) {
     if (!file) return;
     const limits = { IMAGE: 5 * 1024 * 1024, VIDEO: 16 * 1024 * 1024, DOCUMENT: 100 * 1024 * 1024 };
@@ -92,15 +110,7 @@ export default function TemplateCreateForm({ onCreated }) {
     try {
       const payload = {
         ...form,
-        button: form.addUrlButton
-          ? {
-              type: "URL",
-              text: form.buttonText,
-              url: form.buttonUrl,
-              dynamic: form.buttonMode === "dynamic",
-              example: form.buttonExample,
-            }
-          : null,
+        buttons: form.buttons,
       };
       const response = await fetch("/api/whatsapp/templates", {
         method: "POST",
@@ -120,9 +130,19 @@ export default function TemplateCreateForm({ onCreated }) {
   }
 
   const field = "w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-green-500";
-  const dynamicUrlValid = form.buttonMode !== "dynamic" || /\{\{1\}\}$/.test(form.buttonUrl.trim());
+  const buttonsValid = form.buttons.every((button) => {
+    if (!button.text?.trim() || button.text.trim().length > 25) return false;
+    if (button.type === "URL") {
+      if (!button.url?.trim()) return false;
+      if (button.dynamic && (!/\{\{1\}\}$/.test(button.url.trim()) || !button.example?.trim())) return false;
+      if (!button.dynamic && /\{\{\d+\}\}/.test(button.url)) return false;
+    }
+    if (button.type === "PHONE_NUMBER" && !/^\+[1-9]\d{7,14}$/.test(button.phone_number || "")) return false;
+    return true;
+  });
+  const buttonLimit = form.buttonGroup === "QUICK_REPLY" ? 3 : 2;
   const canSubmit = !mediaBusy && form.name.trim() && form.body.trim() && (form.headerFormat === "TEXT" || form.headerMediaHandle) &&
-    (!form.addUrlButton || (form.buttonText.trim() && form.buttonUrl.trim() && dynamicUrlValid));
+    form.buttons.length <= buttonLimit && buttonsValid;
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5">
@@ -209,49 +229,67 @@ export default function TemplateCreateForm({ onCreated }) {
           </label>
 
           <section className="rounded-xl border border-slate-200 p-4">
-            <label className="flex cursor-pointer items-center gap-3 text-sm font-semibold text-slate-800">
-              <input type="checkbox" checked={form.addUrlButton} onChange={(e) => change("addUrlButton", e.target.checked)} className="h-4 w-4 accent-green-600" />
-              <Link2 size={16} className="text-green-600" />
-              Add website URL button
-            </label>
-            {form.addUrlButton && (
-              <div className="mt-4 space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="text-sm font-medium text-slate-700">Button text
-                    <input required maxLength={25} value={form.buttonText} onChange={(e) => change("buttonText", e.target.value)} placeholder="View order" className={field + " mt-1.5"} />
-                  </label>
-                  <label className="text-sm font-medium text-slate-700">URL type
-                    <select value={form.buttonMode} onChange={(e) => change("buttonMode", e.target.value)} className={field + " mt-1.5"}>
-                      <option value="static">Static URL</option>
-                      <option value="dynamic">Dynamic URL (with variable)</option>
-                    </select>
-                  </label>
-                </div>
-                <label className="block text-sm font-medium text-slate-700">Website URL
-                  <input required type="text" inputMode="url" value={form.buttonUrl} onChange={(e) => change("buttonUrl", e.target.value)} placeholder={form.buttonMode === "dynamic" ? "https://example.com/orders/{{1}}" : "https://example.com/orders"} className={field + " mt-1.5"} />
-                  <span className="mt-1 block text-xs font-normal text-slate-500">
-                    {form.buttonMode === "dynamic"
-                      ? 'Add {{1}} at the end of the URL. Meta will review it as a dynamic link template; sending-time values will be handled in the messaging workflow.'
-                      : "Enter the complete fixed HTTPS link."}
-                  </span>
-                </label>
-                {form.buttonMode === "dynamic" && (
-                  <label className="block text-sm font-medium text-slate-700">Button URL variable example for {"{{1}}"}
-                    <input
-                      required
-                      value={form.buttonExample || ""}
-                      onChange={(event) => change("buttonExample", event.target.value)}
-                      placeholder="10"
-                      className={field + " mt-1.5"}
-                    />
-                    <span className="mt-1 block text-xs font-normal text-slate-500">For https://example.com/orders/{"{{1}}"}, enter 10. Meta will receive the complete example URL.</span>
-                  </label>
-                )}
-                {form.buttonMode === "dynamic" && !dynamicUrlValid && (
-                  <p className="text-xs text-amber-700">A dynamic URL must end with {"{{1}}"}.</p>
-                )}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-800">Template buttons (optional)</h3>
+                <p className="mt-1 text-xs text-slate-500">Choose up to 3 quick replies, or up to 2 call-to-action buttons.</p>
               </div>
+              <select value={form.buttonGroup} onChange={(event) => setForm((current) => ({ ...current, buttonGroup: event.target.value, buttons: [] }))} className={field + " max-w-48"}>
+                <option value="QUICK_REPLY">Quick replies</option>
+                <option value="CALL_TO_ACTION">Call-to-action</option>
+              </select>
+            </div>
+            <div className="mt-3 space-y-3">
+              {form.buttons.map((button, index) => (
+                <div key={index} className="rounded-xl border border-slate-200 p-3">
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="text-xs font-semibold text-slate-600">Button {index + 1}</p>
+                    <button type="button" onClick={() => change("buttons", form.buttons.filter((_, buttonIndex) => buttonIndex !== index))} className="text-xs font-medium text-red-600">Remove</button>
+                  </div>
+                  {form.buttonGroup === "CALL_TO_ACTION" && (
+                    <label className="mb-3 block text-xs font-medium text-slate-600">Button type
+                      <select value={button.type} onChange={(event) => updateButton(index, "type", event.target.value)} className={field + " mt-1.5"}>
+                        <option value="URL">Website URL</option>
+                        <option value="PHONE_NUMBER">Call phone number</option>
+                      </select>
+                    </label>
+                  )}
+                  {button.type !== "COPY_CODE" && (
+                    <label className="block text-xs font-medium text-slate-600">Button label
+                      <input required maxLength={25} value={button.text || ""} onChange={(event) => updateButton(index, "text", event.target.value)} placeholder={button.type === "QUICK_REPLY" ? "Yes, confirm" : button.type === "PHONE_NUMBER" ? "Call us" : "View details"} className={field + " mt-1.5"} />
+                    </label>
+                  )}
+                  {button.type === "URL" && (
+                    <div className="mt-3 space-y-3">
+                      <label className="block text-xs font-medium text-slate-600">Website URL
+                        <input required value={button.url || ""} onChange={(event) => updateButton(index, "url", event.target.value)} placeholder="https://example.com/orders/{{1}}" className={field + " mt-1.5"} />
+                      </label>
+                      <label className="flex items-center gap-2 text-xs text-slate-600">
+                        <input type="checkbox" checked={Boolean(button.dynamic)} onChange={(event) => updateButton(index, "dynamic", event.target.checked)} className="accent-green-600" />
+                        Dynamic URL (ends with {"{{1}}"})
+                      </label>
+                      {button.dynamic && (
+                        <label className="block text-xs font-medium text-slate-600">Example value for {"{{1}}"}
+                          <input required value={button.example || ""} onChange={(event) => updateButton(index, "example", event.target.value)} placeholder="10" className={field + " mt-1.5"} />
+                        </label>
+                      )}
+                    </div>
+                  )}
+                  {button.type === "PHONE_NUMBER" && (
+                    <label className="mt-3 block text-xs font-medium text-slate-600">Phone number (international format)
+                      <input required value={button.phone_number || ""} onChange={(event) => updateButton(index, "phone_number", event.target.value.replace(/[^+\d]/g, ""))} placeholder="+8801XXXXXXXXX" className={field + " mt-1.5"} />
+                      <span className="mt-1 block font-normal text-slate-400">Include country code, starting with +.</span>
+                    </label>
+                  )}
+                </div>
+              ))}
+            </div>
+            {form.buttons.length < buttonLimit && (
+              <button type="button" onClick={addButton} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-green-200 px-3 py-2 text-xs font-semibold text-green-700 hover:bg-green-50">
+                <Plus size={14} /> Add {form.buttonGroup === "QUICK_REPLY" ? "quick reply" : "call-to-action"} button
+              </button>
             )}
+            {form.buttons.length > 0 && <p className="mt-2 text-[11px] text-slate-500">Quick replies cannot be mixed with call-to-action buttons in one template.</p>}
           </section>
 
           </div>
@@ -266,7 +304,17 @@ export default function TemplateCreateForm({ onCreated }) {
                 {form.headerFormat !== "TEXT" && !mediaPreviewUrl && <p className="mb-2 rounded-lg bg-slate-100 p-6 text-center text-xs text-slate-400">{form.headerFormat} header preview</p>}
                 <p className="whitespace-pre-wrap break-words text-sm text-slate-800">{renderWhatsAppText(previewBody || "Your message will appear here…")}</p>
                 {form.footer && <p className="mt-2 text-[11px] text-slate-500">{form.footer}</p>}
-                {form.addUrlButton && <div className="mt-3 border-t border-slate-100 pt-2 text-center text-sm font-semibold text-blue-600">{form.buttonText || "Website button"}{form.buttonMode === "dynamic" && <span className="block break-all text-[10px] font-normal text-slate-400">{form.buttonUrl.replace(/\{\{1\}\}$/, form.buttonExample || "10")}</span>}</div>}
+                {form.buttons.length > 0 && (
+                  <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-2">
+                    {form.buttons.map((button, index) => (
+                      <div key={index} className="rounded-md border border-slate-100 py-2 text-center text-xs font-semibold text-blue-600">
+                        {button.text || (button.type === "PHONE_NUMBER" ? "Call" : button.type === "URL" ? "Website button" : "Quick reply")}
+                        {button.type === "URL" && <span className="block break-all px-2 text-[10px] font-normal text-slate-400">{button.url?.replace(/\{\{1\}\}$/, button.example || "10")}</span>}
+                        {button.type === "PHONE_NUMBER" && <span className="block text-[10px] font-normal text-slate-400">{button.phone_number}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <p className="mt-2 text-center text-[10px] text-slate-500">Sample preview; final rendering may vary in WhatsApp.</p>
             </div>
