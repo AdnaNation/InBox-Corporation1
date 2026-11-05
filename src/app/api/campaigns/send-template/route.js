@@ -150,6 +150,10 @@ export async function POST(request) {
     const hasCopyCode = copyCodeButtonIndex >= 0;
     const isLimitedTimeOffer = (matchedTemplate.components || []).some((component) => component.type === "LIMITED_TIME_OFFER");
     const couponLimit = isLimitedTimeOffer ? 15 : 20;
+    const urlButtonIndex = templateButtons.findIndex((button) => String(button.type || "").toUpperCase() === "URL");
+    if (isLimitedTimeOffer && (!hasCopyCode || urlButtonIndex < 0 || String(template.category || "").toUpperCase() !== "MARKETING")) {
+      return NextResponse.json({ success: false, message: "This limited-time offer must be a Marketing template with both Copy code and Website URL buttons." }, { status: 409 });
+    }
     if (hasCopyCode && (typeof couponCode !== "string" || !/^[A-Za-z0-9_-]{1,20}$/.test(couponCode.trim()) || couponCode.trim().length > couponLimit)) {
       return NextResponse.json({ success: false, message: `Enter a valid coupon code of up to ${couponLimit} characters.` }, { status: 400 });
     }
