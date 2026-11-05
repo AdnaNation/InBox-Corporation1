@@ -221,6 +221,39 @@ export async function POST(request) {
       );
     }
 
+    const apiVersion = process.env.META_GRAPH_API_VERSION || "v26.0";
+    const verifyUrl = new URL(`https://graph.facebook.com/${apiVersion}/${encodeURIComponent(phoneNumberId.trim())}`);
+    verifyUrl.searchParams.set("fields", "id,display_phone_number,verified_name");
+    let metaResponse;
+    try {
+      metaResponse = await fetch(verifyUrl, {
+        headers: { Authorization: `Bearer ${accessToken.trim()}` },
+        cache: "no-store",
+      });
+    } catch {
+      return NextResponse.json(
+        { success: false, message: "Could not reach Meta to verify this WhatsApp number. Nothing was saved; try again." },
+        { status: 502 },
+      );
+    }
+    const metaData = await metaResponse.json().catch(() => ({}));
+    if (!metaResponse.ok || String(metaData.id || "") !== phoneNumberId.trim()) {
+      const errorCode = metaData?.error?.code;
+      return NextResponse.json(
+        {
+          success: false,
+          code: errorCode === 190 ? "INVALID_ACCESS_TOKEN" : "WHATSAPP_ACCOUNT_VERIFICATION_FAILED",
+          message: errorCode === 190
+            ? "Meta rejected this access token. Check that it is valid and has not expired."
+            : metaResponse.status === 403
+              ? "This token does not have permission to access the selected WhatsApp number."
+              : metaData?.error?.message || "Meta could not verify this token for the selected WhatsApp number. Nothing was saved.",
+          metaErrorCode: errorCode || null,
+        },
+        { status: 422 },
+      );
+    }
+
     const db = await getDatabase();
     const workspaceId = new ObjectId(session.workspace.id);
     const now = new Date();
