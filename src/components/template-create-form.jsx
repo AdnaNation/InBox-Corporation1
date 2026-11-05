@@ -138,7 +138,7 @@ export default function TemplateCreateForm({ onCreated }) {
                   <input required type="text" inputMode="url" value={form.buttonUrl} onChange={(e) => change("buttonUrl", e.target.value)} placeholder={form.buttonMode === "dynamic" ? "https://example.com/orders/{{1}}" : "https://example.com/orders"} className={field + " mt-1.5"} />
                   <span className="mt-1 block text-xs font-normal text-slate-500">
                     {form.buttonMode === "dynamic"
-                      ? 'Add {{1}} at the end of the URL. The changing part will be provided when sending the template.'
+                      ? 'Add {{1}} at the end of the URL. Meta will review it as a dynamic link template; sending-time values will be handled in the messaging workflow.'
                       : "Enter the complete fixed HTTPS link."}
                   </span>
                 </label>
