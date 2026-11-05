@@ -23,6 +23,7 @@ export default function TemplateCreateForm({ onCreated }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const previewBody = form.body.replace(/\{\{(\d+)\}\}/g, (_, number) => form.bodyExamples[number] || `{{${number}}}`);
 
   function change(key, value) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -87,7 +88,7 @@ export default function TemplateCreateForm({ onCreated }) {
 
       {notice && <p role="status" className="mt-4 rounded-lg bg-green-50 p-3 text-sm text-green-800">{notice}</p>}
       {open && (
-        <form onSubmit={submit} className="mt-5 space-y-4 border-t border-slate-100 pt-5">
+        <form onSubmit={submit} className="mt-5 border-t border-slate-100 pt-5"><div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]"><div className="min-w-0 space-y-4">
           <div className="grid gap-4 sm:grid-cols-3">
             <label className="text-sm font-medium text-slate-700">Template name
               <input required maxLength={512} pattern="[a-z0-9_]+" value={form.name} onChange={(e) => change("name", e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_"))} placeholder="order_confirmation" className={field + " mt-1.5"} />
@@ -187,6 +188,20 @@ export default function TemplateCreateForm({ onCreated }) {
             )}
           </section>
 
+          </div>
+          <aside className="xl:sticky xl:top-5 xl:self-start">
+            <div className="rounded-2xl border border-slate-200 bg-[#efeae2] p-4">
+              <h3 className="mb-3 text-sm font-semibold text-slate-800">Live WhatsApp preview</h3>
+              <div className="rounded-xl bg-white p-3 shadow-sm">
+                {form.header && <p className="mb-2 text-sm font-bold text-slate-900">{form.header}</p>}
+                <p className="whitespace-pre-wrap break-words text-sm text-slate-800">{previewBody || "Your message will appear here…"}</p>
+                {form.footer && <p className="mt-2 text-[11px] text-slate-500">{form.footer}</p>}
+                {form.addUrlButton && <div className="mt-3 border-t border-slate-100 pt-2 text-center text-sm font-semibold text-blue-600">{form.buttonText || "Website button"}{form.buttonMode === "dynamic" && <span className="block break-all text-[10px] font-normal text-slate-400">{form.buttonUrl.replace(/\{\{1\}\}$/, form.buttonExample || "10")}</span>}</div>}
+              </div>
+              <p className="mt-2 text-center text-[10px] text-slate-500">Sample preview; final rendering may vary in WhatsApp.</p>
+            </div>
+          </aside>
+          </div>
           {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-slate-500">Meta reviews submitted templates. Approval is not guaranteed.</p>
