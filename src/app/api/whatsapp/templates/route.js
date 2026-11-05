@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
+import { getActiveWhatsAppAccount } from "@/lib/whatsapp-account";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
 import { decryptSecret } from "@/lib/crypto";
@@ -15,7 +16,7 @@ export async function GET() {
 
     const workspaceId = new ObjectId(session.workspace.id);
     const db = await getDatabase();
-    const account = await db.collection("whatsappAccounts").findOne({ workspaceId, status: "connected", isActive: true });
+    const account = await getActiveWhatsAppAccount(db, workspaceId);
     if (!account) return NextResponse.json({ success: false, message: "Connect a WhatsApp account first." }, { status: 404 });
 
     const accessToken = decryptSecret(account.accessTokenEncrypted);
