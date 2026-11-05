@@ -167,7 +167,7 @@ export default function TemplateCreateForm({ onCreated }) {
   const couponCodeLimit = form.templateType === "LIMITED_TIME_OFFER" ? 15 : 20;
   const canSubmit = !mediaBusy && form.name.trim() && form.body.trim() &&
     (form.headerFormat === "NONE" || form.headerFormat === "TEXT" || form.headerMediaHandle) &&
-    form.couponExample.trim().length > 0 && form.couponExample.trim().length <= couponCodeLimit &&
+    (!specialTemplate || (form.couponExample.trim().length > 0 && form.couponExample.trim().length <= couponCodeLimit)) &&
     (form.templateType !== "LIMITED_TIME_OFFER" || (form.offerText.trim().length > 0 && form.offerText.trim().length <= 16 && form.buttons.length === 1 && form.buttons[0]?.type === "URL" && !form.buttons[0]?.dynamic)) &&
     (form.templateType === "STANDARD" ? form.buttons.length <= buttonLimit && buttonsValid : form.templateType === "LIMITED_TIME_OFFER" ? buttonsValid : true);
 
@@ -267,7 +267,7 @@ export default function TemplateCreateForm({ onCreated }) {
             <section className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
               <h3 className="text-sm font-semibold text-slate-800">Copy-code button</h3>
               <p className="mt-1 text-xs text-slate-600">WhatsApp supplies the button label automatically. Enter an example code for Meta template review; the real code is supplied when you send the message.</p>
-              <input required maxLength={couponCodeLimit} value={form.couponExample} onChange={(event) => change("couponExample", event.target.value.replace(/\\s/g, "").slice(0, couponCodeLimit))} placeholder="SAVE20" className={field + " mt-3"} />
+              <input required maxLength={couponCodeLimit} value={form.couponExample} onChange={(event) => change("couponExample", event.target.value.replace(/\s/g, "").slice(0, couponCodeLimit))} placeholder="SAVE20" className={field + " mt-3"} />
               <p className="mt-1 text-xs text-slate-500">Maximum {couponCodeLimit} characters.</p>
             </section>
           )}
