@@ -279,6 +279,33 @@ export async function POST(request) {
       );
     }
 
+    const wabaUrl = new URL(`https://graph.facebook.com/${apiVersion}/${encodeURIComponent(wabaId.trim())}/phone_numbers`);
+    wabaUrl.searchParams.set("fields", "id");
+    wabaUrl.searchParams.set("limit", "100");
+    let wabaResponse;
+    try {
+      wabaResponse = await fetch(wabaUrl, {
+        headers: { Authorization: `Bearer ${accessToken.trim()}` },
+        cache: "no-store",
+      });
+    } catch {
+      return NextResponse.json(
+        { success: false, message: "Could not verify the WhatsApp Business Account with Meta. Nothing was saved." },
+        { status: 502 },
+      );
+    }
+    const wabaData = await wabaResponse.json().catch(() => ({}));
+    if (!wabaResponse.ok || !(wabaData.data || []).some((item) => String(item.id) === phoneNumberId.trim())) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: wabaData?.error?.message || "The selected Phone Number ID does not belong to the supplied WhatsApp Business Account ID.",
+          metaErrorCode: wabaData?.error?.code || null,
+        },
+        { status: 422 },
+      );
+    }
+
     const db = await getDatabase();
     const workspaceId = new ObjectId(session.workspace.id);
     const linkedElsewhere = await db.collection("whatsappAccounts").findOne({
