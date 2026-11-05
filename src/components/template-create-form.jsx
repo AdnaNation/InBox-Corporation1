@@ -7,6 +7,9 @@ const initial = {
   name: "",
   language: "en_US",
   category: "UTILITY",
+  templateType: "STANDARD",
+  couponExample: "SAVE20",
+  offerText: "Expiring offer!",
   header: "",
   headerFormat: "TEXT",
   headerMediaHandle: "",
@@ -49,6 +52,25 @@ export default function TemplateCreateForm({ onCreated }) {
 
   function change(key, value) {
     setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function changeTemplateType(templateType) {
+    setForm((current) => ({
+      ...current,
+      templateType,
+      category: templateType === "STANDARD" ? "UTILITY" : "MARKETING",
+      footer: templateType === "STANDARD" ? current.footer : "",
+      header: "",
+      headerFormat: templateType === "STANDARD" ? "TEXT" : "NONE",
+      headerMediaHandle: "",
+      headerMediaName: "",
+      buttonGroup: templateType === "LIMITED_TIME_OFFER" ? "CALL_TO_ACTION" : "QUICK_REPLY",
+      buttons: templateType === "LIMITED_TIME_OFFER"
+        ? [{ type: "URL", text: "Shop now", url: "https://example.com/offers", dynamic: false, example: "" }]
+        : [],
+    }));
+    setMediaPreviewUrl("");
+    setError("");
   }
 
   const bodyVariableNumbers = [...new Set(
@@ -141,8 +163,13 @@ export default function TemplateCreateForm({ onCreated }) {
     return true;
   });
   const buttonLimit = form.buttonGroup === "QUICK_REPLY" ? 3 : 2;
-  const canSubmit = !mediaBusy && form.name.trim() && form.body.trim() && (form.headerFormat === "TEXT" || form.headerMediaHandle) &&
-    form.buttons.length <= buttonLimit && buttonsValid;
+  const specialTemplate = form.templateType !== "STANDARD";
+  const couponCodeLimit = form.templateType === "LIMITED_TIME_OFFER" ? 15 : 20;
+  const canSubmit = !mediaBusy && form.name.trim() && form.body.trim() &&
+    (form.headerFormat === "NONE" || form.headerFormat === "TEXT" || form.headerMediaHandle) &&
+    (!specialTemplate || (form.couponExample.trim().length > 0 && form.couponExample.trim().length <= couponCodeLimit)) &&
+    (form.templateType !== "LIMITED_TIME_OFFER" || (form.offerText.trim().length > 0 && form.offerText.trim().length <= 16 && form.buttons.length === 1 && form.buttons[0]?.type === "URL" && !form.buttons[0]?.dynamic)) &&
+    (form.templateType === "STANDARD" ? form.buttons.length <= buttonLimit && buttonsValid : form.templateType === "LIMITED_TIME_OFFER" ? buttonsValid : true);
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5">
@@ -160,6 +187,14 @@ export default function TemplateCreateForm({ onCreated }) {
       {notice && <p role="status" className="mt-4 rounded-lg bg-green-50 p-3 text-sm text-green-800">{notice}</p>}
       {open && (
         <form onSubmit={submit} className="mt-5 border-t border-slate-100 pt-5"><div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]"><div className="min-w-0 space-y-4">
+          <label className="block text-sm font-medium text-slate-700">Template type
+            <select value={form.templateType} onChange={(event) => changeTemplateType(event.target.value)} className={field + " mt-1.5"}>
+              <option value="STANDARD">Standard template</option>
+              <option value="COUPON_CODE">Coupon code</option>
+              <option value="LIMITED_TIME_OFFER">Limited-time offer</option>
+            </select>
+            <span className="mt-1 block text-xs font-normal text-slate-500">Coupon and limited-time offer templates are Marketing templates.</span>
+          </label>
           <div className="grid gap-4 sm:grid-cols-3">
             <label className="text-sm font-medium text-slate-700">Template name
               <input required maxLength={512} pattern="[a-z0-9_]+" value={form.name} onChange={(e) => change("name", e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_"))} placeholder="order_confirmation" className={field + " mt-1.5"} />
@@ -176,7 +211,7 @@ export default function TemplateCreateForm({ onCreated }) {
               </select>
             </label>
             <label className="text-sm font-medium text-slate-700">Category
-              <select value={form.category} onChange={(e) => change("category", e.target.value)} className={field + " mt-1.5"}>
+              <select value={form.category} disabled={specialTemplate} onChange={(e) => change("category", e.target.value)} className={field + " mt-1.5 disabled:bg-slate-100 disabled:text-slate-500"}>
                 <option value="UTILITY">Utility</option>
                 <option value="MARKETING">Marketing</option>
               </select>
@@ -186,10 +221,14 @@ export default function TemplateCreateForm({ onCreated }) {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <label className="text-sm font-semibold text-slate-800">Header (optional)</label>
               <select value={form.headerFormat} onChange={(e) => { change("headerFormat", e.target.value); change("headerMediaHandle", ""); change("headerMediaName", ""); setMediaPreviewUrl(""); }} className={field + " max-w-44"}>
-                <option value="TEXT">Text</option><option value="IMAGE">Image</option><option value="VIDEO">Video</option><option value="DOCUMENT">Document (PDF)</option>
+                <option value="NONE">No header</option>
+                {form.templateType === "STANDARD" && <><option value="TEXT">Text</option><option value="DOCUMENT">Document (PDF)</option></>}
+                {form.templateType === "STANDARD" && <><option value="IMAGE">Image</option><option value="VIDEO">Video</option></> }
               </select>
             </div>
-            {form.headerFormat === "TEXT" ? (
+            {form.headerFormat === "NONE" ? (
+              <p className="mt-3 text-xs text-slate-500">No header will be included.</p>
+            ) : form.headerFormat === "TEXT" ? (
               <input maxLength={60} value={form.header} onChange={(e) => change("header", e.target.value)} placeholder="Your order update" className={field + " mt-3"} />
             ) : (
               <div className="mt-3">
@@ -201,8 +240,8 @@ export default function TemplateCreateForm({ onCreated }) {
             )}
           </section>
           <label className="block text-sm font-medium text-slate-700">Body
-            <textarea required maxLength={1024} rows={5} value={form.body} onChange={(e) => change("body", e.target.value)} placeholder="Hello {{1}}, your order {{2}} is ready." className={field + " mt-1.5"} />
-            <span className="mt-1 block text-xs font-normal text-slate-400">Use sequential variables: {"{{1}}"}, {"{{2}}"}, and so on. Formatting: *bold*, _italic_, ~strikethrough~, and ```monospace```. Maximum 1,024 characters.</span>
+            <textarea required maxLength={form.templateType === "LIMITED_TIME_OFFER" ? 600 : 1024} rows={5} value={form.body} onChange={(e) => change("body", e.target.value)} placeholder="Hello {{1}}, your order {{2}} is ready." className={field + " mt-1.5"} />
+            <span className="mt-1 block text-xs font-normal text-slate-400">Use sequential variables: {"{{1}}"}, {"{{2}}"}, and so on. Formatting: *bold*, _italic_, ~strikethrough~, and ```monospace```. {form.templateType === "LIMITED_TIME_OFFER" ? "Maximum 600 characters for limited-time offers." : "Maximum 1,024 characters."}</span>
           </label>
           {bodyVariableNumbers.length > 0 && (
             <section className="rounded-xl border border-slate-200 p-4">
@@ -224,33 +263,47 @@ export default function TemplateCreateForm({ onCreated }) {
               </div>
             </section>
           )}
-          <label className="block text-sm font-medium text-slate-700">Footer (optional)
+          {form.templateType !== "STANDARD" && (
+            <section className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+              <h3 className="text-sm font-semibold text-slate-800">Copy-code button</h3>
+              <p className="mt-1 text-xs text-slate-600">WhatsApp supplies the button label automatically. Enter an example code for Meta template review; the real code is supplied when you send the message.</p>
+              <input required maxLength={couponCodeLimit} value={form.couponExample} onChange={(event) => change("couponExample", event.target.value.replace(/\s/g, "").slice(0, couponCodeLimit))} placeholder="SAVE20" className={field + " mt-3"} />
+              <p className="mt-1 text-xs text-slate-500">Maximum {couponCodeLimit} characters.</p>
+            </section>
+          )}
+          {form.templateType === "LIMITED_TIME_OFFER" && (
+            <label className="block text-sm font-medium text-slate-700">Offer label
+              <input required maxLength={16} value={form.offerText} onChange={(event) => change("offerText", event.target.value)} placeholder="Expiring offer!" className={field + " mt-1.5"} />
+              <span className="mt-1 block text-xs font-normal text-slate-500">Up to 16 characters. Meta displays its own countdown when the message is sent.</span>
+            </label>
+          )}
+          {form.templateType === "STANDARD" && <label className="block text-sm font-medium text-slate-700">Footer (optional)
             <input maxLength={60} value={form.footer} onChange={(e) => change("footer", e.target.value)} placeholder="Thank you for choosing us." className={field + " mt-1.5"} />
-          </label>
+          </label>}
 
-          <section className="rounded-xl border border-slate-200 p-4">
+          {form.templateType !== "COUPON_CODE" && <section className="rounded-xl border border-slate-200 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-semibold text-slate-800">Template buttons (optional)</h3>
-                <p className="mt-1 text-xs text-slate-500">Choose up to 3 quick replies, or up to 2 call-to-action buttons.</p>
+                <p className="mt-1 text-xs text-slate-500">{form.templateType === "LIMITED_TIME_OFFER" ? "Limited-time offers require one static website URL button after the copy-code button." : "Choose up to 3 quick replies, or up to 2 call-to-action buttons."}</p>
               </div>
-              <select value={form.buttonGroup} onChange={(event) => setForm((current) => ({ ...current, buttonGroup: event.target.value, buttons: [] }))} className={field + " max-w-48"}>
+              {form.templateType === "STANDARD" && <select value={form.buttonGroup} onChange={(event) => setForm((current) => ({ ...current, buttonGroup: event.target.value, buttons: [] }))} className={field + " max-w-48"}>
                 <option value="QUICK_REPLY">Quick replies</option>
                 <option value="CALL_TO_ACTION">Call-to-action</option>
-              </select>
+              </select>}
             </div>
             <div className="mt-3 space-y-3">
               {form.buttons.map((button, index) => (
                 <div key={index} className="rounded-xl border border-slate-200 p-3">
                   <div className="mb-3 flex items-center justify-between">
                     <p className="text-xs font-semibold text-slate-600">Button {index + 1}</p>
-                    <button type="button" onClick={() => change("buttons", form.buttons.filter((_, buttonIndex) => buttonIndex !== index))} className="text-xs font-medium text-red-600">Remove</button>
+                    {form.templateType !== "LIMITED_TIME_OFFER" && <button type="button" onClick={() => change("buttons", form.buttons.filter((_, buttonIndex) => buttonIndex !== index))} className="text-xs font-medium text-red-600">Remove</button>}
                   </div>
                   {form.buttonGroup === "CALL_TO_ACTION" && (
                     <label className="mb-3 block text-xs font-medium text-slate-600">Button type
                       <select value={button.type} onChange={(event) => updateButton(index, "type", event.target.value)} className={field + " mt-1.5"}>
                         <option value="URL">Website URL</option>
-                        <option value="PHONE_NUMBER">Call phone number</option>
+                        {form.templateType === "STANDARD" && <option value="PHONE_NUMBER">Call phone number</option>}
                       </select>
                     </label>
                   )}
@@ -264,18 +317,18 @@ export default function TemplateCreateForm({ onCreated }) {
                       <label className="block text-xs font-medium text-slate-600">Website URL
                         <input required value={button.url || ""} onChange={(event) => updateButton(index, "url", event.target.value)} placeholder="https://example.com/orders/{{1}}" className={field + " mt-1.5"} />
                       </label>
-                      <label className="flex items-center gap-2 text-xs text-slate-600">
+                      {form.templateType === "STANDARD" && <label className="flex items-center gap-2 text-xs text-slate-600">
                         <input type="checkbox" checked={Boolean(button.dynamic)} onChange={(event) => updateButton(index, "dynamic", event.target.checked)} className="accent-green-600" />
                         Dynamic URL (ends with {"{{1}}"})
-                      </label>
-                      {button.dynamic && (
+                      </label>}
+                      {form.templateType === "STANDARD" && button.dynamic && (
                         <label className="block text-xs font-medium text-slate-600">Example value for {"{{1}}"}
                           <input required value={button.example || ""} onChange={(event) => updateButton(index, "example", event.target.value)} placeholder="10" className={field + " mt-1.5"} />
                         </label>
                       )}
                     </div>
                   )}
-                  {button.type === "PHONE_NUMBER" && (
+                  {form.templateType === "STANDARD" && button.type === "PHONE_NUMBER" && (
                     <label className="mt-3 block text-xs font-medium text-slate-600">Phone number (international format)
                       <input required value={button.phone_number || ""} onChange={(event) => updateButton(index, "phone_number", event.target.value.replace(/[^+\d]/g, ""))} placeholder="+8801XXXXXXXXX" className={field + " mt-1.5"} />
                       <span className="mt-1 block font-normal text-slate-400">Include country code, starting with +.</span>
@@ -284,13 +337,13 @@ export default function TemplateCreateForm({ onCreated }) {
                 </div>
               ))}
             </div>
-            {form.buttons.length < buttonLimit && (
+            {form.templateType === "LIMITED_TIME_OFFER" ? null : form.buttons.length < buttonLimit && (
               <button type="button" onClick={addButton} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-green-200 px-3 py-2 text-xs font-semibold text-green-700 hover:bg-green-50">
                 <Plus size={14} /> Add {form.buttonGroup === "QUICK_REPLY" ? "quick reply" : "call-to-action"} button
               </button>
             )}
             {form.buttons.length > 0 && <p className="mt-2 text-[11px] text-slate-500">Quick replies cannot be mixed with call-to-action buttons in one template.</p>}
-          </section>
+          </section>}
 
           </div>
           <aside className="xl:sticky xl:top-5 xl:self-start">
@@ -301,9 +354,11 @@ export default function TemplateCreateForm({ onCreated }) {
                 {form.headerFormat === "IMAGE" && mediaPreviewUrl && <img src={mediaPreviewUrl} alt="Header preview" className="mb-2 max-h-48 w-full rounded-lg object-cover" />}
                 {form.headerFormat === "VIDEO" && mediaPreviewUrl && <video src={mediaPreviewUrl} controls className="mb-2 max-h-48 w-full rounded-lg" />}
                 {form.headerFormat === "DOCUMENT" && form.headerMediaName && <p className="mb-2 rounded-lg bg-slate-100 p-3 text-xs text-slate-700">📄 {form.headerMediaName}</p>}
-                {form.headerFormat !== "TEXT" && !mediaPreviewUrl && <p className="mb-2 rounded-lg bg-slate-100 p-6 text-center text-xs text-slate-400">{form.headerFormat} header preview</p>}
+                {form.headerFormat !== "TEXT" && form.headerFormat !== "NONE" && !mediaPreviewUrl && <p className="mb-2 rounded-lg bg-slate-100 p-6 text-center text-xs text-slate-400">{form.headerFormat} header preview</p>}
                 <p className="whitespace-pre-wrap break-words text-sm text-slate-800">{renderWhatsAppText(previewBody || "Your message will appear here…")}</p>
+                {form.templateType === "LIMITED_TIME_OFFER" && <p className="mb-2 inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">{form.offerText || "Expiring offer!"}</p>}
                 {form.footer && <p className="mt-2 text-[11px] text-slate-500">{form.footer}</p>}
+                {form.templateType !== "STANDARD" && <div className="mt-3 rounded-md border border-slate-100 py-2 text-center text-xs font-semibold text-blue-600">Copy code · {form.couponExample}</div>}
                 {form.buttons.length > 0 && (
                   <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-2">
                     {form.buttons.map((button, index) => (

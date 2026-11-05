@@ -42,6 +42,9 @@ function getTemplateInfo(template) {
   const body = components.find((component) => component.type === "BODY");
 
   const bodyText = body?.text || "";
+  const buttons = components.find((component) => component.type === "BUTTONS")?.buttons || [];
+  const hasCopyCode = buttons.some((button) => String(button.type || "").toUpperCase() === "COPY_CODE");
+  const isLimitedTimeOffer = components.some((component) => component.type === "LIMITED_TIME_OFFER");
 
   const variableIndexes = [
     ...new Set(
@@ -58,6 +61,10 @@ function getTemplateInfo(template) {
     (header.format !== "TEXT" || /\{\{\d+\}\}/.test(header.text || ""))
   ) {
     reason = "Dynamic or media headers are not supported yet.";
+  } else if (hasCopyCode && String(template.category || "").toUpperCase() !== "MARKETING") {
+    reason = "Copy-code templates must use the Marketing category.";
+  } else if (isLimitedTimeOffer && !hasCopyCode) {
+    reason = "This limited-time offer is missing its required copy-code button.";
   } else if (variableIndexes.some((number, index) => number !== index + 1)) {
     reason = "This template has a non-sequential variable structure.";
   }
@@ -65,6 +72,9 @@ function getTemplateInfo(template) {
   return {
     bodyText,
     variableIndexes,
+    hasCopyCode,
+    isLimitedTimeOffer,
+    couponCodeLimit: isLimitedTimeOffer ? 15 : 20,
     supported: !reason,
     reason,
   };
@@ -109,6 +119,8 @@ export default function InboxPage() {
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [templateParameters, setTemplateParameters] = useState([]);
+  const [templateCouponCode, setTemplateCouponCode] = useState("");
+  const [templateOfferExpiresAt, setTemplateOfferExpiresAt] = useState("");
   const [templateSending, setTemplateSending] = useState(false);
 
   const bottomRef = useRef(null);
@@ -305,6 +317,8 @@ export default function InboxPage() {
     const info = getTemplateInfo(template);
 
     setTemplateParameters(info.variableIndexes.map(() => ""));
+    setTemplateCouponCode("");
+    setTemplateOfferExpiresAt("");
   }
 
   async function handleTemplateSend(event) {
@@ -323,6 +337,14 @@ export default function InboxPage() {
       setError("Please complete all template variables.");
       return;
     }
+    if (info.hasCopyCode && (!/^[A-Za-z0-9_-]{1,20}$/.test(templateCouponCode.trim()) || templateCouponCode.trim().length > info.couponCodeLimit)) {
+      setError("Enter a valid coupon code of up to " + info.couponCodeLimit + " characters.");
+      return;
+    }
+    if (info.isLimitedTimeOffer && (!templateOfferExpiresAt || new Date(templateOfferExpiresAt).getTime() <= Date.now())) {
+      setError("Choose an offer expiry time in the future.");
+      return;
+    }
 
     setTemplateSending(true);
     setError("");
@@ -338,6 +360,8 @@ export default function InboxPage() {
           templateName: selectedTemplate.name,
           language: selectedTemplate.language,
           parameters: templateParameters,
+          couponCode: templateCouponCode.trim(),
+          expirationTime: templateOfferExpiresAt ? new Date(templateOfferExpiresAt).toISOString() : "",
         }),
       });
 
@@ -350,6 +374,8 @@ export default function InboxPage() {
       setTemplateModalOpen(false);
       setSelectedTemplate(null);
       setTemplateParameters([]);
+      setTemplateCouponCode("");
+      setTemplateOfferExpiresAt("");
 
       await loadMessages(selectedId);
       await loadConversations();
@@ -1100,6 +1126,19 @@ export default function InboxPage() {
                                 </div>
                               )}
 
+                              {info.hasCopyCode && (
+                                <label className="block text-sm font-medium text-slate-700">Coupon code
+                                  <input required maxLength={info.couponCodeLimit} value={templateCouponCode} onChange={(event) => setTemplateCouponCode(event.target.value.replace(/\s/g, "").slice(0, info.couponCodeLimit))} placeholder="SAVE20" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-green-500" />
+                                  <span className="mt-1 block text-xs font-normal text-slate-500">This code will appear in WhatsApp’s copy-code button. Maximum {info.couponCodeLimit} characters.</span>
+                                </label>
+                              )}
+                              {info.isLimitedTimeOffer && (
+                                <label className="block text-sm font-medium text-slate-700">Offer expiry (your local time)
+                                  <input required type="datetime-local" value={templateOfferExpiresAt} onChange={(event) => setTemplateOfferExpiresAt(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-green-500" />
+                                  <span className="mt-1 block text-xs font-normal text-slate-500">Meta receives this as a Unix timestamp in milliseconds.</span>
+                                </label>
+                              )}
+
                               {/* Live preview */}
                               <div>
                                 <h3 className="mb-2 text-sm font-semibold text-slate-800">
@@ -1107,6 +1146,7 @@ export default function InboxPage() {
                                 </h3>
 
                                 <div className="rounded-xl border border-green-200 bg-[#dcf8c6] p-4">
+                                  {info.isLimitedTimeOffer && <p className="mb-2 inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">Limited-time offer</p>}
                                   <p className="whitespace-pre-wrap text-sm leading-6 text-slate-800">
                                     {getTemplatePreview(
                                       selectedTemplate,
@@ -1122,9 +1162,9 @@ export default function InboxPage() {
                                 onClick={handleTemplateSend}
                                 disabled={
                                   templateSending ||
-                                  templateParameters.some(
-                                    (value) => !value.trim(),
-                                  )
+                                  templateParameters.some((value) => !value.trim()) ||
+                                  (info.hasCopyCode && !templateCouponCode.trim()) ||
+                                  (info.isLimitedTimeOffer && !templateOfferExpiresAt)
                                 }
                                 className="w-full rounded-xl bg-green-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
                               >

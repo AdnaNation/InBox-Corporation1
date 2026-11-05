@@ -210,6 +210,22 @@ export async function POST(request) {
       const token = decryptSecret(account.accessTokenEncrypted);
       const version = process.env.META_GRAPH_API_VERSION || "v22.0";
       const params = campaign.bodyParameters || [];
+      const templateComponents = [];
+      if (params.length) templateComponents.push({ type: "body", parameters: params.map((text) => ({ type: "text", text })) });
+      const offerExpiresAt = campaign.template?.isLimitedTimeOffer
+        ? new Date(Date.now() + Number(campaign.offerDurationHours) * 60 * 60 * 1000)
+        : null;
+      if (offerExpiresAt) {
+        templateComponents.push({ type: "limited_time_offer", parameters: [{ type: "limited_time_offer", limited_time_offer: { expiration_time_ms: offerExpiresAt.getTime() } }] });
+      }
+      if (campaign.template?.hasCopyCode) {
+        templateComponents.push({
+          type: "button",
+          sub_type: "copy_code",
+          index: Number.isInteger(campaign.template.copyCodeButtonIndex) ? campaign.template.copyCodeButtonIndex : 0,
+          parameters: [{ type: "coupon_code", coupon_code: campaign.couponCode }],
+        });
+      }
       const payload = {
         messaging_product: "whatsapp",
         recipient_type: "individual",
@@ -218,7 +234,7 @@ export async function POST(request) {
         template: {
           name: campaign.template.name,
           language: { code: campaign.template.language },
-          ...(params.length ? { components: [{ type: "body", parameters: params.map((text) => ({ type: "text", text })) }] } : {}),
+          ...(templateComponents.length ? { components: templateComponents } : {}),
         },
       };
 
@@ -334,6 +350,8 @@ export async function POST(request) {
               phoneNumberId: account.phoneNumberId, waId: String(liveContact.phone).replace(/^\+/, ""),
               waMessageId, providerMessageId: waMessageId, direction: "outbound", type: "template",
               templateName: campaign.template.name, templateLanguage: campaign.template.language,
+              ...(campaign.template?.hasCopyCode ? { templateCouponCode: campaign.couponCode } : {}),
+              ...(offerExpiresAt ? { templateOfferExpiresAt: offerExpiresAt } : {}),
               campaignId: campaign._id, campaignRecipientId: recipient._id,
               status: "accepted", statusRank: 0, timestamp: now, createdAt: now, updatedAt: now,
             } },

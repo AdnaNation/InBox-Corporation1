@@ -99,7 +99,10 @@ export async function POST(request) {
     const body = await request.json();
     const name = typeof body.name === "string" ? body.name.trim().toLowerCase() : "";
     const language = typeof body.language === "string" ? body.language.trim() : "";
-    const category = typeof body.category === "string" ? body.category.trim().toUpperCase() : "";
+    const templateType = typeof body.templateType === "string" ? body.templateType.toUpperCase() : "STANDARD";
+    const category = templateType === "STANDARD" ? (typeof body.category === "string" ? body.category.trim().toUpperCase() : "") : "MARKETING";
+    const couponExample = typeof body.couponExample === "string" ? body.couponExample.trim() : "";
+    const offerText = typeof body.offerText === "string" ? body.offerText.trim() : "";
     const header = typeof body.header === "string" ? body.header.trim() : "";
     const headerFormat = typeof body.headerFormat === "string" ? body.headerFormat.toUpperCase() : "TEXT";
     const headerMediaHandle = typeof body.headerMediaHandle === "string" ? body.headerMediaHandle.trim() : "";
@@ -121,14 +124,34 @@ export async function POST(request) {
     if (!["UTILITY", "MARKETING"].includes(category)) {
       return NextResponse.json({ success: false, message: "Choose Utility or Marketing. Authentication templates use a separate Meta flow." }, { status: 400 });
     }
-    if (!["TEXT", "IMAGE", "VIDEO", "DOCUMENT"].includes(headerFormat)) {
+    if (!["STANDARD", "COUPON_CODE", "LIMITED_TIME_OFFER"].includes(templateType)) {
+      return NextResponse.json({ success: false, message: "Choose a supported template type." }, { status: 400 });
+    }
+    if (!["TEXT", "IMAGE", "VIDEO", "DOCUMENT", "NONE"].includes(headerFormat)) {
       return NextResponse.json({ success: false, message: "Choose a supported header format." }, { status: 400 });
     }
-    if (headerFormat !== "TEXT" && !headerMediaHandle) {
+    if (headerFormat !== "TEXT" && headerFormat !== "NONE" && !headerMediaHandle) {
       return NextResponse.json({ success: false, message: "Upload a media sample for the selected header type." }, { status: 400 });
     }
-    if (!text || text.length > 1024 || (headerFormat === "TEXT" && header.length > 60) || footer.length > 60) {
-      return NextResponse.json({ success: false, message: "Body is required (maximum 1,024 characters); header and footer are limited to 60 characters." }, { status: 400 });
+    if (templateType === "COUPON_CODE" && headerFormat !== "NONE") {
+      return NextResponse.json({ success: false, message: "Coupon-code templates in this builder currently use no header so they can be sent directly from the inbox." }, { status: 400 });
+    }
+    if (templateType === "LIMITED_TIME_OFFER" && headerFormat !== "NONE") {
+      return NextResponse.json({ success: false, message: "Limited-time offers in this builder currently use no header so they can be sent directly from the inbox." }, { status: 400 });
+    }
+    if (templateType !== "STANDARD" && footer) {
+      return NextResponse.json({ success: false, message: "Coupon-code and limited-time offer templates do not support a footer." }, { status: 400 });
+    }
+    const couponLimit = templateType === "LIMITED_TIME_OFFER" ? 15 : 20;
+    if (templateType !== "STANDARD" && (!couponExample || couponExample.length > couponLimit || !/^[A-Za-z0-9_-]+$/.test(couponExample))) {
+      return NextResponse.json({ success: false, message: `Enter a valid sample coupon code (1–${couponLimit} letters, numbers, underscores, or hyphens).` }, { status: 400 });
+    }
+    if (templateType === "LIMITED_TIME_OFFER" && (!offerText || offerText.length > 16)) {
+      return NextResponse.json({ success: false, message: "Limited-time offer text is required and must be 16 characters or fewer." }, { status: 400 });
+    }
+    const bodyLimit = templateType === "LIMITED_TIME_OFFER" ? 600 : 1024;
+    if (!text || text.length > bodyLimit || (headerFormat === "TEXT" && header.length > 60) || footer.length > 60) {
+      return NextResponse.json({ success: false, message: "Body is required (maximum " + bodyLimit + " characters for this template); header and footer are limited to 60 characters." }, { status: 400 });
     }
 
     const variables = [...text.matchAll(/\{\{(\d+)\}\}/g)].map((match) => Number(match[1]));
@@ -145,6 +168,12 @@ export async function POST(request) {
     }
 
     const templateButtons = [];
+    if (templateType === "LIMITED_TIME_OFFER" && (requestedButtons.length !== 1 || String(requestedButtons[0]?.type || "").toUpperCase() !== "URL" || requestedButtons[0]?.dynamic === true)) {
+      return NextResponse.json({ success: false, message: "A limited-time offer requires exactly one static website URL button." }, { status: 400 });
+    }
+    if (templateType === "COUPON_CODE" && requestedButtons.length > 0) {
+      return NextResponse.json({ success: false, message: "Coupon-code templates use their built-in copy-code button and cannot include custom buttons." }, { status: 400 });
+    }
     if (requestedButtons.length > 3) {
       return NextResponse.json({ success: false, message: "A template can have up to 3 quick reply buttons." }, { status: 400 });
     }
@@ -211,7 +240,10 @@ export async function POST(request) {
 
     const components = [];
     if (headerFormat === "TEXT" && header) components.push({ type: "HEADER", format: "TEXT", text: header });
-    if (headerFormat !== "TEXT") components.push({ type: "HEADER", format: headerFormat, example: { header_handle: [headerMediaHandle] } });
+    if (headerFormat !== "TEXT" && headerFormat !== "NONE") components.push({ type: "HEADER", format: headerFormat, example: { header_handle: [headerMediaHandle] } });
+    if (templateType === "LIMITED_TIME_OFFER") {
+      components.push({ type: "LIMITED_TIME_OFFER", limited_time_offer: { text: offerText, has_expiration: true } });
+    }
     components.push({
       type: "BODY",
       text,
@@ -220,7 +252,13 @@ export async function POST(request) {
         : {}),
     });
     if (footer) components.push({ type: "FOOTER", text: footer });
-    if (templateButtons.length) components.push({ type: "BUTTONS", buttons: templateButtons });
+    if (templateType === "COUPON_CODE") {
+      components.push({ type: "BUTTONS", buttons: [{ type: "COPY_CODE", example: [couponExample] }] });
+    } else if (templateType === "LIMITED_TIME_OFFER") {
+      components.push({ type: "BUTTONS", buttons: [{ type: "COPY_CODE", example: [couponExample] }, ...templateButtons] });
+    } else if (templateButtons.length) {
+      components.push({ type: "BUTTONS", buttons: templateButtons });
+    }
 
     const db = await getDatabase();
     const workspaceId = new ObjectId(session.workspace.id);

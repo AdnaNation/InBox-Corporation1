@@ -72,8 +72,32 @@ export async function POST(request, { params }) {
       return NextResponse.json({ success: false, message: "The exact template and language must currently be approved by Meta." }, { status: 409 });
     }
 
+    if (String(template.parameter_format || "").toUpperCase() === "NAMED") {
+      return NextResponse.json({ success: false, message: "Named-parameter templates are not supported by campaign delivery yet." }, { status: 409 });
+    }
     const templateBody = (template.components || []).find((item) => item.type === "BODY");
     const variableCount = new Set((templateBody?.text || "").match(/\{\{\d+\}\}/g) || []).size;
+    const templateButtons = template.components?.find((item) => item.type === "BUTTONS")?.buttons || [];
+    const copyCodeButtonIndex = templateButtons.findIndex((button) => String(button.type || "").toUpperCase() === "COPY_CODE");
+    const hasCopyCode = copyCodeButtonIndex >= 0;
+    const isLimitedTimeOffer = (template.components || []).some((item) => item.type === "LIMITED_TIME_OFFER");
+    if (hasCopyCode && String(template.category || "").toUpperCase() !== "MARKETING") {
+      return NextResponse.json({ success: false, message: "Copy-code templates must be approved as Marketing templates." }, { status: 409 });
+    }
+    const couponLimit = isLimitedTimeOffer ? 15 : 20;
+    const urlButtonIndex = templateButtons.findIndex((button) => String(button.type || "").toUpperCase() === "URL");
+    if (isLimitedTimeOffer && (!hasCopyCode || urlButtonIndex < 0 || String(template.category || "").toUpperCase() !== "MARKETING")) {
+      return NextResponse.json({ success: false, message: "This limited-time offer must be a Marketing template with both Copy code and Website URL buttons." }, { status: 409 });
+    }
+    if (hasCopyCode && (!/^[A-Za-z0-9_-]{1,20}$/.test(campaign.couponCode || "") || campaign.couponCode.length > couponLimit)) {
+      return NextResponse.json({ success: false, message: `This template needs a valid campaign coupon code of up to ${couponLimit} characters.` }, { status: 400 });
+    }
+    if (!hasCopyCode && campaign.couponCode) {
+      return NextResponse.json({ success: false, message: "The selected template has no copy-code button, but this campaign contains a coupon code." }, { status: 409 });
+    }
+    if (isLimitedTimeOffer && (!Number.isInteger(campaign.offerDurationHours) || campaign.offerDurationHours < 1 || campaign.offerDurationHours > 168)) {
+      return NextResponse.json({ success: false, message: "Choose an offer validity between 1 hour and 7 days before queueing this limited-time offer." }, { status: 400 });
+    }
     if (variableCount !== parameters.length) {
       return NextResponse.json({ success: false, message: "Meta's current template requires " + variableCount + " body parameter(s); this draft has " + parameters.length + "." }, { status: 409 });
     }
@@ -94,6 +118,9 @@ export async function POST(request, { params }) {
             category: template.category || null,
             parameterFormat: template.parameter_format || null,
             bodyVariableCount: variableCount,
+            hasCopyCode,
+            isLimitedTimeOffer,
+            copyCodeButtonIndex: hasCopyCode ? copyCodeButtonIndex : null,
           },
           queuedAt: scheduledAt || now,
           queuedBy: new ObjectId(session.user.id),
