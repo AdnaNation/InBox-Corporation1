@@ -4,6 +4,7 @@ import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
 import { encryptSecret } from "@/lib/crypto";
+import { ensureWhatsAppAccountIndexes } from "@/lib/whatsapp-account";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,7 @@ export async function GET() {
   }
 
   const db = await getDatabase();
+  await ensureWhatsAppAccountIndexes(db);
   const workspaceId = new ObjectId(session.workspace.id);
   const projection = {
     businessName: 1,
@@ -89,6 +91,7 @@ export async function DELETE(request) {
   }
 
   const db = await getDatabase();
+  await ensureWhatsAppAccountIndexes(db);
   const workspaceId = new ObjectId(session.workspace.id);
   const activeCampaign = await db.collection("campaigns").findOne({
     workspaceId,
@@ -114,6 +117,7 @@ export async function DELETE(request) {
     );
   }
 
+  await ensureWhatsAppAccountIndexes(db);
   const accounts = db.collection("whatsappAccounts");
   const target = await accounts.findOne({ workspaceId, phoneNumberId, status: "connected" });
   if (!target) {
@@ -142,10 +146,15 @@ export async function DELETE(request) {
       { sort: { createdAt: 1 } },
     );
     if (nextAccount) {
-      await accounts.updateOne(
-        { _id: nextAccount._id, workspaceId },
-        { $set: { isActive: true, updatedAt: new Date() } },
-      );
+      try {
+        await accounts.updateOne(
+          { _id: nextAccount._id, workspaceId, status: "connected" },
+          { $set: { isActive: true, updatedAt: new Date() } },
+        );
+      } catch (error) {
+        // A concurrent switch may already have selected another account.
+        if (error?.code !== 11000) throw error;
+      }
     }
   }
 
@@ -187,8 +196,24 @@ export async function PATCH(request) {
     );
   }
 
-  await accounts.updateMany({ workspaceId, status: "connected" }, { $set: { isActive: false, updatedAt: new Date() } });
-  await accounts.updateOne({ _id: target._id, workspaceId }, { $set: { isActive: true, updatedAt: new Date() } });
+  try {
+    await accounts.updateMany(
+      { workspaceId, status: "connected", isActive: true },
+      { $set: { isActive: false, updatedAt: new Date() } },
+    );
+    await accounts.updateOne(
+      { _id: target._id, workspaceId, status: "connected" },
+      { $set: { isActive: true, updatedAt: new Date() } },
+    );
+  } catch (error) {
+    if (error?.code === 11000) {
+      return NextResponse.json(
+        { success: false, code: "WHATSAPP_ACCOUNT_SWITCH_CONFLICT", message: "Another administrator changed the active WhatsApp number at the same time. Refresh and try again." },
+        { status: 409 },
+      );
+    }
+    throw error;
+  }
   return NextResponse.json({ success: true, message: "Active WhatsApp number switched successfully." });
 }
 
@@ -307,6 +332,7 @@ export async function POST(request) {
     }
 
     const db = await getDatabase();
+    await ensureWhatsAppAccountIndexes(db);
     const workspaceId = new ObjectId(session.workspace.id);
     const linkedElsewhere = await db.collection("whatsappAccounts").findOne({
       phoneNumberId: phoneNumberId.trim(),
@@ -400,12 +426,14 @@ export async function POST(request) {
     });
   } catch (error) {
     console.error("WhatsApp account save error:", error);
-
+    if (error?.code === 11000) {
+      return NextResponse.json(
+        { success: false, code: "WHATSAPP_ACCOUNT_CONFLICT", message: "This WhatsApp number is already connected elsewhere, or another administrator changed the active number. Refresh and try again." },
+        { status: 409 },
+      );
+    }
     return NextResponse.json(
-      {
-        success: false,
-        message: "Could not save WhatsApp account. Check ENCRYPTION_KEY.",
-      },
+      { success: false, message: "Could not save WhatsApp account. Check ENCRYPTION_KEY and verify there are no duplicate connected WhatsApp numbers." },
       { status: 500 },
     );
   }
