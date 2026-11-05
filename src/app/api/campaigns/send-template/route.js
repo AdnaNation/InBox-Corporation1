@@ -69,6 +69,7 @@ export async function POST(request) {
       db.collection("whatsappAccounts").findOne({
         workspaceId,
         status: "connected",
+        isActive: true,
       }),
     ]);
 
