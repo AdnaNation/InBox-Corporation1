@@ -11,6 +11,9 @@ import {
   XCircle,
   AlertCircle,
   Copy,
+  Pencil,
+  X,
+  Save,
 } from "lucide-react";
 
 const statusStyles = {
@@ -29,7 +32,7 @@ function StatusIcon({ status }) {
   return <AlertCircle size={15} />;
 }
 
-function TemplateCard({ template }) {
+function TemplateCard({ template, onEdit }) {
   const components = template.components || [];
 
   const header = components.find((item) => item.type === "HEADER");
@@ -129,14 +132,16 @@ function TemplateCard({ template }) {
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={copyName}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
-        >
-          <Copy size={14} />
-          Copy name
-        </button>
+        <div className="flex flex-wrap gap-2">
+          {["APPROVED", "REJECTED", "PAUSED"].includes(template.status) && (
+            <button type="button" onClick={() => onEdit(template)} className="inline-flex items-center gap-2 rounded-lg border border-green-200 px-3 py-2 text-xs font-semibold text-green-700 hover:bg-green-50">
+              <Pencil size={14} /> Edit template
+            </button>
+          )}
+          <button type="button" onClick={copyName} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
+            <Copy size={14} /> Copy name
+          </button>
+        </div>
       </div>
 
       <div className="mt-3 border-t border-slate-100 pt-3">
@@ -147,6 +152,8 @@ function TemplateCard({ template }) {
         <p className="mt-1 text-[11px] text-slate-400">
           Parameter format: {template.parameter_format || "—"}
         </p>
+        {template.quality_score?.score && <p className="mt-1 text-[11px] text-slate-400">Quality: {template.quality_score.score}</p>}
+        {template.rejected_reason && <p className="mt-2 rounded-lg bg-red-50 p-2 text-xs text-red-700">Meta feedback: {template.rejected_reason}</p>}
       </div>
     </article>
   );
@@ -160,6 +167,40 @@ export default function TemplateLibraryClient() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
+  const [editingTemplate, setEditingTemplate] = useState(null);
+  const [componentsDraft, setComponentsDraft] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState("");
+
+  function startEditing(template) {
+    setEditingTemplate(template);
+    setComponentsDraft(JSON.stringify(template.components || [], null, 2));
+    setEditError("");
+  }
+
+  async function saveTemplateEdit(event) {
+    event.preventDefault();
+    setSavingEdit(true);
+    setEditError("");
+    try {
+      let components;
+      try { components = JSON.parse(componentsDraft); } catch { throw new Error("The components must be valid JSON."); }
+      if (!Array.isArray(components) || components.length === 0) throw new Error("Provide the complete components array.");
+      const response = await fetch("/api/whatsapp/templates", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateId: editingTemplate.id, status: editingTemplate.status, components }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.message || "Could not update template.");
+      setEditingTemplate(null);
+      await loadTemplates();
+    } catch (err) {
+      setEditError(err.message || "Could not update template.");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
 
   const loadTemplates = useCallback(async () => {
     setLoading(true);
@@ -236,6 +277,32 @@ export default function TemplateLibraryClient() {
       )}
 
       {account && <TemplateCreateForm onCreated={loadTemplates} />}
+
+      {editingTemplate && (
+        <section className="rounded-2xl border border-green-200 bg-white p-5 shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="font-semibold text-slate-900">Edit {editingTemplate.name}</h2>
+              <p className="mt-1 text-xs text-slate-500">{editingTemplate.language} · {editingTemplate.status} · Meta ID: {editingTemplate.id}</p>
+            </div>
+            <button type="button" onClick={() => setEditingTemplate(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" aria-label="Close editor"><X size={18} /></button>
+          </div>
+          <div className="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-800">
+            Meta replaces the entire components array during an edit. Keep every header, body, footer, button, example, and other component you want to retain. Template name, language, and category are not changed. Meta may enforce edit frequency limits.
+          </div>
+          <form onSubmit={saveTemplateEdit} className="mt-4 space-y-3">
+            <label className="block text-sm font-medium text-slate-700">Complete template components (JSON)
+              <textarea required spellCheck={false} rows={16} value={componentsDraft} onChange={(event) => setComponentsDraft(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-950 p-3 font-mono text-xs leading-5 text-slate-100 outline-none focus:border-green-500" />
+            </label>
+            <p className="text-xs text-slate-500">Advanced components are preserved in this editor, including quick replies, phone buttons, dynamic URL buttons, and Meta-specific structures.</p>
+            {editError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{editError}</p>}
+            <div className="flex flex-wrap justify-end gap-2">
+              <button type="button" onClick={() => setEditingTemplate(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600">Cancel</button>
+              <button type="submit" disabled={savingEdit} className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"><Save size={15} /> {savingEdit ? "Submitting…" : "Submit update to Meta"}</button>
+            </div>
+          </form>
+        </section>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
@@ -334,7 +401,7 @@ export default function TemplateLibraryClient() {
         ) : filteredTemplates.length > 0 ? (
           <div className="mt-5 grid gap-4 lg:grid-cols-2">
             {filteredTemplates.map((template) => (
-              <TemplateCard key={template.id} template={template} />
+              <TemplateCard key={template.id} template={template} onEdit={startEditing} />
             ))}
           </div>
         ) : (
