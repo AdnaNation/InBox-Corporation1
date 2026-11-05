@@ -189,7 +189,7 @@ export default function TemplateLibraryClient() {
       const response = await fetch("/api/whatsapp/templates", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ templateId: editingTemplate.id, status: editingTemplate.status, components }),
+        body: JSON.stringify({ templateId: editingTemplate.id, components }),
       });
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.message || "Could not update template.");
@@ -288,7 +288,7 @@ export default function TemplateLibraryClient() {
             <button type="button" onClick={() => setEditingTemplate(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" aria-label="Close editor"><X size={18} /></button>
           </div>
           <div className="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-800">
-            Meta replaces the entire components array during an edit. Keep every header, body, footer, button, example, and other component you want to retain. Template name, language, and category are not changed. Meta may enforce edit frequency limits.
+            Meta replaces the entire components array during an edit. Keep every header, body, footer, button, example, and other component you want to retain. Template name, language, and category are not changed. Approved templates can be edited once in 24 hours and up to 10 times in 30 days. Rejected and paused templates have different limits. Meta checks the live status before accepting an edit.
           </div>
           <form onSubmit={saveTemplateEdit} className="mt-4 space-y-3">
             <label className="block text-sm font-medium text-slate-700">Complete template components (JSON)
