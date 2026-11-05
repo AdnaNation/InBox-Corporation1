@@ -47,7 +47,7 @@ export async function POST(request, { params }) {
       return NextResponse.json({ success: false, message: "Complete every template body parameter before queueing." }, { status: 400 });
     }
 
-    const account = await db.collection("whatsappAccounts").findOne({ workspaceId, status: "connected" });
+    const account = await db.collection("whatsappAccounts").findOne({ workspaceId, status: "connected", isActive: true });
     if (!account?.wabaId || !account?.phoneNumberId || !account?.accessTokenEncrypted) {
       return NextResponse.json({ success: false, message: "A connected WhatsApp account is required." }, { status: 400 });
     }
