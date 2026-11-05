@@ -19,33 +19,48 @@ export async function GET() {
 
   const db = await getDatabase();
   const workspaceId = new ObjectId(session.workspace.id);
-  const account = await db.collection("whatsappAccounts").findOne(
-    { workspaceId, status: "connected" },
-    {
-      projection: {
-        businessName: 1,
-        displayPhoneNumber: 1,
-        phoneNumberId: 1,
-        wabaId: 1,
-        createdAt: 1,
-        updatedAt: 1,
-      },
-    },
-  );
+  const projection = {
+    businessName: 1,
+    displayPhoneNumber: 1,
+    phoneNumberId: 1,
+    wabaId: 1,
+    isActive: 1,
+    createdAt: 1,
+    updatedAt: 1,
+  };
+  let accounts = await db.collection("whatsappAccounts")
+    .find({ workspaceId, status: "connected" })
+    .project(projection)
+    .sort({ createdAt: 1 })
+    .toArray();
+
+  // Backward-compatible migration: make the oldest existing connection active.
+  if (accounts.length && !accounts.some((item) => item.isActive === true)) {
+    await db.collection("whatsappAccounts").updateOne(
+      { _id: accounts[0]._id, workspaceId, status: "connected" },
+      { $set: { isActive: true, updatedAt: new Date() } },
+    );
+    accounts[0].isActive = true;
+  }
+
+  const serialize = (item) => ({
+    id: item._id.toString(),
+    businessName: item.businessName || "",
+    displayPhoneNumber: item.displayPhoneNumber || "",
+    phoneNumberId: item.phoneNumberId || "",
+    wabaId: item.wabaId || "",
+    isActive: item.isActive === true,
+    connectedAt: item.createdAt || null,
+    updatedAt: item.updatedAt || null,
+  });
+  const serializedAccounts = accounts.map(serialize);
+  const activeAccount = serializedAccounts.find((item) => item.isActive) || serializedAccounts[0] || null;
 
   return NextResponse.json({
     success: true,
-    connected: Boolean(account),
-    account: account
-      ? {
-          businessName: account.businessName || "",
-          displayPhoneNumber: account.displayPhoneNumber || "",
-          phoneNumberId: account.phoneNumberId || "",
-          wabaId: account.wabaId || "",
-          connectedAt: account.createdAt || null,
-          updatedAt: account.updatedAt || null,
-        }
-      : null,
+    connected: serializedAccounts.length > 0,
+    accounts: serializedAccounts,
+    account: activeAccount,
   });
 }
 
@@ -90,25 +105,66 @@ export async function DELETE(request) {
     );
   }
 
-  const result = await db.collection("whatsappAccounts").updateMany(
-    { workspaceId, status: "connected" },
-    {
-      $set: {
-        status: "disconnected",
-        disconnectedAt: new Date(),
-        updatedAt: new Date(),
-      },
-      $unset: { accessTokenEncrypted: "" },
-    },
+  const body = await request.json().catch(() => ({}));
+  const phoneNumberId = typeof body.phoneNumberId === "string" ? body.phoneNumberId.trim() : "";
+  if (!phoneNumberId) {
+    return NextResponse.json(
+      { success: false, message: "Choose the WhatsApp number to disconnect." },
+      { status: 400 },
+    );
+  }
+
+  const accounts = db.collection("whatsappAccounts");
+  const target = await accounts.findOne({ workspaceId, phoneNumberId, status: "connected" });
+  if (!target) {
+    return NextResponse.json({ success: false, message: "That WhatsApp number is not connected." }, { status: 404 });
+  }
+
+  await accounts.updateOne(
+    { _id: target._id, workspaceId },
+    { $set: { status: "disconnected", disconnectedAt: new Date(), updatedAt: new Date() }, $unset: { accessTokenEncrypted: "", isActive: "" } },
   );
+
+  if (target.isActive) {
+    const nextAccount = await accounts.findOne(
+      { workspaceId, status: "connected" },
+      { sort: { createdAt: 1 } },
+    );
+    if (nextAccount) {
+      await accounts.updateOne(
+        { _id: nextAccount._id, workspaceId },
+        { $set: { isActive: true, updatedAt: new Date() } },
+      );
+    }
+  }
 
   return NextResponse.json({
     success: true,
-    disconnected: result.modifiedCount > 0,
-    message: result.modifiedCount
-      ? "WhatsApp was disconnected from this workspace. Revoke the system-user token in Meta if you no longer need it."
-      : "No connected WhatsApp account was found.",
+    disconnected: true,
+    message: "WhatsApp number disconnected. Other connected numbers remain available.",
   });
+}
+
+export async function PATCH(request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ success: false, message: "Invalid origin." }, { status: 403 });
+  }
+  const session = await getSession();
+  if (!session) return NextResponse.json({ success: false, message: "Unauthorized." }, { status: 401 });
+  if (!["owner", "admin"].includes(session.membership?.role)) {
+    return NextResponse.json({ success: false, message: "Only workspace owners and admins can switch the active WhatsApp number." }, { status: 403 });
+  }
+  const body = await request.json().catch(() => ({}));
+  const phoneNumberId = typeof body.phoneNumberId === "string" ? body.phoneNumberId.trim() : "";
+  if (!phoneNumberId) return NextResponse.json({ success: false, message: "Choose a WhatsApp number." }, { status: 400 });
+  const db = await getDatabase();
+  const workspaceId = new ObjectId(session.workspace.id);
+  const accounts = db.collection("whatsappAccounts");
+  const target = await accounts.findOne({ workspaceId, phoneNumberId, status: "connected" });
+  if (!target) return NextResponse.json({ success: false, message: "That WhatsApp number is not connected." }, { status: 404 });
+  await accounts.updateMany({ workspaceId, status: "connected" }, { $set: { isActive: false, updatedAt: new Date() } });
+  await accounts.updateOne({ _id: target._id, workspaceId }, { $set: { isActive: true, updatedAt: new Date() } });
+  return NextResponse.json({ success: true, message: "Active WhatsApp number switched successfully." });
 }
 
 export async function POST(request) {
@@ -170,55 +226,17 @@ export async function POST(request) {
     const db = await getDatabase();
     const workspaceId = new ObjectId(session.workspace.id);
     const now = new Date();
-    const existingAccount = await db.collection("whatsappAccounts").findOne({
+    const existingNumber = await db.collection("whatsappAccounts").findOne({
       workspaceId,
+      phoneNumberId: phoneNumberId.trim(),
       status: "connected",
     });
-    const replacingDifferentNumber = Boolean(
-      existingAccount && existingAccount.phoneNumberId !== phoneNumberId.trim(),
-    );
-
-    if (replacingDifferentNumber && !replaceExisting) {
-      return NextResponse.json(
-        {
-          success: false,
-          code: "REPLACEMENT_CONFIRMATION_REQUIRED",
-          message: "A different WhatsApp number is already connected. Confirm replacement before continuing.",
-        },
-        { status: 409 },
-      );
-    }
-
-    if (replacingDifferentNumber) {
-      const activeCampaign = await db.collection("campaigns").findOne({
-        workspaceId,
-        status: { $in: ["queued", "sending"] },
-      });
-      if (activeCampaign) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Pause or finish active campaigns before replacing the connected number.",
-          },
-          { status: 409 },
-        );
-      }
-    }
-
-    // Disconnect any other number in this workspace.
-    await db.collection("whatsappAccounts").updateMany(
-      {
-        workspaceId,
-        status: "connected",
-        phoneNumberId: { $ne: phoneNumberId.trim() },
-      },
-      {
-        $set: {
-          status: "disconnected",
-          updatedAt: now,
-        },
-      },
-    );
+    const activeAccount = await db.collection("whatsappAccounts").findOne({
+      workspaceId,
+      status: "connected",
+      isActive: true,
+    });
+    const shouldBecomeActive = !activeAccount || Boolean(existingNumber?.isActive);
 
     // Save or update the selected number.
     await db.collection("whatsappAccounts").updateOne(
@@ -235,6 +253,7 @@ export async function POST(request) {
           businessName: businessName.trim(),
           accessTokenEncrypted: encryptSecret(accessToken.trim()),
           status: "connected",
+          isActive: shouldBecomeActive,
           updatedAt: now,
         },
         $setOnInsert: {
