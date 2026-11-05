@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { showConfirm } from "@/lib/swal";
 
 function localDateTimeValue(date) {
   const value = new Date(date);
@@ -46,9 +47,13 @@ export default function CampaignQueueAction({ campaignId, initialStatus, recipie
   }
 
   async function queueCampaign(schedule) {
-    if (!window.confirm(schedule
-      ? "Validate and schedule this campaign for " + new Date(scheduledAt).toLocaleString() + "? No messages will be sent before that time."
-      : "Queue this campaign for " + recipientCount + " opted-in recipient(s)? The delivery worker may start sending as soon as it runs.")) return;
+    if (!(await showConfirm({
+      title: schedule ? "Schedule campaign?" : "Queue campaign?",
+      text: schedule
+        ? "Validate and schedule this campaign for " + new Date(scheduledAt).toLocaleString() + "? No messages will be sent before that time."
+        : "Queue this campaign for " + recipientCount + " opted-in recipient(s)? The delivery worker may start sending as soon as it runs.",
+      confirmButtonText: schedule ? "Schedule campaign" : "Queue campaign",
+    }))) return;
     try {
       await sendAction("/api/campaigns/" + campaignId + "/queue", schedule ? { scheduledAt: toIso() } : {}, "Could not queue this campaign.");
     } catch (err) {
