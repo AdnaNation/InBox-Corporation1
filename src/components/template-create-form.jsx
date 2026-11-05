@@ -46,7 +46,7 @@ export default function TemplateCreateForm({ onCreated }) {
       setError("Choose a supported file: JPEG/PNG (5 MB), MP4 (16 MB), or PDF (100 MB).");
       return;
     }
-    setMediaBusy(true); setError("");
+    change("headerMediaHandle", ""); change("headerMediaName", ""); setMediaPreviewUrl("");\n    setMediaBusy(true); setError("");
     try {
       const data = new FormData();
       data.append("file", file);
@@ -109,7 +109,7 @@ export default function TemplateCreateForm({ onCreated }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-semibold text-slate-900">Create a template</h2>
-          <p className="mt-1 text-xs text-slate-500">Submit a text template with an optional website button to Meta for approval.</p>
+          <p className="mt-1 text-xs text-slate-500">Build a text or media template with a live WhatsApp preview, then submit it to Meta for approval.</p>
         </div>
         <button type="button" onClick={() => setOpen((value) => !value)} className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700">
           {open ? <X size={16} /> : <Plus size={16} />}
