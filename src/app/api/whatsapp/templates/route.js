@@ -66,7 +66,7 @@ export async function POST(request) {
     if (!/^[a-z0-9_]{1,512}$/.test(name)) {
       return NextResponse.json({ success: false, message: "Use a template name with lowercase letters, numbers, and underscores only." }, { status: 400 });
     }
-    if (!/^[a-z]{2,3}_[A-Z]{2}$/.test(language)) {
+    if (!/^[a-z]{2,3}(?:_[A-Z]{2})?$/.test(language)) {
       return NextResponse.json({ success: false, message: "Choose a valid language code, such as en_US or bn." }, { status: 400 });
     }
     if (!["UTILITY", "MARKETING"].includes(category)) {
