@@ -4,6 +4,7 @@ import { getDatabase } from "@/lib/db";
 import { createSession } from "@/lib/auth";
 import { loginSchema } from "@/lib/schemas";
 import { isSameOrigin } from "@/lib/security";
+import { consumeAuthRateLimits } from "@/lib/auth-rate-limit";
 
 export const runtime = "nodejs";
 
@@ -27,6 +28,19 @@ export async function POST(request) {
 
     const { email, password } = parsed.data;
     const db = await getDatabase();
+    const forwardedIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      || request.headers.get("x-real-ip")?.trim()
+      || "";
+    const rateLimit = await consumeAuthRateLimits(db, [
+      { scope: "login-email", identity: email, limit: 10 },
+      ...(forwardedIp ? [{ scope: "login-ip", identity: forwardedIp, limit: 30 }] : []),
+    ]);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, message: "Too many sign-in attempts. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } },
+      );
+    }
 
     const user = await db.collection("users").findOne({
       email,
