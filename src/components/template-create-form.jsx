@@ -20,6 +20,25 @@ const initial = {
   buttonMode: "static",
 };
 
+function renderWhatsAppText(value) {
+  const parts = String(value || "").split(/(\*[^*\n]+\*|_[^_\n]+_|~[^~\n]+~|```[\s\S]+?```)/g);
+  return parts.map((part, index) => {
+    if (part.startsWith("*") && part.endsWith("*")) {
+      return <strong key={index}>{part.slice(1, -1)}</strong>;
+    }
+    if (part.startsWith("_") && part.endsWith("_")) {
+      return <em key={index}>{part.slice(1, -1)}</em>;
+    }
+    if (part.startsWith("~") && part.endsWith("~")) {
+      return <s key={index}>{part.slice(1, -1)}</s>;
+    }
+    if (part.startsWith("```") && part.endsWith("```")) {
+      return <code key={index} className="rounded bg-slate-100 px-1 font-mono text-[0.9em]">{part.slice(3, -3)}</code>;
+    }
+    return part;
+  });
+}
+
 export default function TemplateCreateForm({ onCreated }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(initial);
@@ -163,7 +182,7 @@ export default function TemplateCreateForm({ onCreated }) {
           </section>
           <label className="block text-sm font-medium text-slate-700">Body
             <textarea required maxLength={1024} rows={5} value={form.body} onChange={(e) => change("body", e.target.value)} placeholder="Hello {{1}}, your order {{2}} is ready." className={field + " mt-1.5"} />
-            <span className="mt-1 block text-xs font-normal text-slate-400">Use sequential variables: {"{{1}}"}, {"{{2}}"}, and so on. Maximum 1,024 characters.</span>
+            <span className="mt-1 block text-xs font-normal text-slate-400">Use sequential variables: {"{{1}}"}, {"{{2}}"}, and so on. Formatting: *bold*, _italic_, ~strikethrough~, and ```monospace```. Maximum 1,024 characters.</span>
           </label>
           {bodyVariableNumbers.length > 0 && (
             <section className="rounded-xl border border-slate-200 p-4">
@@ -245,7 +264,7 @@ export default function TemplateCreateForm({ onCreated }) {
                 {form.headerFormat === "VIDEO" && mediaPreviewUrl && <video src={mediaPreviewUrl} controls className="mb-2 max-h-48 w-full rounded-lg" />}
                 {form.headerFormat === "DOCUMENT" && form.headerMediaName && <p className="mb-2 rounded-lg bg-slate-100 p-3 text-xs text-slate-700">📄 {form.headerMediaName}</p>}
                 {form.headerFormat !== "TEXT" && !mediaPreviewUrl && <p className="mb-2 rounded-lg bg-slate-100 p-6 text-center text-xs text-slate-400">{form.headerFormat} header preview</p>}
-                <p className="whitespace-pre-wrap break-words text-sm text-slate-800">{previewBody || "Your message will appear here…"}</p>
+                <p className="whitespace-pre-wrap break-words text-sm text-slate-800">{renderWhatsAppText(previewBody || "Your message will appear here…")}</p>
                 {form.footer && <p className="mt-2 text-[11px] text-slate-500">{form.footer}</p>}
                 {form.addUrlButton && <div className="mt-3 border-t border-slate-100 pt-2 text-center text-sm font-semibold text-blue-600">{form.buttonText || "Website button"}{form.buttonMode === "dynamic" && <span className="block break-all text-[10px] font-normal text-slate-400">{form.buttonUrl.replace(/\{\{1\}\}$/, form.buttonExample || "10")}</span>}</div>}
               </div>
