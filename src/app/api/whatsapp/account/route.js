@@ -279,6 +279,36 @@ export async function POST(request) {
       );
     }
 
+    // Subscribe Wavo's Meta app to this WABA. This adds Wavo's webhook
+    // subscription; it does not replace subscriptions owned by other Meta apps.
+    let subscriptionResponse;
+    try {
+      subscriptionResponse = await fetch(
+        `https://graph.facebook.com/${apiVersion}/${encodeURIComponent(wabaId.trim())}/subscribed_apps`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${accessToken.trim()}` },
+          cache: "no-store",
+        },
+      );
+    } catch {
+      return NextResponse.json(
+        { success: false, message: "Meta verified the token, but Wavo could not subscribe its webhook to this WhatsApp Business Account. Nothing was saved." },
+        { status: 502 },
+      );
+    }
+    const subscriptionData = await subscriptionResponse.json().catch(() => ({}));
+    if (!subscriptionResponse.ok || subscriptionData.error) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: subscriptionData?.error?.message || "Meta did not allow Wavo to subscribe to this WhatsApp Business Account. Check whatsapp_business_management permission.",
+          metaErrorCode: subscriptionData?.error?.code || null,
+        },
+        { status: 422 },
+      );
+    }
+
     const db = await getDatabase();
     const workspaceId = new ObjectId(session.workspace.id);
     const now = new Date();
