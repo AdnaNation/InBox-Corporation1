@@ -224,6 +224,17 @@ export async function POST(request) {
     const db = await getDatabase();
     const workspaceId = new ObjectId(session.workspace.id);
     const now = new Date();
+    const linkedElsewhere = await db.collection("whatsappAccounts").findOne({
+      phoneNumberId: phoneNumberId.trim(),
+      status: "connected",
+      workspaceId: { $ne: workspaceId },
+    });
+    if (linkedElsewhere) {
+      return NextResponse.json(
+        { success: false, message: "This WhatsApp number is already connected to another Wavo workspace." },
+        { status: 409 },
+      );
+    }
     const existingNumber = await db.collection("whatsappAccounts").findOne({
       workspaceId,
       phoneNumberId: phoneNumberId.trim(),
