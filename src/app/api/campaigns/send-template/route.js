@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
+import { getActiveWhatsAppAccount } from "@/lib/whatsapp-account";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
 import { decryptSecret } from "@/lib/crypto";
@@ -66,11 +67,7 @@ export async function POST(request) {
         workspaceId,
         "optIn.status": true,
       }),
-      db.collection("whatsappAccounts").findOne({
-        workspaceId,
-        status: "connected",
-        isActive: true,
-      }),
+      getActiveWhatsAppAccount(db, workspaceId),
     ]);
 
     if (!contact) {
