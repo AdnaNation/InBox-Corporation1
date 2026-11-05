@@ -29,7 +29,7 @@ export default function TemplateCreateForm({ onCreated }) {
   }
 
   const bodyVariableNumbers = [...new Set(
-    [...form.body.matchAll(/\\{\\{(\\d+)\\}\\}/g)].map((match) => Number(match[1])),
+    [...form.body.matchAll(/\{\{(\d+)\}\}/g)].map((match) => Number(match[1])),
   )].sort((a, b) => a - b);
 
   async function submit(event) {
