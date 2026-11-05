@@ -10,9 +10,7 @@ export default function WhatsAppEmbeddedSignup({ connected, onConnected }) {
   const [sdkReady, setSdkReady] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [replaceExisting, setReplaceExisting] = useState(false);
   const completionRef = useRef({ code: "", wabaId: "", phoneNumberId: "", submitted: false });
-  const replaceRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -43,20 +41,10 @@ export default function WhatsAppEmbeddedSignup({ connected, onConnected }) {
           code: current.code,
           wabaId: current.wabaId,
           phoneNumberId: current.phoneNumberId,
-          replaceExisting: replaceRef.current,
         }),
       });
       const data = await response.json();
-      if (!response.ok) {
-        if (data.code === "REPLACEMENT_CONFIRMATION_REQUIRED") {
-          setReplaceExisting(true);
-          replaceRef.current = true;
-          current.submitted = false;
-          setNotice("A different number is already connected. Confirm replacement, then start signup again.");
-          return;
-        }
-        throw new Error(data.message || "Could not complete WhatsApp connection.");
-      }
+      if (!response.ok) throw new Error(data.message || "Could not complete WhatsApp connection.");
       setNotice(data.message || "WhatsApp connected.");
       completionRef.current = { code: "", wabaId: "", phoneNumberId: "", submitted: false };
       await onConnected?.();
@@ -133,11 +121,6 @@ export default function WhatsAppEmbeddedSignup({ connected, onConnected }) {
       setError("Meta signup is not ready yet. Refresh the page and try again.");
       return;
     }
-    if (connected && !replaceExisting) {
-      setError("A WhatsApp number is already connected. Enable replacement first if you intend to switch numbers.");
-      return;
-    }
-
     completionRef.current = { code: "", wabaId: "", phoneNumberId: "", submitted: false };
     window.FB.login((response) => {
       const code = response?.authResponse?.code;
@@ -167,29 +150,14 @@ export default function WhatsAppEmbeddedSignup({ connected, onConnected }) {
         </div>
       </div>
 
-      {connected && (
-        <label className="mt-4 flex items-start gap-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            checked={replaceExisting}
-            onChange={(event) => {
-              setReplaceExisting(event.target.checked);
-              replaceRef.current = event.target.checked;
-            }}
-            className="mt-1"
-          />
-          I understand this will replace the currently connected number after the new account is verified.
-        </label>
-      )}
-
       <button
         type="button"
         onClick={launchSignup}
-        disabled={loadingConfig || busy || !config?.configured || !sdkReady || (connected && !replaceExisting)}
+        disabled={loadingConfig || busy || !config?.configured || !sdkReady}
         className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-3 font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {busy || loadingConfig || (config?.configured && !sdkReady) ? <Loader2 size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
-        {connected ? "Connect a different number with Meta" : "Continue with Meta"}
+        Add another number with Meta
       </button>
 
       {!loadingConfig && !config?.configured && (
