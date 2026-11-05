@@ -274,8 +274,8 @@ export async function DELETE(request) {
     const body = await request.json();
     const templateId = typeof body.templateId === "string" ? body.templateId.trim() : "";
     const name = typeof body.name === "string" ? body.name.trim().toLowerCase() : "";
-    if (!/^\\d+$/.test(templateId) || !/^[a-z0-9_]{1,512}$/.test(name)) {
     if (!/^\d+$/.test(templateId) || !/^[a-z0-9_]{1,512}$/.test(name)) {
+      return NextResponse.json({ success: false, message: "A valid Meta template ID and template name are required." }, { status: 400 });
     }
 
     const workspaceId = new ObjectId(session.workspace.id);
