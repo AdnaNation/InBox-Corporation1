@@ -361,7 +361,7 @@ export default function InboxPage() {
           language: selectedTemplate.language,
           parameters: templateParameters,
           couponCode: templateCouponCode.trim(),
-          expirationTime: templateOfferExpiresAt,
+          expirationTime: templateOfferExpiresAt ? new Date(templateOfferExpiresAt).toISOString() : "",
         }),
       });
 
