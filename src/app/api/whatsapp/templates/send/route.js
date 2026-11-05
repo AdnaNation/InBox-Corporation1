@@ -169,7 +169,7 @@ export async function POST(request) {
       );
     }
 
-    if (template.parameter_format === "named") {
+    if (String(template.parameter_format || "").toUpperCase() === "NAMED") {
       return NextResponse.json(
         {
           success: false,
