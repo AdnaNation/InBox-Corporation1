@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { showConfirm } from "@/lib/swal";
 
 const number = (value) => new Intl.NumberFormat().format(value || 0);
 const date = (value) => value ? new Date(value).toLocaleDateString() : "—";
@@ -28,7 +29,7 @@ export default function PlatformAdminClient() {
   useEffect(() => { load(); }, []);
 
   async function act(key, payload, confirmMessage) {
-    if (confirmMessage && !window.confirm(confirmMessage)) return;
+    if (confirmMessage && !(await showConfirm({ title: "Confirm platform action", text: confirmMessage, confirmButtonText: "Confirm action" }))) return;
     setBusy(key);
     setNotice("");
     try {
