@@ -64,30 +64,15 @@ export async function POST(request) {
     const code = typeof body.code === "string" ? body.code.trim() : "";
     const wabaId = typeof body.wabaId === "string" ? body.wabaId.trim() : "";
     const phoneNumberId = typeof body.phoneNumberId === "string" ? body.phoneNumberId.trim() : "";
-    const replaceExisting = body.replaceExisting === true;
-
     if (!code || code.length > 4096 || !/^\d{5,30}$/.test(wabaId) || !/^\d{5,30}$/.test(phoneNumberId)) {
       return NextResponse.json({ success: false, message: "Meta did not return a valid authorization code, WhatsApp Business Account ID, and Phone Number ID. Please try signup again." }, { status: 400 });
     }
 
     const db = await getDatabase();
     const workspaceId = new ObjectId(session.workspace.id);
-    const existing = await db.collection("whatsappAccounts").findOne({ workspaceId, status: "connected" });
-    const replacingDifferentNumber = Boolean(existing && existing.phoneNumberId !== phoneNumberId);
-
-    if (replacingDifferentNumber && !replaceExisting) {
-      return NextResponse.json({ success: false, code: "REPLACEMENT_CONFIRMATION_REQUIRED", message: "A different WhatsApp number is already connected. Confirm replacement before continuing." }, { status: 409 });
-    }
-
-    if (replacingDifferentNumber) {
-      const activeCampaign = await db.collection("campaigns").findOne({
-        workspaceId,
-        status: { $in: ["queued", "sending"] },
-      });
-      if (activeCampaign) {
-        return NextResponse.json({ success: false, message: "Pause or finish active campaigns before replacing the connected number." }, { status: 409 });
-      }
-    }
+    const existingNumber = await db.collection("whatsappAccounts").findOne({ workspaceId, phoneNumberId, status: "connected" });
+    const activeAccount = await db.collection("whatsappAccounts").findOne({ workspaceId, status: "connected", isActive: true });
+    const shouldBecomeActive = !activeAccount || Boolean(existingNumber?.isActive);
 
     // Embedded Signup authorization codes are short-lived and single-use.
     // Exchange immediately on the server; never expose the app secret or token to the browser.
@@ -139,6 +124,7 @@ export async function POST(request) {
       businessName: phone.verified_name || businessData.name || "WhatsApp Business",
       accessTokenEncrypted: encryptSecret(accessToken),
       status: "connected",
+      isActive: shouldBecomeActive,
       connectionMethod: "embedded_signup_v4",
       tokenIssuedAt: now,
       tokenExpiresAt,
@@ -146,14 +132,6 @@ export async function POST(request) {
       tokenExpiryKnown: Boolean(tokenExpiresAt),
       updatedAt: now,
     };
-
-    // Only switch the active account after Meta verification and webhook subscription succeed.
-    if (replacingDifferentNumber) {
-      await db.collection("whatsappAccounts").updateMany(
-        { workspaceId, status: "connected", phoneNumberId: { $ne: phoneNumberId } },
-        { $set: { status: "disconnected", disconnectedAt: now, updatedAt: now } },
-      );
-    }
 
     await db.collection("whatsappAccounts").updateOne(
       { workspaceId, phoneNumberId },
