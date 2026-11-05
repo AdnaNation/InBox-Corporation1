@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Copy, KeyRound, Plus, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
+import { showConfirm } from "@/lib/swal";
 
 export default function ApiKeysClient() {
   const [keys, setKeys] = useState([]);
@@ -41,7 +42,7 @@ export default function ApiKeysClient() {
   }
 
   async function revokeKey(id) {
-    if (!window.confirm("Revoke this API key? Any integration using it will stop working.")) return;
+    if (!(await showConfirm({ title: "Revoke API key?", text: "Any integration using this key will stop working.", confirmButtonText: "Revoke key" }))) return;
     setBusy(true); setError(""); setNotice("");
     try {
       const response = await fetch(`/api/api-keys?id=${encodeURIComponent(id)}`, { method: "DELETE" });
