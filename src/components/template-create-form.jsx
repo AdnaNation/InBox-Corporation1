@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Loader2, X, Link2 } from "lucide-react";
+import { Plus, Loader2, X } from "lucide-react";
 
 const initial = {
   name: "",
