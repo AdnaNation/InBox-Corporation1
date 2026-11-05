@@ -46,7 +46,8 @@ export default function TemplateCreateForm({ onCreated }) {
       setError("Choose a supported file: JPEG/PNG (5 MB), MP4 (16 MB), or PDF (100 MB).");
       return;
     }
-    change("headerMediaHandle", ""); change("headerMediaName", ""); setMediaPreviewUrl("");\n    setMediaBusy(true); setError("");
+    change("headerMediaHandle", ""); change("headerMediaName", ""); setMediaPreviewUrl("");
+    setMediaBusy(true); setError("");
     try {
       const data = new FormData();
       data.append("file", file);
