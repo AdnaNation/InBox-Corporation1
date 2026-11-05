@@ -10,29 +10,35 @@ const ALLOWED_RANGES = new Set(["7d", "30d", "90d"]);
 
 let analyticsIndexesPromise;
 
+async function ensureIndex(collection, key) {
+  // Reuse an existing index with the same ordered key pattern, regardless
+  // of the name assigned when it was originally created.
+  const existingIndexes = await collection.listIndexes().toArray();
+  const expectedKey = Object.entries(key);
+  const alreadyExists = existingIndexes.some((index) => {
+    const actualKey = Object.entries(index.key || {});
+    return actualKey.length === expectedKey.length
+      && actualKey.every(([field, direction], position) => {
+        const expected = expectedKey[position];
+        return expected && expected[0] === field && expected[1] === direction;
+      });
+  });
+
+  if (!alreadyExists) {
+    // Let MongoDB use its standard key-derived name. This avoids conflicts
+    // with equivalent indexes created elsewhere under a different name.
+    await collection.createIndex(key);
+  }
+}
+
 async function ensureAnalyticsIndexes(db) {
   if (!analyticsIndexesPromise) {
     analyticsIndexesPromise = Promise.all([
-      db.collection("messages").createIndex(
-        { workspaceId: 1, timestamp: -1 },
-        { name: "analytics_messages_workspace_timestamp" },
-      ),
-      db.collection("campaigns").createIndex(
-        { workspaceId: 1, createdAt: -1 },
-        { name: "analytics_campaigns_workspace_created" },
-      ),
-      db.collection("campaignRecipients").createIndex(
-        { workspaceId: 1, createdAt: -1 },
-        { name: "analytics_recipients_workspace_created" },
-      ),
-      db.collection("conversations").createIndex(
-        { workspaceId: 1, status: 1 },
-        { name: "analytics_conversations_workspace_status" },
-      ),
-      db.collection("conversations").createIndex(
-        { workspaceId: 1, createdAt: -1 },
-        { name: "analytics_conversations_workspace_created" },
-      ),
+      ensureIndex(db.collection("messages"), { workspaceId: 1, timestamp: -1 }),
+      ensureIndex(db.collection("campaigns"), { workspaceId: 1, createdAt: -1 }),
+      ensureIndex(db.collection("campaignRecipients"), { workspaceId: 1, createdAt: -1 }),
+      ensureIndex(db.collection("conversations"), { workspaceId: 1, status: 1 }),
+      ensureIndex(db.collection("conversations"), { workspaceId: 1, createdAt: -1 }),
     ]).catch((error) => {
       analyticsIndexesPromise = null;
       throw error;
@@ -41,7 +47,6 @@ async function ensureAnalyticsIndexes(db) {
 
   return analyticsIndexesPromise;
 }
-
 
 function getRangeStart(range) {
   const days = range === "7d" ? 7 : range === "90d" ? 90 : 30;
