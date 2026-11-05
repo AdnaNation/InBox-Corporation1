@@ -117,7 +117,6 @@ export async function DELETE(request) {
     );
   }
 
-  await ensureWhatsAppAccountIndexes(db);
   const accounts = db.collection("whatsappAccounts");
   const target = await accounts.findOne({ workspaceId, phoneNumberId, status: "connected" });
   if (!target) {
@@ -178,6 +177,7 @@ export async function PATCH(request) {
   const phoneNumberId = typeof body.phoneNumberId === "string" ? body.phoneNumberId.trim() : "";
   if (!phoneNumberId) return NextResponse.json({ success: false, message: "Choose a WhatsApp number." }, { status: 400 });
   const db = await getDatabase();
+  await ensureWhatsAppAccountIndexes(db);
   const workspaceId = new ObjectId(session.workspace.id);
   const accounts = db.collection("whatsappAccounts");
   const target = await accounts.findOne({ workspaceId, phoneNumberId, status: "connected" });
