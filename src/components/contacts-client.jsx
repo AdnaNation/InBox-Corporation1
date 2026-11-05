@@ -296,7 +296,7 @@ export default function ContactsClient({ initialContacts = [] }) {
 
       setContacts((current) => current.filter((contact) => contact.id !== id));
     } catch {
-      alert("Network error. Please try again.");
+      await showAlert({ title: "Network error", text: "Please check your connection and try again.", icon: "error" });
     }
   }
 
