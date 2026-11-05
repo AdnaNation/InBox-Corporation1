@@ -33,7 +33,7 @@ function StatusIcon({ status }) {
 }
 
 function renderWhatsAppText(value) {
-  const parts = String(value || "").split(/(```[\\s\\S]+?```|\\*[^*\\n]+\\*|_[^_\\n]+_|~[^~\\n]+~)/g);
+  const parts = String(value || "").split(/(```[\s\S]+?```|\*[^*\n]+\*|_[^_\n]+_|~[^~\n]+~)/g);
   return parts.map((part, index) => {
     if (part.startsWith("*") && part.endsWith("*")) {
       return <strong key={index}>{part.slice(1, -1)}</strong>;
