@@ -50,7 +50,7 @@ export async function POST(request) {
 
     const body = await request.json();
 
-    const { conversationId, templateName, language, parameters } = body;
+    const { conversationId, templateName, language, parameters, couponCode, expirationTime } = body;
 
     if (
       typeof conversationId !== "string" ||
@@ -180,6 +180,28 @@ export async function POST(request) {
       );
     }
 
+    const templateButtons = template.components?.find((component) => component.type === "BUTTONS")?.buttons || [];
+    const copyCodeIndex = templateButtons.findIndex((button) => String(button.type || "").toUpperCase() === "COPY_CODE");
+    const isLimitedTimeOffer = (template.components || []).some((component) => component.type === "LIMITED_TIME_OFFER");
+    const hasCopyCode = copyCodeIndex >= 0;
+    const couponLimit = isLimitedTimeOffer ? 15 : 20;
+
+    if (hasCopyCode && (typeof couponCode !== "string" || !/^[A-Za-z0-9_-]{1,20}$/.test(couponCode.trim()) || couponCode.trim().length > couponLimit)) {
+      return NextResponse.json({ success: false, message: `Enter a valid coupon code of up to ${couponLimit} characters.` }, { status: 400 });
+    }
+    if (!hasCopyCode && couponCode) {
+      return NextResponse.json({ success: false, message: "This template does not contain a copy-code button." }, { status: 400 });
+    }
+
+    let expirationTimeMs = null;
+    if (isLimitedTimeOffer) {
+      const expiry = typeof expirationTime === "string" ? new Date(expirationTime) : null;
+      if (!expiry || Number.isNaN(expiry.getTime()) || expiry.getTime() <= Date.now()) {
+        return NextResponse.json({ success: false, message: "Choose a limited-time offer expiry in the future." }, { status: 400 });
+      }
+      expirationTimeMs = expiry.getTime();
+    }
+
     const unsupportedComponents = (template.components || []).filter(
       (component) =>
         component.type === "HEADER" &&
@@ -219,6 +241,21 @@ export async function POST(request) {
           type: "text",
           text: value,
         })),
+      });
+    }
+
+    if (isLimitedTimeOffer) {
+      components.push({
+        type: "limited_time_offer",
+        parameters: [{ type: "limited_time_offer", limited_time_offer: { expiration_time_ms: expirationTimeMs } }],
+      });
+    }
+    if (hasCopyCode) {
+      components.push({
+        type: "button",
+        sub_type: "copy_code",
+        index: copyCodeIndex,
+        parameters: [{ type: "coupon_code", coupon_code: couponCode.trim() }],
       });
     }
 
@@ -296,7 +333,9 @@ export async function POST(request) {
       templateName: template.name,
       templateLanguage: template.language,
       templateParameters: parameters,
-      text: preview || `Template: ${template.name}`,
+      ...(hasCopyCode ? { templateCouponCode: couponCode.trim() } : {}),
+      ...(isLimitedTimeOffer ? { templateOfferExpiresAt: new Date(expirationTimeMs) } : {}),
+      text: [preview || `Template: ${template.name}`, ...(hasCopyCode ? [`Coupon: ${couponCode.trim()}`] : [])].join("\n"),
       status: "sent",
       statusRank: 1,
       timestamp: now,
