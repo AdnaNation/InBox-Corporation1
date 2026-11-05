@@ -70,6 +70,17 @@ export async function POST(request) {
 
     const db = await getDatabase();
     const workspaceId = new ObjectId(session.workspace.id);
+    const linkedElsewhere = await db.collection("whatsappAccounts").findOne({
+      phoneNumberId,
+      status: "connected",
+      workspaceId: { $ne: workspaceId },
+    });
+    if (linkedElsewhere) {
+      return NextResponse.json(
+        { success: false, message: "This WhatsApp number is already connected to another Wavo workspace." },
+        { status: 409 },
+      );
+    }
     const existingNumber = await db.collection("whatsappAccounts").findOne({ workspaceId, phoneNumberId, status: "connected" });
     const activeAccount = await db.collection("whatsappAccounts").findOne({ workspaceId, status: "connected", isActive: true });
     const shouldBecomeActive = !activeAccount || Boolean(existingNumber?.isActive);
