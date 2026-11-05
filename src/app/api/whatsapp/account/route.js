@@ -120,6 +120,17 @@ export async function DELETE(request) {
     return NextResponse.json({ success: false, message: "That WhatsApp number is not connected." }, { status: 404 });
   }
 
+  if (target.isActive && target.phoneNumberId) {
+    await db.collection("campaigns").updateMany(
+      {
+        workspaceId,
+        status: { $in: ["scheduled", "queued", "sending"] },
+        phoneNumberId: { $exists: false },
+      },
+      { $set: { phoneNumberId: target.phoneNumberId, updatedAt: new Date() } },
+    );
+  }
+
   await accounts.updateOne(
     { _id: target._id, workspaceId },
     { $set: { status: "disconnected", disconnectedAt: new Date(), updatedAt: new Date() }, $unset: { accessTokenEncrypted: "", isActive: "" } },
