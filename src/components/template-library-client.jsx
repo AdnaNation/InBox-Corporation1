@@ -206,7 +206,17 @@ function TemplateCard({ template, onEdit, onDelete, deleting }) {
           Parameter format: {template.parameter_format || "—"}
         </p>
         {template.quality_score?.score && <p className="mt-1 text-[11px] text-slate-400">Quality: {template.quality_score.score}</p>}
-        {template.rejected_reason && <p className="mt-2 rounded-lg bg-red-50 p-2 text-xs text-red-700">Meta feedback: {template.rejected_reason}</p>}
+        {template.rejected_reason && (
+          String(template.rejected_reason).trim().toUpperCase() === "NONE" ? (
+            <p className="mt-2 rounded-lg bg-slate-50 p-2 text-xs text-slate-500">
+              No feedback from Meta
+            </p>
+          ) : (
+            <p className="mt-2 rounded-lg bg-red-50 p-2 text-xs text-red-700">
+              Meta feedback: {template.rejected_reason}
+            </p>
+          )
+        )}
       </div>
     </article>
   );
