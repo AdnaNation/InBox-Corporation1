@@ -134,10 +134,10 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: "Upload a media sample for the selected header type." }, { status: 400 });
     }
     if (templateType === "COUPON_CODE" && headerFormat !== "NONE") {
-      return NextResponse.json({ success: false, message: "Coupon-code templates support no header or an image header." }, { status: 400 });
+      return NextResponse.json({ success: false, message: "Coupon-code templates in this builder currently use no header so they can be sent directly from the inbox." }, { status: 400 });
     }
     if (templateType === "LIMITED_TIME_OFFER" && headerFormat !== "NONE") {
-      return NextResponse.json({ success: false, message: "Limited-time offers support no header, an image header, or a video header." }, { status: 400 });
+      return NextResponse.json({ success: false, message: "Limited-time offers in this builder currently use no header so they can be sent directly from the inbox." }, { status: 400 });
     }
     if (templateType !== "STANDARD" && footer) {
       return NextResponse.json({ success: false, message: "Coupon-code and limited-time offer templates do not support a footer." }, { status: 400 });
@@ -151,7 +151,7 @@ export async function POST(request) {
     }
     const bodyLimit = templateType === "LIMITED_TIME_OFFER" ? 600 : 1024;
     if (!text || text.length > bodyLimit || (headerFormat === "TEXT" && header.length > 60) || footer.length > 60) {
-      return NextResponse.json({ success: false, message: "Body is required (maximum 1,024 characters); header and footer are limited to 60 characters." }, { status: 400 });
+      return NextResponse.json({ success: false, message: "Body is required (maximum " + bodyLimit + " characters for this template); header and footer are limited to 60 characters." }, { status: 400 });
     }
 
     const variables = [...text.matchAll(/\{\{(\d+)\}\}/g)].map((match) => Number(match[1]));
