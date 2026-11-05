@@ -6,6 +6,7 @@ import { createSession } from "@/lib/auth";
 import { registerSchema } from "@/lib/schemas";
 import { initializeDatabase } from "@/lib/database";
 import { isSameOrigin } from "@/lib/security";
+import { consumeAuthRateLimits } from "@/lib/auth-rate-limit";
 import clientPromise from "@/lib/mongodb";
 
 export const runtime = "nodejs";
@@ -23,6 +24,19 @@ export async function POST(request) {
 
     await initializeDatabase();
     const db = await getDatabase();
+    const forwardedIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      || request.headers.get("x-real-ip")?.trim()
+      || "";
+    const rateLimit = await consumeAuthRateLimits(db, [
+      { scope: "register-email", identity: email, limit: 3 },
+      ...(forwardedIp ? [{ scope: "register-ip", identity: forwardedIp, limit: 5 }] : []),
+    ]);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, message: "Too many registration attempts. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } },
+      );
+    }
     const existing = await db.collection("users").findOne({ email }, { projection:{_id:1} });
     if (existing) return NextResponse.json({ success:false, message:"An account with this email already exists." }, { status:409 });
 
