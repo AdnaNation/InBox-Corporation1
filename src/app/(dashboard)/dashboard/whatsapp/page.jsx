@@ -16,6 +16,8 @@ const emptyForm = {
 export default function WhatsAppPage() {
   const [form, setForm] = useState(emptyForm);
   const [account, setAccount] = useState(null);
+  const [accounts, setAccounts] = useState([]);
+  const [switchingAccount, setSwitchingAccount] = useState("");
   const [health, setHealth] = useState(null);
   const [loadingHealth, setLoadingHealth] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -32,8 +34,9 @@ export default function WhatsAppPage() {
       const response = await fetch("/api/whatsapp/account", { cache: "no-store" });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Could not load account.");
+      setAccounts(data.accounts || (data.account ? [data.account] : []));
       setAccount(data.account || null);
-      if (data.connected) await loadHealth();
+      if (data.connected) await loadHealth(data.account?.phoneNumberId);
       else setHealth(null);
     } catch (error) {
       setMessage(error.message || "Could not load WhatsApp account.");
@@ -43,10 +46,11 @@ export default function WhatsAppPage() {
     }
   }
 
-  async function loadHealth() {
+  async function loadHealth(phoneNumberId = account?.phoneNumberId) {
     setLoadingHealth(true);
     try {
-      const response = await fetch("/api/whatsapp/account/health", { cache: "no-store" });
+      const query = phoneNumberId ? `?phoneNumberId=${encodeURIComponent(phoneNumberId)}` : "";
+      const response = await fetch(`/api/whatsapp/account/health${query}`, { cache: "no-store" });
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.message || "Could not check account health.");
       setHealth(data.health || null);
@@ -63,8 +67,6 @@ export default function WhatsAppPage() {
 
   async function submit(e) {
     e.preventDefault();
-    const replacingDifferentNumber = Boolean(account && account.phoneNumberId !== form.phoneNumberId.trim());
-    if (replacingDifferentNumber && !(await showConfirm({ title: "Replace WhatsApp number?", text: "Active campaigns must be paused or completed first.", confirmButtonText: "Replace number" }))) return;
     setLoading(true);
     setMessage("");
     setMessageError(false);
@@ -72,7 +74,7 @@ export default function WhatsAppPage() {
       const response = await fetch("/api/whatsapp/account", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, replaceExisting: replacingDifferentNumber }),
+        body: JSON.stringify(form),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Could not save account.");
@@ -112,18 +114,44 @@ export default function WhatsAppPage() {
     }
   }
 
+  async function activateAccount(phoneNumberId) {
+    if (!phoneNumberId || phoneNumberId === account?.phoneNumberId) return;
+    setSwitchingAccount(phoneNumberId);
+    setMessage("");
+    setMessageError(false);
+    try {
+      const response = await fetch("/api/whatsapp/account", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phoneNumberId }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Could not switch WhatsApp number.");
+      setMessage(data.message || "Active WhatsApp number switched.");
+      await loadAccount();
+    } catch (error) {
+      setMessage(error.message || "Could not switch WhatsApp number.");
+      setMessageError(true);
+    } finally {
+      setSwitchingAccount("");
+    }
+  }
+
   async function disconnect() {
     if (!(await showConfirm({ title: "Disconnect WhatsApp number?", text: "Active campaigns must be paused or completed first.", confirmButtonText: "Disconnect number" }))) return;
     setDisconnecting(true);
     setMessage("");
     setMessageError(false);
     try {
-      const response = await fetch("/api/whatsapp/account", { method: "DELETE" });
+      const response = await fetch("/api/whatsapp/account", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phoneNumberId: account?.phoneNumberId }),
+      });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Could not disconnect WhatsApp.");
       setMessage(data.message || "WhatsApp disconnected.");
-      setAccount(null);
-      setHealth(null);
+      await loadAccount();
     } catch (error) {
       setMessage(error.message || "Could not disconnect WhatsApp.");
       setMessageError(true);
@@ -142,7 +170,7 @@ export default function WhatsAppPage() {
       <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="font-semibold">Connected account</h2>
+            <h2 className="font-semibold">Active WhatsApp account</h2>
             <p className="mt-1 text-xs text-slate-500">Connection status and business number.</p>
           </div>
           <button type="button" onClick={loadAccount} disabled={loadingAccount} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-50 disabled:opacity-50">
@@ -169,6 +197,24 @@ export default function WhatsAppPage() {
           </div>
         ) : (
           <div className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">No WhatsApp number is currently connected.</div>
+        )}
+
+        {accounts.length > 1 && (
+          <div className="mt-5 space-y-3">
+            <h3 className="text-sm font-semibold text-slate-800">Other connected numbers</h3>
+            {accounts.filter((item) => item.phoneNumberId !== account?.phoneNumberId).map((item) => (
+              <div key={item.phoneNumberId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-4">
+                <div>
+                  <p className="font-semibold text-slate-800">{item.businessName}</p>
+                  <p className="mt-1 text-sm text-slate-600">{item.displayPhoneNumber}</p>
+                  <p className="mt-1 text-xs text-slate-500">Phone Number ID: {item.phoneNumberId}</p>
+                </div>
+                <button type="button" onClick={() => activateAccount(item.phoneNumberId)} disabled={Boolean(switchingAccount)} className="rounded-lg border border-green-200 px-3 py-2 text-sm font-semibold text-green-700 hover:bg-green-50 disabled:opacity-50">
+                  {switchingAccount === item.phoneNumberId ? "Switching..." : "Make active"}
+                </button>
+              </div>
+            ))}
+          </div>
         )}
       </section>
 
@@ -311,7 +357,7 @@ export default function WhatsAppPage() {
         <div className="mb-5 flex items-center gap-3">
           <span className="rounded-xl bg-green-50 p-3 text-green-700"><Plug /></span>
           <div>
-            <h2 className="font-semibold">{account ? "Replace connected number" : "Connect a WhatsApp number"}</h2>
+            <h2 className="font-semibold">Add another WhatsApp number</h2>
             <p className="text-xs text-slate-500">Credentials are encrypted before being stored.</p>
           </div>
         </div>
@@ -338,7 +384,7 @@ export default function WhatsAppPage() {
 
         <button disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3 font-semibold text-white disabled:opacity-50">
           {loading ? <Loader2 className="animate-spin" /> : <ShieldCheck size={18} />}
-          {account ? "Save replacement number" : "Save WhatsApp account"}
+          Add WhatsApp number
         </button>
       </form>
 
