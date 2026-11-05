@@ -84,7 +84,13 @@ export async function POST(request) {
 
     const components = [];
     if (header) components.push({ type: "HEADER", format: "TEXT", text: header });
-    components.push({ type: "BODY", text });
+    components.push({
+      type: "BODY",
+      text,
+      ...(uniqueVariables.length
+        ? { example: { body_text: [uniqueVariables.map((number) => `Sample ${number}`)] } }
+        : {}),
+    });
     if (footer) components.push({ type: "FOOTER", text: footer });
 
     const db = await getDatabase();
