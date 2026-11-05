@@ -99,6 +99,7 @@ export default function InboxPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [assignmentFilter, setAssignmentFilter] = useState("all");
   const [unreadFilter, setUnreadFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
   const [currentUserId, setCurrentUserId] = useState("");
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [teamMembers, setTeamMembers] = useState([]);
@@ -368,6 +369,8 @@ export default function InboxPage() {
     if (assignmentFilter === "unassigned" && conversation.assigneeUserId) return false;
     if (assignmentFilter === "mine" && String(conversation.assigneeUserId || "") !== currentUserId) return false;
     if (unreadFilter === "unread" && !(conversation.unreadCount > 0)) return false;
+    if (priorityFilter === "high" && conversation.priority !== "high") return false;
+    if (priorityFilter === "normal" && conversation.priority === "high") return false;
     if (!searchText) return true;
 
     return (
@@ -412,6 +415,29 @@ export default function InboxPage() {
       setError(err.message || "Could not assign conversation.");
     } finally {
       setAssignmentUpdating(false);
+    }
+  }
+
+  async function toggleConversationPriority() {
+    if (!selectedConversation) return;
+    const nextPriority = selectedConversation.priority === "high" ? "normal" : "high";
+    setError("");
+
+    try {
+      const response = await fetch("/api/whatsapp/conversations", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId: selectedConversation._id, priority: nextPriority }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.message || "Could not update priority.");
+
+      setSelectedConversation((current) => current ? { ...current, priority: data.priority } : current);
+      setConversations((current) => current.map((item) =>
+        item._id === selectedConversation._id ? { ...item, priority: data.priority } : item,
+      ));
+    } catch (err) {
+      setError(err.message || "Could not update priority.");
     }
   }
 
@@ -536,6 +562,17 @@ export default function InboxPage() {
               <option value="unread">Unread only</option>
             </select>
 
+            <select
+              value={priorityFilter}
+              onChange={(event) => setPriorityFilter(event.target.value)}
+              aria-label="Filter by priority"
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100"
+            >
+              <option value="all">All priorities</option>
+              <option value="high">High priority</option>
+              <option value="normal">Normal priority</option>
+            </select>
+
             <input
               type="search"
               value={search}
@@ -597,9 +634,14 @@ export default function InboxPage() {
                       </div>
 
                       <div className="mt-1 flex items-center justify-between gap-2">
-                        <p className="truncate text-xs text-slate-500">
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          {conversation.priority === "high" && (
+                            <span className="shrink-0 rounded bg-rose-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-rose-700">Priority</span>
+                          )}
+                          <p className="truncate text-xs text-slate-500">
                           {conversation.lastMessagePreview || "No messages"}
-                        </p>
+                          </p>
+                        </div>
 
                         {conversation.unreadCount > 0 && (
                           <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-green-600 px-1.5 text-[10px] font-bold text-white">
@@ -670,6 +712,14 @@ export default function InboxPage() {
                 </div>
 
                 <div className="ml-auto flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={toggleConversationPriority}
+                    disabled={!selectedConversation}
+                    className={`rounded-lg border px-3 py-2 text-xs font-semibold transition disabled:opacity-50 ${selectedConversation?.priority === "high" ? "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    {selectedConversation?.priority === "high" ? "★ High priority" : "☆ Mark priority"}
+                  </button>
                   {currentUserId && selectedConversation && !selectedConversation.assigneeUserId && (
                     <button
                       type="button"
