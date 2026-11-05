@@ -21,7 +21,7 @@ export async function GET() {
     const accessToken = decryptSecret(account.accessTokenEncrypted);
     const apiVersion = process.env.META_GRAPH_API_VERSION || "v26.0";
     const url = new URL(`https://graph.facebook.com/${apiVersion}/${account.wabaId}/message_templates`);
-    url.searchParams.set("fields", "id,name,status,language,category,components,parameter_format");
+    url.searchParams.set("fields", "id,name,status,language,category,components,parameter_format,quality_score,rejected_reason");
     url.searchParams.set("limit", "100");
 
     const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
@@ -43,6 +43,47 @@ export async function GET() {
   }
 }
 
+export async function PATCH(request) {
+  if (!isSameOrigin(request)) return NextResponse.json({ success: false, message: "Invalid request origin." }, { status: 403 });
+  const session = await getSession();
+  if (!session) return NextResponse.json({ success: false, message: "Unauthorized." }, { status: 401 });
+  if (!["owner", "admin"].includes(session.membership?.role)) return NextResponse.json({ success: false, message: "Only workspace owners and admins can edit templates." }, { status: 403 });
+  try {
+    const body = await request.json();
+    const templateId = typeof body.templateId === "string" ? body.templateId.trim() : "";
+    const components = body.components;
+    if (!/^\d+$/.test(templateId)) return NextResponse.json({ success: false, message: "A valid Meta template ID is required." }, { status: 400 });
+    const allowedTypes = ["HEADER", "BODY", "FOOTER", "BUTTONS", "LIMITED_TIME_OFFER", "CAROUSEL"];
+    if (!Array.isArray(components) || components.length === 0 || components.length > 10 || components.some((item) => !item || typeof item !== "object" || Array.isArray(item) || !allowedTypes.includes(String(item.type || "").toUpperCase()))) return NextResponse.json({ success: false, message: "Provide the complete Meta components array, including every component you want to keep." }, { status: 400 });
+    const db = await getDatabase();
+    const workspaceId = new ObjectId(session.workspace.id);
+    const account = await db.collection("whatsappAccounts").findOne({ workspaceId, status: "connected" });
+    if (!account?.accessTokenEncrypted || !account.wabaId) return NextResponse.json({ success: false, message: "Connect a WhatsApp Business Account first." }, { status: 404 });
+    const accessToken = decryptSecret(account.accessTokenEncrypted);
+    const apiVersion = process.env.META_GRAPH_API_VERSION || "v26.0";
+    const currentResponse = await fetch("https://graph.facebook.com/" + apiVersion + "/" + templateId + "?fields=id,status", {
+      headers: { Authorization: "Bearer " + accessToken },
+      cache: "no-store",
+    });
+    const currentTemplate = await currentResponse.json();
+    if (!currentResponse.ok || currentTemplate.error) return NextResponse.json({ success: false, message: currentTemplate?.error?.message || "Could not verify this template with Meta." }, { status: 502 });
+    if (!["APPROVED", "REJECTED", "PAUSED"].includes(String(currentTemplate.status || "").toUpperCase())) {
+      return NextResponse.json({ success: false, message: "Meta only allows edits to approved, rejected, or paused templates. This template is currently " + (currentTemplate.status || "not editable") + "." }, { status: 409 });
+    }
+    const response = await fetch("https://graph.facebook.com/" + apiVersion + "/" + templateId, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
+      body: JSON.stringify({ components }),
+      cache: "no-store",
+    });
+    const result = await response.json();
+    if (!response.ok || result.error || result.success === false) return NextResponse.json({ success: false, message: result?.error?.error_user_msg || result?.error?.message || "Meta could not update this template.", metaErrorCode: result?.error?.code || null, metaErrorSubcode: result?.error?.error_subcode || null }, { status: 502 });
+    return NextResponse.json({ success: true, message: "Template update submitted to Meta. Refresh the library to check its latest status.", result });
+  } catch (error) {
+    console.error("Update WhatsApp template error:", error);
+    return NextResponse.json({ success: false, message: "Could not update the template." }, { status: 500 });
+  }
+}
 export async function POST(request) {
   if (!isSameOrigin(request)) {
     return NextResponse.json({ success: false, message: "Invalid request origin." }, { status: 403 });
