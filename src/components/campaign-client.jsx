@@ -11,6 +11,8 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
     templateName: "",
     language: "",
     parameters: [],
+    couponCode: "",
+    expirationTime: "",
   });
 
   const [result, setResult] = useState("");
@@ -102,6 +104,8 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
       templateName: template?.name || "",
       language: template?.language || "",
       parameters: [],
+      couponCode: "",
+      expirationTime: "",
     }));
     const body = template?.components?.find((item) => item.type === "BODY");
     const count = new Set((body?.text || "").match(/\{\{\d+\}\}/g) || []).size;
@@ -250,6 +254,8 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
         body: JSON.stringify({
           ...form,
           parameters: form.parameters.map((value) => value.trim()),
+          couponCode: form.couponCode.trim(),
+          expirationTime: form.expirationTime,
         }),
       });
 
@@ -676,6 +682,18 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
             </div>
           )}
 
+          {hasCopyCode && (
+            <label className="mt-4 block text-sm font-medium text-slate-700">Coupon code
+              <input required maxLength={isLimitedTimeOffer ? 15 : 20} value={form.couponCode} onChange={(event) => setForm((current) => ({ ...current, couponCode: event.target.value.replace(/\\s/g, "").slice(0, isLimitedTimeOffer ? 15 : 20) }))} placeholder="SAVE20" className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-green-500" />
+              <span className="mt-1 block text-xs font-normal text-slate-500">This code will be shown in the copy-code button.</span>
+            </label>
+          )}
+          {isLimitedTimeOffer && (
+            <label className="mt-4 block text-sm font-medium text-slate-700">Offer expiry (your local time)
+              <input required type="datetime-local" value={form.expirationTime} onChange={(event) => setForm((current) => ({ ...current, expirationTime: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-green-500" />
+            </label>
+          )}
+
           {selectedTemplate && bodyVariableCount === 0 && (
             <p className="mt-4 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
               This template has no body variables. Its approved message content will be sent as-is.
@@ -683,7 +701,7 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
           )}
 
           <button
-            disabled={loading || !connected || contactCount === 0}
+            disabled={loading || !connected || contactCount === 0 || (hasCopyCode && !form.couponCode.trim()) || (isLimitedTimeOffer && !form.expirationTime)}
             className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3 text-sm font-semibold text-white disabled:opacity-50"
           >
             {loading ? (
