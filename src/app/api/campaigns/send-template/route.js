@@ -34,6 +34,8 @@ export async function POST(request) {
       templateName,
       language,
       parameters = [],
+      couponCode,
+      expirationTime,
     } = body;
 
     if (
@@ -143,6 +145,26 @@ export async function POST(request) {
       );
     }
 
+    const templateButtons = matchedTemplate.components?.find((component) => component.type === "BUTTONS")?.buttons || [];
+    const copyCodeButtonIndex = templateButtons.findIndex((button) => String(button.type || "").toUpperCase() === "COPY_CODE");
+    const hasCopyCode = copyCodeButtonIndex >= 0;
+    const isLimitedTimeOffer = (matchedTemplate.components || []).some((component) => component.type === "LIMITED_TIME_OFFER");
+    const couponLimit = isLimitedTimeOffer ? 15 : 20;
+    if (hasCopyCode && (typeof couponCode !== "string" || !/^[A-Za-z0-9_-]{1,20}$/.test(couponCode.trim()) || couponCode.trim().length > couponLimit)) {
+      return NextResponse.json({ success: false, message: `Enter a valid coupon code of up to ${couponLimit} characters.` }, { status: 400 });
+    }
+    if (!hasCopyCode && couponCode) {
+      return NextResponse.json({ success: false, message: "This template does not contain a copy-code button." }, { status: 400 });
+    }
+    let expirationTimeMs = null;
+    if (isLimitedTimeOffer) {
+      const expiry = typeof expirationTime === "string" ? new Date(expirationTime) : null;
+      if (!expiry || Number.isNaN(expiry.getTime()) || expiry.getTime() <= Date.now()) {
+        return NextResponse.json({ success: false, message: "Choose an offer expiry in the future." }, { status: 400 });
+      }
+      expirationTimeMs = expiry.getTime();
+    }
+
     const bodyComponent = (matchedTemplate.components || []).find(
       (component) => component.type === "BODY",
     );
@@ -160,14 +182,16 @@ export async function POST(request) {
       );
     }
 
-    const components = expectedVariables
-      ? [
-          {
-            type: "body",
-            parameters: parameters.map((text) => ({ type: "text", text })),
-          },
-        ]
-      : [];
+    const components = [];
+    if (expectedVariables) {
+      components.push({ type: "body", parameters: parameters.map((text) => ({ type: "text", text })) });
+    }
+    if (isLimitedTimeOffer) {
+      components.push({ type: "limited_time_offer", parameters: [{ type: "limited_time_offer", limited_time_offer: { expiration_time_ms: expirationTimeMs } }] });
+    }
+    if (hasCopyCode) {
+      components.push({ type: "button", sub_type: "copy_code", index: copyCodeButtonIndex, parameters: [{ type: "coupon_code", coupon_code: couponCode.trim() }] });
+    }
 
     const quota = await reserveWorkspaceMessageUsage(db, workspaceId, 1);
     if (!quota.allowed) {
@@ -212,6 +236,8 @@ export async function POST(request) {
       type: "template",
       templateName,
       templateLanguage: language,
+      ...(hasCopyCode ? { templateCouponCode: couponCode.trim() } : {}),
+      ...(isLimitedTimeOffer ? { templateOfferExpiresAt: new Date(expirationTimeMs) } : {}),
       status: response.ok ? "accepted" : "failed",
       statusRank: 0,
       error: response.ok ? null : data.error?.message || "Meta API error",
