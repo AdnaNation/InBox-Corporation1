@@ -23,6 +23,42 @@ export async function GET(request) {
     const conversationId = searchParams.get("conversationId");
     const db = await getDatabase();
 
+    // Conversations created before multi-number support do not have a
+    // phoneNumberId. They all belonged to the workspace's original WhatsApp
+    // connection, which remains in whatsappAccounts even after disconnect.
+    // Backfill from that oldest account so historical replies never silently
+    // switch to whichever number is currently active.
+    const hasLegacyConversation = await db.collection("conversations").findOne(
+      {
+        workspaceId,
+        $or: [
+          { phoneNumberId: { $exists: false } },
+          { phoneNumberId: null },
+          { phoneNumberId: "" },
+        ],
+      },
+      { projection: { _id: 1 } },
+    );
+    if (hasLegacyConversation) {
+      const originalAccount = await db.collection("whatsappAccounts").findOne(
+        { workspaceId, phoneNumberId: { $type: "string" } },
+        { sort: { createdAt: 1, _id: 1 }, projection: { phoneNumberId: 1 } },
+      );
+      if (originalAccount?.phoneNumberId) {
+        await db.collection("conversations").updateMany(
+          {
+            workspaceId,
+            $or: [
+              { phoneNumberId: { $exists: false } },
+              { phoneNumberId: null },
+              { phoneNumberId: "" },
+            ],
+          },
+          { $set: { phoneNumberId: originalAccount.phoneNumberId, phoneNumberIdMigratedAt: new Date() } },
+        );
+      }
+    }
+
     // Load messages for one selected conversation.
     if (conversationId) {
       if (!ObjectId.isValid(conversationId)) {
