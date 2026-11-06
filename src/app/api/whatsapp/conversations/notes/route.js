@@ -70,6 +70,7 @@ export async function POST(request) {
 
     const workspaceId = new ObjectId(session.workspace.id);
     const db = await getDatabase();
+    await ensureConversationNoteIndexes(db);
     const conversation = await db.collection("conversations").findOne({
       _id: new ObjectId(conversationId),
       workspaceId,
