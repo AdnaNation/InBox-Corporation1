@@ -63,6 +63,14 @@ export async function applyPendingWhatsAppStatus(db, workspaceId, waMessageId) {
     ],
   );
 
+  // Queue first so a failed outbox write leaves the pending status available
+  // for reconciliation on a later attempt.
+  await enqueueWebhookEvent(db, workspaceId, "message.status_updated", {
+    messageId: waMessageId,
+    status: pending.status,
+    timestamp: pending.statusUpdatedAt?.toISOString?.() || new Date(pending.statusUpdatedAt || Date.now()).toISOString(),
+  }, "whatsapp-status-" + waMessageId + "-" + pending.status + "-" + String(pending.statusUpdatedAt?.getTime?.() || pending.statusUpdatedAt || "unknown"));
+
   // Delete only the pending version we just processed.
   await pendingCollection.deleteOne({
     workspaceId,
@@ -70,10 +78,4 @@ export async function applyPendingWhatsAppStatus(db, workspaceId, waMessageId) {
     statusRank: pending.statusRank,
     statusUpdatedAt: pending.statusUpdatedAt,
   });
-
-  await enqueueWebhookEvent(db, workspaceId, "message.status_updated", {
-    messageId: waMessageId,
-    status: pending.status,
-    timestamp: pending.statusUpdatedAt?.toISOString?.() || new Date(pending.statusUpdatedAt || Date.now()).toISOString(),
-  }, "whatsapp-status-" + waMessageId + "-" + pending.status + "-" + String(pending.statusUpdatedAt?.getTime?.() || pending.statusUpdatedAt || "unknown"));
 }
