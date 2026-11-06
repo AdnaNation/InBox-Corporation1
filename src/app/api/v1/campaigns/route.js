@@ -54,7 +54,9 @@ export async function GET(request) {
       pauseReason: campaign.pauseReason || null,
       createdAt: campaign.createdAt || null,
       updatedAt: campaign.updatedAt || null,
-      completedAt: campaign.completedAt || null,\n      cancelledAt: campaign.cancelledAt || null,\n      cancelReason: campaign.cancelReason || null,
+      completedAt: campaign.completedAt || null,
+      cancelledAt: campaign.cancelledAt || null,
+      cancelReason: campaign.cancelReason || null,
     })),
     pagination: { limit: limitValue, returned: campaigns.length },
   });
