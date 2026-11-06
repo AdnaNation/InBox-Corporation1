@@ -12,6 +12,8 @@ const scopeOptions = [
   { value: "templates:read", label: "Read WhatsApp templates", description: "List templates and their current Meta approval status for the connected WhatsApp account." },
   { value: "campaigns:read", label: "Read campaigns", description: "List campaign status and aggregate delivery progress in this workspace." },
   { value: "campaigns:write", label: "Create campaign drafts", description: "Create recipient snapshots from opted-in, non-suppressed contacts. Drafts are not sent automatically." },
+  { value: "webhooks:read", label: "Read webhook subscriptions", description: "List webhook endpoints and inspect recent delivery attempts." },
+  { value: "webhooks:write", label: "Manage webhook subscriptions", description: "Create or disable webhook endpoints and receive signed event notifications." },
 ];
 
 export default function ApiKeysClient() {

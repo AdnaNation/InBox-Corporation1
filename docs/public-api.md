@@ -30,6 +30,8 @@ Available permissions:
 | `templates:read` | List templates and their Meta approval status |
 | `campaigns:read` | List campaign status and aggregate delivery progress |
 | `campaigns:write` | Create campaign drafts from eligible opted-in contacts; does not queue or send them |
+| `webhooks:read` | List webhook subscriptions and inspect delivery history |
+| `webhooks:write` | Create and disable webhook subscriptions |
 
 A key without the required permission receives `403`. Missing, invalid, revoked, or expired keys receive `401`. Keys are restricted to their own workspace; supplying another workspace ID is not supported.
 
@@ -361,4 +363,39 @@ Known error codes include:
 
 ## Current scope
 
-The current public v1 API includes contact listing, individual contact lookup, creation, limited updates, single-recipient approved template sending, message status lookup, paginated message history, WhatsApp template catalog retrieval, campaign draft creation, campaign listing, campaign queueing/scheduling, and campaign pause/resume/cancellation. It does not currently expose contact deletion, bulk import, free-form message sending, or webhook subscription endpoints.
+The current public v1 API includes contact listing, individual contact lookup, creation, limited updates, single-recipient approved template sending, message status lookup, paginated message history, WhatsApp template catalog retrieval, campaign draft creation, campaign listing, campaign queueing/scheduling, and campaign pause/resume/cancellation. It does not currently expose contact deletion, bulk import, or free-form message sending.
+
+
+## 15. Webhook subscriptions
+
+Create a webhook subscription with `POST /webhooks` and the `webhooks:write` permission. Provide an HTTPS endpoint and one or more event types:
+
+- `message.received`: a new inbound WhatsApp message has been saved.
+- `message.status_updated`: an outbound message status has been updated by Meta.
+
+Example:
+
+```bash
+curl -X POST "https://YOUR_WAVO_DOMAIN/api/v1/webhooks" \
+  -H "Authorization: Bearer $WAVO_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com/wavo/events","events":["message.received","message.status_updated"]}'
+```
+
+The response includes a `whsec_` signing secret exactly once. Store it securely. Wavo encrypts the stored secret and never returns it from list or delivery-history endpoints. Only HTTPS endpoints on the standard port are accepted. Local addresses, IP-literal hosts, credentials in URLs, and non-HTTPS URLs are rejected; delivery also resolves the hostname and refuses non-public IP addresses.
+
+Every delivery is a JSON POST. Headers include `X-Wavo-Event` (event type), `X-Wavo-Delivery` (stable event ID), `X-Wavo-Timestamp` (Unix seconds), and `X-Wavo-Signature` (`sha256=` followed by a hex HMAC-SHA256). The signed message is the exact UTF-8 request body prefixed by the timestamp and a period:
+
+```text
+HMAC_SHA256(signing_secret, timestamp + "." + raw_request_body)
+```
+
+Verify the signature against the unmodified raw body using a constant-time comparison. Reject timestamps outside your chosen replay window (five minutes is a sensible default). Each event includes an `id`, `type`, `createdAt`, and `data`. Event IDs are stable across retries; use them for idempotency.
+
+Wavo retries non-2xx responses and transport failures with exponential backoff, up to 10 attempts. A delivery is marked failed after the final attempt. A slow endpoint may time out after 10 seconds. Return a 2xx response quickly and process work asynchronously.
+
+- `GET /webhooks` lists subscriptions.
+- `DELETE /webhooks/{subscriptionId}` disables a subscription and cancels pending deliveries.
+- `GET /webhooks/{subscriptionId}/deliveries?limit=50` returns recent delivery attempts (maximum 100).
+
+A delivery-history response includes event type and ID, status, attempt count, response status, last error, and retry/delivery timestamps. It does not include the signing secret. The delivery worker is `GET /api/cron/webhook-delivery`; configure a scheduler to call it periodically with `Authorization: Bearer $CRON_SECRET`. Each run processes up to 20 due deliveries. The worker is not automatically scheduled by this API change.
