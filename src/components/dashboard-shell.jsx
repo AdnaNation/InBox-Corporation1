@@ -29,6 +29,7 @@ const links = [
   { href: "/dashboard/team", label: "Team", icon: Users },
   { href: "/dashboard/whatsapp", label: "WhatsApp", icon: Plug },
   { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/dashboard/usage", label: "Usage & limits", icon: BarChart3 },
   { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
   { href: "/dashboard/api-keys", label: "API access", icon: KeyRound },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
