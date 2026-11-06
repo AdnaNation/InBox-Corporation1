@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
+import { ensureConversationNoteIndexes } from "@/lib/conversation-notes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,6 +23,7 @@ export async function GET(request) {
 
     const workspaceId = new ObjectId(session.workspace.id);
     const db = await getDatabase();
+    await ensureConversationNoteIndexes(db);
     const conversation = await db.collection("conversations").findOne({
       _id: new ObjectId(conversationId),
       workspaceId,
