@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { authenticateApiKey } from "@/lib/api-key-auth";
@@ -9,6 +10,26 @@ import { applyPendingWhatsAppStatus } from "@/lib/whatsapp-status";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+let idempotencyIndexPromise;
+
+async function ensureIdempotencyIndex(db) {
+  if (!idempotencyIndexPromise) {
+    idempotencyIndexPromise = db.collection("apiRequestIdempotency")
+      .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: "api_request_idempotency_ttl" })
+      .catch((error) => {
+        idempotencyIndexPromise = null;
+        throw error;
+      });
+  }
+  await idempotencyIndexPromise;
+}
+
+async function saveIdempotencyResult(collection, id, status, responseBody) {
+  await collection.updateOne({ _id: id }, {
+    $set: { status, responseStatus: status === "completed" ? responseBody.status : undefined, responseBody: responseBody.body, updatedAt: new Date() },
+  });
+}
 
 function errorResponse(message, status, extra = {}, headers) {
   return NextResponse.json({ success: false, message, ...extra }, { status, headers });
@@ -48,6 +69,10 @@ export async function POST(request) {
     return errorResponse("Invalid JSON request body.", 400);
   }
   if (!body || typeof body !== "object" || Array.isArray(body)) return errorResponse("Request body must be a JSON object.", 400);
+  const idempotencyKey = request.headers.get("idempotency-key") || "";
+  if (!/^[A-Za-z0-9._:-]{8,128}$/.test(idempotencyKey)) {
+    return errorResponse("Provide an Idempotency-Key header containing 8–128 letters, numbers, dots, underscores, colons, or hyphens.", 400, { code: "IDEMPOTENCY_KEY_REQUIRED" });
+  }
 
   const { contactId, templateName, language, parameters = [] } = body;
   if (
@@ -114,13 +139,48 @@ export async function POST(request) {
     });
   }
 
+  const idempotencyCollection = db.collection("apiRequestIdempotency");
+  const idempotencyId = auth.apiKey._id.toString() + ":" + createHash("sha256").update(idempotencyKey).digest("hex");
+  const requestHash = createHash("sha256").update(JSON.stringify([contactId, templateName, language, parameters])).digest("hex");
+  try {
+    await ensureIdempotencyIndex(db);
+    await idempotencyCollection.insertOne({
+      _id: idempotencyId,
+      apiKeyId: auth.apiKey._id,
+      requestHash,
+      status: "processing",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    });
+  } catch (error) {
+    if (error?.code !== 11000) {
+      console.error("Public API idempotency store unavailable:", error);
+      return errorResponse("API temporarily unavailable. Please retry shortly.", 503, { code: "IDEMPOTENCY_STORE_UNAVAILABLE" });
+    }
+    const previous = await idempotencyCollection.findOne({ _id: idempotencyId });
+    if (!previous || previous.requestHash !== requestHash) {
+      return errorResponse("This Idempotency-Key was already used for a different request.", 409, { code: "IDEMPOTENCY_KEY_REUSED" });
+    }
+    if (previous.status === "completed" && previous.responseBody) {
+      return NextResponse.json(previous.responseBody, { status: previous.responseStatus || 202 });
+    }
+    if (previous.status === "unknown") {
+      return errorResponse("The original send outcome is unknown. Check WhatsApp message status before attempting another send with a new key.", 409, { code: "MESSAGE_SEND_OUTCOME_UNKNOWN" });
+    }
+    return errorResponse("A request with this Idempotency-Key is already being processed.", 409, { code: "REQUEST_IN_PROGRESS" }, { "Retry-After": "3" });
+  }
+
   const components = expectedVariables > 0
     ? [{ type: "body", parameters: parameters.map((text) => ({ type: "text", text })) }]
     : [];
   const quota = await reserveWorkspaceMessageUsage(db, workspaceId, 1);
-  if (!quota.allowed) return errorResponse(quota.reason, 429, {
-    code: "PLAN_LIMIT_REACHED", plan: quota.plan, usage: quota.usage, limits: quota.limits,
-  });
+  if (!quota.allowed) {
+    await idempotencyCollection.deleteOne({ _id: idempotencyId });
+    return errorResponse(quota.reason, 429, {
+      code: "PLAN_LIMIT_REACHED", plan: quota.plan, usage: quota.usage, limits: quota.limits,
+    });
+  }
 
   // A network timeout is ambiguous: keep the reservation because Meta may have accepted the message.
   let metaResponse;
@@ -141,18 +201,24 @@ export async function POST(request) {
     metaData = await metaResponse.json();
   } catch (error) {
     console.error("Public API WhatsApp send outcome is unknown:", error);
-    return errorResponse("The send outcome is unknown because Meta could not be reached. Check message status before retrying.", 502, { code: "MESSAGE_SEND_OUTCOME_UNKNOWN" });
+    const unknownBody = { success: false, message: "The send outcome is unknown because Meta could not be reached. Check message status before retrying.", code: "MESSAGE_SEND_OUTCOME_UNKNOWN" };
+    await idempotencyCollection.updateOne({ _id: idempotencyId }, { $set: { status: "unknown", responseBody: unknownBody, updatedAt: new Date() } });
+    return NextResponse.json(unknownBody, { status: 502 });
   }
 
   if (!metaResponse.ok) {
     await releaseWorkspaceMessageUsage(db, workspaceId, 1);
-    return errorResponse(metaData?.error?.message || "Meta rejected the WhatsApp message.", 502, {
-      code: "META_MESSAGE_REJECTED", metaErrorCode: metaData?.error?.code || null,
-    });
+    const rejectedBody = { success: false, message: metaData?.error?.message || "Meta rejected the WhatsApp message.", code: "META_MESSAGE_REJECTED", metaErrorCode: metaData?.error?.code || null };
+    await idempotencyCollection.updateOne({ _id: idempotencyId }, { $set: { status: "completed", responseStatus: 502, responseBody: rejectedBody, updatedAt: new Date() } });
+    return NextResponse.json(rejectedBody, { status: 502 });
   }
 
   const waMessageId = metaData?.messages?.[0]?.id;
-  if (!waMessageId) return errorResponse("Meta accepted the request but did not return a message ID. Check message status before retrying.", 502, { code: "MESSAGE_SEND_OUTCOME_UNKNOWN" });
+  if (!waMessageId) {
+    const unknownBody = { success: false, message: "Meta accepted the request but did not return a message ID. Check message status before retrying.", code: "MESSAGE_SEND_OUTCOME_UNKNOWN" };
+    await idempotencyCollection.updateOne({ _id: idempotencyId }, { $set: { status: "unknown", responseBody: unknownBody, updatedAt: new Date() } });
+    return NextResponse.json(unknownBody, { status: 502 });
+  }
 
   const now = new Date();
   const bodyText = template.components?.find((component) => component.type === "BODY")?.text || "";
@@ -167,12 +233,7 @@ export async function POST(request) {
     timestamp: now, createdAt: now, updatedAt: now,
   };
 
-  await db.collection("messages").updateOne(
-    { workspaceId, waMessageId }, { $setOnInsert: messageDocument }, { upsert: true },
-  );
-  await applyPendingWhatsAppStatus(db, workspaceId, waMessageId);
-
-  return NextResponse.json({
+  const successBody = {
     success: true,
     message: "Message accepted by Meta.",
     data: {
@@ -180,5 +241,19 @@ export async function POST(request) {
       template: { name: template.name, language: template.language },
       status: "accepted", acceptedAt: now,
     },
-  }, { status: 202 });
+  };
+  try {
+    await db.collection("messages").updateOne(
+      { workspaceId, waMessageId }, { $setOnInsert: messageDocument }, { upsert: true },
+    );
+    await applyPendingWhatsAppStatus(db, workspaceId, waMessageId);
+  } catch (error) {
+    console.error("Meta accepted message but Wavo could not persist its record:", error);
+    const unknownBody = { success: false, message: "Meta accepted the message, but Wavo could not finish saving its record. Do not retry with a new key; check message status.", code: "MESSAGE_ACCEPTED_PERSISTENCE_PENDING", messageId: waMessageId };
+    await idempotencyCollection.updateOne({ _id: idempotencyId }, { $set: { status: "unknown", responseBody: unknownBody, updatedAt: new Date() } });
+    return NextResponse.json(unknownBody, { status: 502 });
+  }
+
+  await idempotencyCollection.updateOne({ _id: idempotencyId }, { $set: { status: "completed", responseStatus: 202, responseBody: successBody, updatedAt: new Date() } });
+  return NextResponse.json(successBody, { status: 202 });
 }
