@@ -681,6 +681,11 @@ export default function InboxPage() {
                           ? `Assigned to ${conversation.assigneeName}`
                           : "Unassigned"}
                       </p>
+                      {conversation.businessPhoneNumber && (
+                        <p className="mt-1 truncate text-[10px] text-slate-400">
+                          Business line · {conversation.businessPhoneNumber}
+                        </p>
+                      )}
                     </div>
                   </button>
                 );
@@ -734,6 +739,9 @@ export default function InboxPage() {
                   </h2>
                   <p className="text-xs text-slate-500">
                     {selectedConversation?.waId || ""}
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    Business line · {selectedConversation?.businessPhoneNumber || selectedConversation?.phoneNumberId || "Unknown"}
                   </p>
                 </div>
 
