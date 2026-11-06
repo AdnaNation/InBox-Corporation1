@@ -84,7 +84,19 @@ Successful response:
 
 The `optedIn` field reflects the workspace's recorded consent status. A contact being present in the address book does not mean it is eligible for marketing messages.
 
-## 5. Create a contact
+## 5. Get a contact
+
+`GET /contacts/{contactId}` requires `contacts:read`. It returns one contact from the API key's workspace, including its recorded opt-in boolean and timestamps. It does not expose internal consent evidence or suppression records. A contact ID from another workspace is returned as `404`.
+
+Example:
+
+```bash
+curl "https://YOUR_WAVO_DOMAIN/api/v1/contacts/66a000000000000000000001" \
+  -H "Authorization: Bearer $WAVO_API_KEY"
+```
+
+## 6. Create a contact
+
 
 `POST /contacts`
 
@@ -128,7 +140,7 @@ Example — record documented opt-in:
 
 A successful create returns HTTP `201` with the new contact in `data`. New contacts default to not opted in. Setting `optedIn: true` is an assertion by the integrating system, so only send it when the evidence is accurate and can be produced if requested. Wavo also checks workspace suppression records and plan contact limits.
 
-## 6. Update a contact
+## 7. Update a contact
 
 `PATCH /contacts/{contactId}`
 
@@ -145,7 +157,7 @@ curl -X PATCH "https://YOUR_WAVO_DOMAIN/api/v1/contacts/66a000000000000000000001
 
 The contact ID must belong to the API key's workspace. A contact from another workspace is returned as `404`, not exposed.
 
-## 7. Send an approved WhatsApp template
+## 8. Send an approved WhatsApp template
 
 `POST /messages/template`
 
@@ -181,7 +193,7 @@ A successful request returns HTTP `202` when Meta accepts the message. The respo
 
 This first version supports approved templates with positional BODY text variables and static text headers. Named parameters, media or variable headers, limited-time-offer and copy-code templates are not supported. If a send request times out after quota reservation, the result is treated as unknown and the reservation is retained because Meta may have accepted the message. The idempotency key is locked to that unknown result; check message status before attempting a new send.
 
-## 8. Check a message’s delivery status
+## 9. Check a message’s delivery status
 
 `GET /messages/status?messageId={whatsappMessageId}`
 
@@ -196,7 +208,7 @@ curl "https://YOUR_WAVO_DOMAIN/api/v1/messages/status?messageId=wamid.HBgM..." \
 
 The response reports the latest status recorded by Wavo. Typical states are `accepted`, `sent`, `delivered`, `read`, and `failed`. Meta acceptance is not proof of delivery; delivery and read states arrive later through WhatsApp webhooks.
 
-## 9. List message history
+## 10. List message history
 
 `GET /messages`
 
@@ -349,4 +361,4 @@ Known error codes include:
 
 ## Current scope
 
-The current public v1 API includes contact listing, creation, limited updates, single-recipient approved template sending, message status lookup, paginated message history, WhatsApp template catalog retrieval, campaign draft creation, campaign listing, campaign queueing/scheduling, and campaign pause/resume/cancellation. It does not currently expose contact deletion, bulk import, free-form message sending, or webhook subscription endpoints.
+The current public v1 API includes contact listing, individual contact lookup, creation, limited updates, single-recipient approved template sending, message status lookup, paginated message history, WhatsApp template catalog retrieval, campaign draft creation, campaign listing, campaign queueing/scheduling, and campaign pause/resume/cancellation. It does not currently expose contact deletion, bulk import, free-form message sending, or webhook subscription endpoints.

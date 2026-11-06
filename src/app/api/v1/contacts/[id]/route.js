@@ -6,6 +6,43 @@ import { authenticateApiKey } from "@/lib/api-key-auth";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+export async function GET(request, { params }) {
+  const auth = await authenticateApiKey(request, "contacts:read");
+  if (auth.error) return NextResponse.json(
+    { success: false, message: auth.error },
+    { status: auth.status, headers: auth.retryAfterSeconds ? { "Retry-After": String(auth.retryAfterSeconds) } : undefined },
+  );
+
+  const { id } = await params;
+  if (!ObjectId.isValid(id || "")) {
+    return NextResponse.json({ success: false, message: "A valid contact ID is required." }, { status: 400 });
+  }
+
+  const db = await getDatabase();
+  const contact = await db.collection("contacts").findOne(
+    { _id: new ObjectId(id), workspaceId: new ObjectId(auth.apiKey.workspaceId) },
+    { projection: { name: 1, phone: 1, tags: 1, optIn: 1, createdAt: 1, updatedAt: 1 } },
+  );
+
+  // Keep IDs from other workspaces indistinguishable from missing contacts.
+  if (!contact) {
+    return NextResponse.json({ success: false, message: "Contact not found in this workspace." }, { status: 404 });
+  }
+
+  return NextResponse.json({
+    success: true,
+    data: {
+      id: contact._id.toString(),
+      name: contact.name,
+      phone: contact.phone,
+      tags: contact.tags || [],
+      optedIn: contact.optIn?.status === true,
+      createdAt: contact.createdAt || null,
+      updatedAt: contact.updatedAt || null,
+    },
+  });
+}
+
 export async function PATCH(request, { params }) {
   const auth = await authenticateApiKey(request, "contacts:write");
   if (auth.error) return NextResponse.json(
