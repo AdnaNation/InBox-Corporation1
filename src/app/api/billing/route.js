@@ -15,9 +15,13 @@ export async function GET() {
     const workspaceId = new ObjectId(session.workspace.id);
     const workspace = await db.collection("workspaces").findOne({ _id: workspaceId }, { projection: { subscription: 1 } });
     if (!workspace) return NextResponse.json({ success: false, message: "Workspace not found." }, { status: 404 });
-    const [planState, pendingRequest] = await Promise.all([
+    const [planState, pendingRequest, requestHistory] = await Promise.all([
       getWorkspacePlanUsage(db, workspaceId),
       db.collection("billingRequests").findOne({ workspaceId, status: "pending" }, { sort: { createdAt: -1 }, projection: { requestedPlan: 1, billingCycle: 1, createdAt: 1 } }),
+      db.collection("billingRequests").find(
+        { workspaceId },
+        { projection: { requestedPlan: 1, billingCycle: 1, status: 1, createdAt: 1, reviewedAt: 1 } },
+      ).sort({ createdAt: -1 }).limit(10).toArray(),
     ]);
     return NextResponse.json({
       success: true,
@@ -26,6 +30,14 @@ export async function GET() {
       usage: { contacts: planState.usage.contacts, messagesThisMonth: planState.usage.messages, campaignsThisMonth: planState.usage.campaigns },
       limits: { contacts: planState.limits.contacts, messagesThisMonth: planState.limits.messages, campaignsThisMonth: planState.limits.campaigns },
       pendingRequest: pendingRequest ? { plan: pendingRequest.requestedPlan, billingCycle: pendingRequest.billingCycle, createdAt: pendingRequest.createdAt } : null,
+      requestHistory: requestHistory.map((item) => ({
+        id: item._id.toString(),
+        plan: item.requestedPlan,
+        billingCycle: item.billingCycle,
+        status: item.status,
+        createdAt: item.createdAt || null,
+        reviewedAt: item.reviewedAt || null,
+      })),
       paymentEnabled: false,
     });
   } catch (error) {

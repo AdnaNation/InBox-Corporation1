@@ -10,6 +10,21 @@ const plans = [
 
 const number = (value) => new Intl.NumberFormat().format(value || 0);
 
+function formatDate(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
+
+function statusStyle(status) {
+  if (status === "approved") return "bg-emerald-50 text-emerald-700";
+  if (status === "rejected") return "bg-red-50 text-red-700";
+  if (status === "pending") return "bg-amber-50 text-amber-700";
+  return "bg-slate-100 text-slate-600";
+}
+
 export default function BillingClient() {
   const [data, setData] = useState(null);
   const [cycle, setCycle] = useState("monthly");
@@ -54,6 +69,7 @@ export default function BillingClient() {
   }
 
   const currentPlan = data?.plan || "free";
+  const requestHistory = Array.isArray(data?.requestHistory) ? data.requestHistory : [];
 
   return (
     <div className="space-y-7">
@@ -105,6 +121,47 @@ export default function BillingClient() {
           })}
         </div>
       </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">Plan request history</h2>
+            <p className="mt-1 text-sm text-slate-500">Review the latest upgrade requests submitted by this workspace.</p>
+          </div>
+          <span className="text-xs text-slate-500">Latest {requestHistory.length} requests</span>
+        </div>
+        {loading && !data ? (
+          <p className="mt-5 text-sm text-slate-500">Loading request history…</p>
+        ) : requestHistory.length ? (
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full min-w-[620px] text-left text-sm">
+              <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-3 py-3 font-semibold">Plan</th>
+                  <th className="px-3 py-3 font-semibold">Billing cycle</th>
+                  <th className="px-3 py-3 font-semibold">Submitted</th>
+                  <th className="px-3 py-3 font-semibold">Status</th>
+                  <th className="px-3 py-3 font-semibold">Reviewed</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {requestHistory.map((item) => (
+                  <tr key={item.id}>
+                    <td className="px-3 py-4 font-semibold capitalize text-slate-900">{item.plan || "—"}</td>
+                    <td className="px-3 py-4 capitalize text-slate-600">{item.billingCycle || "—"}</td>
+                    <td className="px-3 py-4 text-slate-600">{formatDate(item.createdAt)}</td>
+                    <td className="px-3 py-4"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${statusStyle(item.status)}`}>{item.status || "unknown"}</span></td>
+                    <td className="px-3 py-4 text-slate-600">{formatDate(item.reviewedAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">No plan requests have been submitted yet.</p>
+        )}
+      </section>
+
       <p className="text-xs leading-5 text-slate-500">Payments, invoices, automatic renewals, and automatic plan changes are not enabled yet. Submitting a request does not charge your account or change your plan. Usage figures are informational and are not plan limits.</p>
     </div>
   );
