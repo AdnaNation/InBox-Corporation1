@@ -34,7 +34,7 @@ export async function GET(request) {
   }
 
   const after = searchParams.get("after") || "";
-  if (after && (!/^[A-Za-z0-9_-]{1,512}$/.test(after))) {
+  if (after && (!/^[\x21-\x7E]{1,512}$/.test(after))) {
     return NextResponse.json({ success: false, message: "The after cursor is invalid." }, { status: 400 });
   }
 
