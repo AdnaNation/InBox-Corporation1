@@ -10,7 +10,27 @@
  * workspaces intentionally fail closed instead of silently disconnecting or
  * moving a customer's number.
  */
+// Cache initialization per MongoDB Db instance. WhatsApp routes can call this
+// helper frequently; once the indexes exist, avoid a listIndexes round-trip on
+// every webhook, inbox load, and send. Failed initialization is evicted so a
+// later request can retry after an operational issue is fixed.
+const indexInitializationByDb = new WeakMap();
+
 export async function ensureWhatsAppAccountIndexes(db) {
+  let initialization = indexInitializationByDb.get(db);
+  if (!initialization) {
+    initialization = initializeWhatsAppAccountIndexes(db);
+    indexInitializationByDb.set(db, initialization);
+    initialization.catch(() => {
+      if (indexInitializationByDb.get(db) === initialization) {
+        indexInitializationByDb.delete(db);
+      }
+    });
+  }
+  return initialization;
+}
+
+async function initializeWhatsAppAccountIndexes(db) {
   const accounts = db.collection("whatsappAccounts");
   const collectionExists = await db.listCollections({ name: "whatsappAccounts" }, { nameOnly: true }).hasNext();
   if (!collectionExists) {
