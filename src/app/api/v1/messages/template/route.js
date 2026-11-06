@@ -25,12 +25,6 @@ async function ensureIdempotencyIndex(db) {
   await idempotencyIndexPromise;
 }
 
-async function saveIdempotencyResult(collection, id, status, responseBody) {
-  await collection.updateOne({ _id: id }, {
-    $set: { status, responseStatus: status === "completed" ? responseBody.status : undefined, responseBody: responseBody.body, updatedAt: new Date() },
-  });
-}
-
 function errorResponse(message, status, extra = {}, headers) {
   return NextResponse.json({ success: false, message, ...extra }, { status, headers });
 }

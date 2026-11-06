@@ -156,6 +156,8 @@ Request fields:
 - `language`: exact template language code, such as `en_US`.
 - `parameters`: optional ordered array of BODY text values matching the template’s positional variables.
 
+Every send request must include a unique `Idempotency-Key` header (8–128 allowed characters). Repeating the same key with the same request replays the original result instead of sending again. Reusing a key with different request data returns `409`. Keys are retained for 24 hours; use a new key for a genuinely new send.
+
 Example:
 
 ```bash
@@ -172,7 +174,7 @@ curl -X POST "https://YOUR_WAVO_DOMAIN/api/v1/messages/template" \
 
 A successful request returns HTTP `202` when Meta accepts the message. The response includes a `messageId` for correlating later delivery updates; acceptance is not delivery.
 
-This first version supports approved templates with positional BODY text variables and static text headers. Named parameters, media or variable headers, limited-time-offer and copy-code templates are not supported. If a send request times out after quota reservation, the result is treated as unknown and the reservation is retained because Meta may have accepted the message. Check message status before retrying to avoid duplicates.
+This first version supports approved templates with positional BODY text variables and static text headers. Named parameters, media or variable headers, limited-time-offer and copy-code templates are not supported. If a send request times out after quota reservation, the result is treated as unknown and the reservation is retained because Meta may have accepted the message. The idempotency key is locked to that unknown result; check message status before attempting a new send.
 
 ## 8. Error responses
 
