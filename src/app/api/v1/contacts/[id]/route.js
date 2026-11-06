@@ -8,7 +8,10 @@ export const dynamic = "force-dynamic";
 
 export async function PATCH(request, { params }) {
   const auth = await authenticateApiKey(request, "contacts:write");
-  if (auth.error) return NextResponse.json(\n    { success: false, message: auth.error },\n    { status: auth.status, headers: auth.retryAfterSeconds ? { "Retry-After": String(auth.retryAfterSeconds) } : undefined },\n  );
+  if (auth.error) return NextResponse.json(
+    { success: false, message: auth.error },
+    { status: auth.status, headers: auth.retryAfterSeconds ? { "Retry-After": String(auth.retryAfterSeconds) } : undefined },
+  );
 
   const { id } = await params;
   if (!ObjectId.isValid(id || "")) {
