@@ -25,6 +25,7 @@ Available permissions:
 | --- | --- |
 | `contacts:read` | List contacts with `GET /contacts` |
 | `contacts:write` | Create contacts and update contact name/tags |
+| `messages:read` | Read delivery status for messages in this workspace |
 | `messages:send` | Send approved WhatsApp templates to existing opted-in contacts |
 
 A key without the required permission receives `403`. Missing, invalid, revoked, or expired keys receive `401`. Keys are restricted to their own workspace; supplying another workspace ID is not supported.
@@ -177,7 +178,22 @@ A successful request returns HTTP `202` when Meta accepts the message. The respo
 
 This first version supports approved templates with positional BODY text variables and static text headers. Named parameters, media or variable headers, limited-time-offer and copy-code templates are not supported. If a send request times out after quota reservation, the result is treated as unknown and the reservation is retained because Meta may have accepted the message. The idempotency key is locked to that unknown result; check message status before attempting a new send.
 
-## 8. Error responses
+## 8. Check a message’s delivery status
+
+`GET /messages/status?messageId={whatsappMessageId}`
+
+Requires the `messages:read` permission. Use the `messageId` returned by a successful template-send request. The lookup is restricted to the API key’s workspace and does not reveal the recipient’s phone number.
+
+Example:
+
+```bash
+curl "https://YOUR_WAVO_DOMAIN/api/v1/messages/status?messageId=wamid.HBgM..." \
+  -H "Authorization: Bearer $WAVO_API_KEY"
+```
+
+The response reports the latest status recorded by Wavo. Typical states are `accepted`, `sent`, `delivered`, `read`, and `failed`. Meta acceptance is not proof of delivery; delivery and read states arrive later through WhatsApp webhooks.
+
+## 9. Error responses
 
 Errors use JSON with `success: false` and a human-readable `message`. Some errors include a stable `code`.
 
@@ -198,7 +214,7 @@ Known error codes include:
 - `CONTACT_SUPPRESSED`: the phone number is suppressed because of an opt-out.
 - `PLAN_LIMIT_REACHED`: the workspace has reached its current contact allowance.
 
-## 9. Integration recommendations
+## 10. Integration recommendations
 
 - Keep API keys on your backend, not in a public website or mobile app bundle.
 - Request only the scopes you need and rotate/revoke exposed keys.
@@ -210,4 +226,4 @@ Known error codes include:
 
 ## Current scope
 
-The current public v1 API includes contact listing, creation, limited updates, and single-recipient approved template sending. It does not currently expose contact deletion, bulk import, campaign creation, free-form message sending, or webhook subscription endpoints.
+The current public v1 API includes contact listing, creation, limited updates, single-recipient approved template sending, and message status lookup. It does not currently expose contact deletion, bulk import, campaign creation, free-form message sending, or webhook subscription endpoints.

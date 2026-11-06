@@ -7,6 +7,7 @@ import { showConfirm } from "@/lib/swal";
 const scopeOptions = [
   { value: "contacts:read", label: "Read contacts", description: "List workspace contacts and their opt-in status." },
   { value: "contacts:write", label: "Create and update contacts", description: "Add contacts and update names or tags. Cannot change consent or phone numbers." },
+  { value: "messages:read", label: "Read message status", description: "Check accepted, sent, delivered, read, or failed status for messages in this workspace." },
   { value: "messages:send", label: "Send approved templates", description: "Send approved WhatsApp templates to existing opted-in contacts. Monthly message limits and suppression rules apply." },
 ];
 

@@ -94,6 +94,14 @@ test("allows messages:send without granting contact writes", async () => {
   assert.equal(contactWrite.status, 403);
 });
 
+test("allows messages:read without granting message sending", async () => {
+  const key = await createKey({ scopes: ["messages:read"] });
+  const readPermission = await authenticateApiKeyWithDb(requestFor(key.secret), "messages:read", async () => db);
+  assert.equal(readPermission.error, undefined);
+  const sendPermission = await authenticateApiKeyWithDb(requestFor(key.secret), "messages:send", async () => db);
+  assert.equal(sendPermission.status, 403);
+});
+
 test("authenticates a valid scoped key and records last use", async () => {
   const key = await createKey({ scopes: ["contacts:read", "contacts:write"] });
   const result = await authenticateApiKeyWithDb(requestFor(key.secret), "contacts:write", async () => db);
