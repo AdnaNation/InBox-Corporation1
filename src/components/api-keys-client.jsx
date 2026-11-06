@@ -9,6 +9,7 @@ const scopeOptions = [
   { value: "contacts:write", label: "Create and update contacts", description: "Add contacts and update names or tags. Cannot change consent or phone numbers." },
   { value: "messages:read", label: "Read message status", description: "Check accepted, sent, delivered, read, or failed status for messages in this workspace." },
   { value: "messages:send", label: "Send approved templates", description: "Send approved WhatsApp templates to existing opted-in contacts. Monthly message limits and suppression rules apply." },
+  { value: "templates:read", label: "Read WhatsApp templates", description: "List templates and their current Meta approval status for the connected WhatsApp account." },
 ];
 
 export default function ApiKeysClient() {
