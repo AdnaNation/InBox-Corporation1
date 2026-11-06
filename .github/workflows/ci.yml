@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   validate:
-    name: Lint and production build
+    name: Integration tests, lint and production build
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -54,6 +54,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Run MongoDB integration tests
+        run: npm run test:integration
 
       - name: Run ESLint
         run: npm run lint
