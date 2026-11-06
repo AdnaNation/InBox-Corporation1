@@ -7,7 +7,7 @@ import { isSameOrigin } from "@/lib/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-const ALLOWED_SCOPES = ["contacts:read"];
+const ALLOWED_SCOPES = ["contacts:read", "contacts:write"];
 
 function canManage(session) {
   return ["owner", "admin"].includes(session?.membership?.role);
@@ -43,7 +43,7 @@ export async function POST(request) {
   const scopes = Array.isArray(body.scopes) ? [...new Set(body.scopes)] : [];
   if (!name) return NextResponse.json({ success: false, message: "Enter a name for this API key." }, { status: 400 });
   if (!scopes.length || scopes.some((scope) => !ALLOWED_SCOPES.includes(scope))) {
-    return NextResponse.json({ success: false, message: "Select a supported permission." }, { status: 400 });
+    return NextResponse.json({ success: false, message: "Select at least one supported permission." }, { status: 400 });
   }
 
   const db = await getDatabase();
