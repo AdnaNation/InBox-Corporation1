@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { authenticateApiKey } from "@/lib/api-key-auth";
 import { getActiveWhatsAppAccount } from "@/lib/whatsapp-account";
+import { enqueueWebhookEvent } from "@/lib/public-webhooks.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,6 +71,13 @@ export async function POST(request, { params }) {
       },
     );
     if (!result.modifiedCount) return respond("Campaign state changed. Fetch it again before retrying.", 409, { code: "CAMPAIGN_STATE_CONFLICT" });
+    try {
+      await enqueueWebhookEvent(db, workspaceId, "campaign.cancelled", {
+        campaignId: id, status: "cancelled", cancelledAt: now.toISOString(),
+      }, "campaign-" + id + "-cancelled-" + String(now.getTime()));
+    } catch (eventError) {
+      console.error("Campaign cancelled webhook enqueue failed:", eventError);
+    }
 
     return NextResponse.json({
       success: true,
@@ -100,6 +108,13 @@ export async function POST(request, { params }) {
       },
     );
     if (!result.modifiedCount) return respond("Campaign state changed. Fetch it again before retrying.", 409, { code: "CAMPAIGN_STATE_CONFLICT" });
+    try {
+      await enqueueWebhookEvent(db, workspaceId, "campaign.paused", {
+        campaignId: id, status: "paused", pauseReason: "Paused through the public API.", pausedAt: now.toISOString(),
+      }, "campaign-" + id + "-paused-" + String(now.getTime()));
+    } catch (eventError) {
+      console.error("Campaign paused webhook enqueue failed:", eventError);
+    }
 
     return NextResponse.json({
       success: true,
@@ -132,6 +147,13 @@ export async function POST(request, { params }) {
     },
   );
   if (!result.modifiedCount) return respond("Campaign state changed. Fetch it again before retrying.", 409, { code: "CAMPAIGN_STATE_CONFLICT" });
+  try {
+    await enqueueWebhookEvent(db, workspaceId, "campaign.resumed", {
+      campaignId: id, status: "queued", resumedAt: now.toISOString(),
+    }, "campaign-" + id + "-resumed-" + String(now.getTime()));
+  } catch (eventError) {
+    console.error("Campaign resumed webhook enqueue failed:", eventError);
+  }
 
   return NextResponse.json({
     success: true,

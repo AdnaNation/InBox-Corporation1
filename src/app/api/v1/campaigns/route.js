@@ -4,6 +4,7 @@ import { getDatabase } from "@/lib/db";
 import { authenticateApiKey } from "@/lib/api-key-auth";
 import { getActiveWhatsAppAccount } from "@/lib/whatsapp-account";
 import { checkWorkspacePlanLimit } from "@/lib/plan-limits";
+import { enqueueWebhookEvent } from "@/lib/public-webhooks.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -196,6 +197,14 @@ export async function POST(request) {
       { _id: campaignId, workspaceId, status: "preparing" },
       { $set: { recipientCount: insertedCount, status: "draft", updatedAt: new Date(), recipientSnapshotAt: new Date() } },
     );
+    try {
+      await enqueueWebhookEvent(db, workspaceId, "campaign.created", {
+        campaignId: campaignId.toString(), name, status: "draft", recipientCount: insertedCount,
+        template: { name: template.name, language: template.language }, createdAt: now.toISOString(),
+      }, "campaign-" + campaignId.toString() + "-created");
+    } catch (eventError) {
+      console.error("Campaign created webhook enqueue failed:", eventError);
+    }
 
     return NextResponse.json({
       success: true,

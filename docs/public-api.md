@@ -372,6 +372,12 @@ Create a webhook subscription with `POST /webhooks` and the `webhooks:write` per
 
 - `message.received`: a new inbound WhatsApp message has been saved.
 - `message.status_updated`: an outbound message status has been updated by Meta.
+- `campaign.created`: a campaign draft and recipient snapshot have been created.
+- `campaign.queued`: a campaign has been queued or scheduled for delivery.
+- `campaign.paused`: a campaign has been paused.
+- `campaign.resumed`: a paused campaign has returned to the queue.
+- `campaign.cancelled`: a campaign has been cancelled.
+- `campaign.completed`: campaign processing has finished, including campaigns completed with issues.
 
 Example:
 
