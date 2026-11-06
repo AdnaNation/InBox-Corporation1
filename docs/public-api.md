@@ -193,7 +193,29 @@ curl "https://YOUR_WAVO_DOMAIN/api/v1/messages/status?messageId=wamid.HBgM..." \
 
 The response reports the latest status recorded by Wavo. Typical states are `accepted`, `sent`, `delivered`, `read`, and `failed`. Meta acceptance is not proof of delivery; delivery and read states arrive later through WhatsApp webhooks.
 
-## 9. Error responses
+## 9. List message history
+
+`GET /messages`
+
+Requires the `messages:read` permission. Returns the latest messages in the API key’s workspace, newest first. Recipient phone numbers are not included.
+
+Optional query parameters:
+
+- `limit`: 1–100 records, default `50`.
+- `direction`: `inbound` or `outbound`.
+- `status`: `received`, `accepted`, `sent`, `delivered`, `read`, or `failed`.
+- `before`: the opaque `nextCursor` returned by the previous page.
+
+Example:
+
+```bash
+curl "https://YOUR_WAVO_DOMAIN/api/v1/messages?limit=50&direction=outbound&status=delivered" \
+  -H "Authorization: Bearer $WAVO_API_KEY"
+```
+
+Use the returned `pagination.nextCursor` as the `before` parameter to fetch the next page. The cursor uses a stable timestamp and message ID ordering, so messages with the same timestamp are not skipped between pages. Treat the cursor as opaque.
+
+## 10. Error responses
 
 Errors use JSON with `success: false` and a human-readable `message`. Some errors include a stable `code`.
 
@@ -214,7 +236,7 @@ Known error codes include:
 - `CONTACT_SUPPRESSED`: the phone number is suppressed because of an opt-out.
 - `PLAN_LIMIT_REACHED`: the workspace has reached its current contact allowance.
 
-## 10. Integration recommendations
+## 11. Integration recommendations
 
 - Keep API keys on your backend, not in a public website or mobile app bundle.
 - Request only the scopes you need and rotate/revoke exposed keys.
@@ -226,4 +248,4 @@ Known error codes include:
 
 ## Current scope
 
-The current public v1 API includes contact listing, creation, limited updates, single-recipient approved template sending, and message status lookup. It does not currently expose contact deletion, bulk import, campaign creation, free-form message sending, or webhook subscription endpoints.
+The current public v1 API includes contact listing, creation, limited updates, single-recipient approved template sending, message status lookup, and paginated message history. It does not currently expose contact deletion, bulk import, campaign creation, free-form message sending, or webhook subscription endpoints.
