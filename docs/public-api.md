@@ -264,6 +264,12 @@ Supported audience types are `all`, `group` (with a workspace-owned `groupId`), 
 
 A successful request returns HTTP `201` and a campaign ID. A draft is not a send authorization. Do not retry a timed-out create blindly; check `GET /campaigns` first to avoid duplicate drafts.
 
+### Queue or schedule a campaign
+
+`POST /campaigns/{campaignId}/queue` requires `campaigns:write` and an `Idempotency-Key` header (8–128 allowed characters). It accepts an empty JSON object to queue immediately, or `{"scheduledAt":"2026-11-10T15:00:00.000Z"}` to schedule in ISO 8601. Scheduled times must be at least two minutes and no more than one year ahead.
+
+The endpoint only accepts a draft owned by the API key's workspace. It verifies the frozen recipient snapshot, rechecks the exact template and language against Meta for current approval, validates supported template format and parameter counts, and atomically changes the campaign to `queued` or `scheduled`. Reusing the same idempotency key and request replays the original response; reusing it with a different request returns `409`. A successful queue response means the campaign entered the delivery queue; it does not mean messages have already been sent. The worker continues to recheck each contact's live opt-in and suppression state immediately before delivery.
+
 ## 13. Error responses
 
 Errors use JSON with `success: false` and a human-readable `message`. Some errors include a stable `code`.
