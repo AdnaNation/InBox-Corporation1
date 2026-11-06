@@ -239,7 +239,32 @@ curl "https://YOUR_WAVO_DOMAIN/api/v1/templates?status=APPROVED&limit=100" \
 
 Use `pagination.nextCursor` as `after` to retrieve the next page. Only approved templates can be sent through `POST /messages/template`; the send endpoint re-verifies the template directly with Meta at send time.
 
-## 12. Campaigns\n\n### List campaigns\n\n`GET /campaigns` requires `campaigns:read`. Optional parameters: `limit` (1–100, default 50) and `status` (draft, queued, scheduled, sending, paused, completed, completed_with_issues). The response includes campaign metadata and aggregate progress, but no recipient phone numbers.\n\n### Create a campaign draft\n\n`POST /campaigns` requires `campaigns:write`. It creates a frozen recipient snapshot and a draft only. It never queues or sends messages. Queueing and scheduling remain an explicit action in the Wavo dashboard, where the current Meta template approval, template parameter format, and delivery settings are revalidated.\n\nRequest example:\n\n```json\n{\n  "name": "November update",\n  "audience": { "type": "tag", "tag": "customer" },\n  "template": { "name": "monthly_update", "language": "en_US" },\n  "bodyParameters": ["November", "Wavo"]\n}\n```\n\nSupported audience types are `all`, `group` (with a workspace-owned `groupId`), and `tag` (with a tag string). Only contacts currently marked opted-in and not currently suppressed are included in the snapshot. The worker also rechecks live consent and suppression immediately before each send, so an opt-out after draft creation still prevents delivery. Campaign and estimated message plan limits are checked before the draft is created. The template is verified with Meta when an authorized workspace user queues the draft; creating a draft does not guarantee that the template will later be approved.\n\nA successful request returns HTTP `201` and a campaign ID. A draft is not a send authorization. Do not retry a timed-out create blindly; check `GET /campaigns` first to avoid creating duplicate drafts.\n\n## 13. Error responses
+## 12. Campaigns
+
+### List campaigns
+
+`GET /campaigns` requires `campaigns:read`. Optional parameters: `limit` (1–100, default 50) and `status` (`draft`, `queued`, `scheduled`, `sending`, `paused`, `completed`, or `completed_with_issues`). The response includes campaign metadata and aggregate progress, but no recipient phone numbers.
+
+### Create a campaign draft
+
+`POST /campaigns` requires `campaigns:write`. It creates a frozen recipient snapshot and a draft only. It never queues or sends messages. Queueing and scheduling remain an explicit action in the Wavo dashboard, where current Meta template approval, template parameter format, and delivery settings are revalidated.
+
+Request example:
+
+```json
+{
+  "name": "November update",
+  "audience": { "type": "tag", "tag": "customer" },
+  "template": { "name": "monthly_update", "language": "en_US" },
+  "bodyParameters": ["November", "Wavo"]
+}
+```
+
+Supported audience types are `all`, `group` (with a workspace-owned `groupId`), and `tag` (with a tag string). Only contacts currently marked opted-in and not currently suppressed are included in the snapshot. The worker also rechecks live consent and suppression immediately before each send, so an opt-out after draft creation still prevents delivery. Campaign and estimated message plan limits are checked before the draft is created. Meta template approval is rechecked when an authorized workspace user queues the draft; creating a draft does not guarantee later approval.
+
+A successful request returns HTTP `201` and a campaign ID. A draft is not a send authorization. Do not retry a timed-out create blindly; check `GET /campaigns` first to avoid duplicate drafts.
+
+## 13. Error responses
 
 Errors use JSON with `success: false` and a human-readable `message`. Some errors include a stable `code`.
 
