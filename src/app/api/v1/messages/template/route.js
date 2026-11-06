@@ -47,6 +47,8 @@ function validateSupportedTemplate(template) {
   if (components.some((component) => component.type === "LIMITED_TIME_OFFER")) return "Limited-time offer templates are not supported by this API endpoint yet.";
   const buttons = components.find((component) => component.type === "BUTTONS")?.buttons || [];
   if (buttons.some((button) => String(button.type || "").toUpperCase() === "COPY_CODE")) return "Copy-code templates are not supported by this API endpoint yet.";
+  if (buttons.some((button) => String(button.type || "").toUpperCase() === "URL" && /\\{\\{\\d+\\}\\}/.test(button.url || ""))) return "Dynamic URL button parameters are not supported by this API endpoint yet.";
+  if (String(template.category || "").toUpperCase() === "AUTHENTICATION") return "Authentication templates are not supported by this API endpoint yet.";
   return null;
 }
 
