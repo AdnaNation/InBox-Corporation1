@@ -542,6 +542,11 @@ async function processStatus(db, account, status) {
         },
       },
     );
+    await enqueueWebhookEvent(db, workspaceId, "message.status_updated", {
+      messageId: status.id,
+      status: status.status,
+      timestamp: statusDate.toISOString(),
+    }, "whatsapp-status-" + status.id + "-" + status.status + "-" + String(status.timestamp || "unknown"));
   }
 
   console.log(
