@@ -363,7 +363,7 @@ Known error codes include:
 
 ## Current scope
 
-The current public v1 API includes contact listing, individual contact lookup, creation, limited updates, single-recipient approved template sending, message status lookup, paginated message history, WhatsApp template catalog retrieval, campaign draft creation, campaign listing, campaign queueing/scheduling, and campaign pause/resume/cancellation. It does not currently expose contact deletion, bulk import, free-form message sending, or webhook subscription endpoints.
+The current public v1 API includes contact listing, individual contact lookup, creation, limited updates, single-recipient approved template sending, message status lookup, paginated message history, WhatsApp template catalog retrieval, campaign draft creation, campaign listing, campaign queueing/scheduling, and campaign pause/resume/cancellation. It does not currently expose contact deletion, bulk import, or free-form message sending.
 
 
 ## 15. Webhook subscriptions
@@ -384,7 +384,7 @@ curl -X POST "https://YOUR_WAVO_DOMAIN/api/v1/webhooks" \
 
 The response includes a `whsec_` signing secret exactly once. Store it securely. Wavo encrypts the stored secret and never returns it from list or delivery-history endpoints. Only HTTPS endpoints on the standard port are accepted. Local addresses, IP-literal hosts, credentials in URLs, and non-HTTPS URLs are rejected; delivery also resolves the hostname and refuses non-public IP addresses.
 
-Every delivery is a JSON POST. Headers include `X-Wavo-Timestamp` (Unix seconds) and `X-Wavo-Signature` (`sha256=` followed by a hex HMAC-SHA256). The signed message is the exact UTF-8 request body prefixed by the timestamp and a period:
+Every delivery is a JSON POST. Headers include `X-Wavo-Event` (event type), `X-Wavo-Delivery` (stable event ID), `X-Wavo-Timestamp` (Unix seconds), and `X-Wavo-Signature` (`sha256=` followed by a hex HMAC-SHA256). The signed message is the exact UTF-8 request body prefixed by the timestamp and a period:
 
 ```text
 HMAC_SHA256(signing_secret, timestamp + "." + raw_request_body)
