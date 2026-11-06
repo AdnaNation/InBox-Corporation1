@@ -270,6 +270,31 @@ A successful request returns HTTP `201` and a campaign ID. A draft is not a send
 
 The endpoint only accepts a draft owned by the API key's workspace. It verifies the frozen recipient snapshot, rechecks the exact template and language against Meta for current approval, validates supported template format and parameter counts, and atomically changes the campaign to `queued` or `scheduled`. Reusing the same idempotency key and request replays the original response; reusing it with a different request returns `409`. A successful queue response means the campaign entered the delivery queue; it does not mean messages have already been sent. The worker continues to recheck each contact's live opt-in and suppression state immediately before delivery.
 
+### Pause or resume a campaign
+
+`POST /campaigns/{campaignId}/control` requires `campaigns:write`. Send exactly one action:
+
+```json
+{ "action": "pause" }
+```
+
+or:
+
+```json
+{ "action": "resume" }
+```
+
+Pause is accepted only while a campaign is `queued` or `sending`. The worker checks campaign state before claiming recipients; a message already in flight may still finish. Resume is accepted only for a `paused` campaign and only while its original WhatsApp account is connected. It returns the campaign to `queued`; it does not reset recipient outcomes or automatically resend accepted, failed, skipped, or unknown recipients. Repeating pause on an already paused campaign is safe and returns the current state. Other invalid state transitions return `409` with `CAMPAIGN_STATE_CONFLICT`.
+
+Example:
+
+```bash
+curl -X POST "https://YOUR_WAVO_DOMAIN/api/v1/campaigns/CAMPAIGN_ID/control" \\
+  -H "Authorization: Bearer $WAVO_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"action":"pause"}'
+```
+
 ## 13. Error responses
 
 Errors use JSON with `success: false` and a human-readable `message`. Some errors include a stable `code`.
@@ -303,4 +328,4 @@ Known error codes include:
 
 ## Current scope
 
-The current public v1 API includes contact listing, creation, limited updates, single-recipient approved template sending, message status lookup, paginated message history, and WhatsApp template catalog retrieval. It does not currently expose contact deletion, bulk import, campaign creation, free-form message sending, or webhook subscription endpoints.
+The current public v1 API includes contact listing, creation, limited updates, single-recipient approved template sending, message status lookup, paginated message history, WhatsApp template catalog retrieval, campaign draft creation, campaign listing, campaign queueing/scheduling, and campaign pause/resume. It does not currently expose contact deletion, bulk import, free-form message sending, campaign cancellation, or webhook subscription endpoints.
