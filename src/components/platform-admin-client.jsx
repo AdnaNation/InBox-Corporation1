@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { showConfirm } from "@/lib/swal";
+import PlatformWhatsAppInventory from "@/components/platform-whatsapp-inventory";
 
 const number = (value) => new Intl.NumberFormat().format(value || 0);
 const date = (value) => value ? new Date(value).toLocaleDateString() : "—";
@@ -102,6 +103,8 @@ export default function PlatformAdminClient() {
           </table>
         </div>
       </section>
+      <PlatformWhatsAppInventory accounts={data?.whatsappAccounts || []} />
+
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <div className="border-b border-slate-100 p-5">
           <h2 className="font-bold text-slate-900">Platform audit history</h2>
