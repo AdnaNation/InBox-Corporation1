@@ -1,3 +1,5 @@
+import { enqueueWebhookEvent } from "@/lib/public-webhooks.mjs";
+
 export async function applyPendingWhatsAppStatus(db, workspaceId, waMessageId) {
   const pendingCollection = db.collection("whatsappPendingStatuses");
   const messagesCollection = db.collection("messages");
@@ -68,4 +70,10 @@ export async function applyPendingWhatsAppStatus(db, workspaceId, waMessageId) {
     statusRank: pending.statusRank,
     statusUpdatedAt: pending.statusUpdatedAt,
   });
+
+  await enqueueWebhookEvent(db, workspaceId, "message.status_updated", {
+    messageId: waMessageId,
+    status: pending.status,
+    timestamp: pending.statusUpdatedAt?.toISOString?.() || new Date(pending.statusUpdatedAt || Date.now()).toISOString(),
+  }, "whatsapp-status-" + waMessageId + "-" + pending.status + "-" + String(pending.statusUpdatedAt?.getTime?.() || pending.statusUpdatedAt || "unknown"));
 }

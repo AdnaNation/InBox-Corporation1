@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
+import { enqueueWebhookEvent } from "@/lib/public-webhooks.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -356,6 +357,14 @@ async function processIncomingMessage(db, account, value, message) {
       },
     );
   }
+
+  // Enqueue outside the insert-only branch so Meta retries can recover a
+  // queueing failure after the message itself has already been persisted.
+  await enqueueWebhookEvent(db, workspaceId, "message.received", {
+    messageId: message.id, from: waId, contactId: String(contact._id),
+    conversationId: String(conversation._id), messageType: content.type,
+    text: content.text, timestamp: timestamp.toISOString(),
+  }, "whatsapp-message-" + message.id);
 }
 
 // --------------------------------------------------
