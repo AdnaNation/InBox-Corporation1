@@ -30,7 +30,7 @@ A key without the required permission receives `403`. Missing, invalid, revoked,
 
 ## 3. Rate limits
 
-Each API key can make up to **120 requests per rolling fixed-minute window** (UTC-aligned minute bucket) across the public v1 Contacts endpoints. The counter is shared through MongoDB, so requests across application instances use the same limit.
+Each API key can make up to **120 requests per UTC-aligned one-minute window** across the public v1 Contacts endpoints. This is a fixed-window limit, not a rolling 60-second limit. The counter is shared through MongoDB, so requests across application instances use the same limit.
 
 When the limit is exceeded, the API returns:
 
