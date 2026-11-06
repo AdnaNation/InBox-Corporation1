@@ -86,6 +86,14 @@ test("rejects malformed, expired, revoked, and insufficient-scope API keys", asy
   assert.equal(rateLimitForReadOnlyKey, null);
 });
 
+test("allows messages:send without granting contact writes", async () => {
+  const key = await createKey({ scopes: ["messages:send"] });
+  const sendPermission = await authenticateApiKeyWithDb(requestFor(key.secret), "messages:send", async () => db);
+  assert.equal(sendPermission.error, undefined);
+  const contactWrite = await authenticateApiKeyWithDb(requestFor(key.secret), "contacts:write", async () => db);
+  assert.equal(contactWrite.status, 403);
+});
+
 test("authenticates a valid scoped key and records last use", async () => {
   const key = await createKey({ scopes: ["contacts:read", "contacts:write"] });
   const result = await authenticateApiKeyWithDb(requestFor(key.secret), "contacts:write", async () => db);
