@@ -21,7 +21,7 @@ export async function GET() {
     if (response) return response;
 
     const db = await getDatabase();
-    const [workspaces, requests, totals] = await Promise.all([
+    const [workspaces, requests, totals, whatsappAccounts] = await Promise.all([
       db.collection("workspaces").find(
         {},
         { projection: { name: 1, slug: 1, status: 1, subscription: 1, ownerId: 1, createdAt: 1, updatedAt: 1 } },
@@ -35,6 +35,10 @@ export async function GET() {
         db.collection("workspaces").countDocuments({ status: "active" }),
         db.collection("billingRequests").countDocuments({ status: "pending" }),
       ]),
+      db.collection("whatsappAccounts").find(
+        {},
+        { projection: { workspaceId: 1, wabaId: 1, phoneNumberId: 1, businessName: 1, displayPhoneNumber: 1, status: 1, isActive: 1, createdAt: 1, updatedAt: 1 } },
+      ).sort({ updatedAt: -1, createdAt: -1 }).limit(200).toArray(),
     ]);
 
     const auditLogs = await db.collection("platformAdminAuditLogs")
@@ -45,6 +49,19 @@ export async function GET() {
       ? await db.collection("users").find({ _id: { $in: auditActorIds } }, { projection: { name: 1, email: 1 } }).toArray()
       : [];
     const auditActorMap = new Map(auditActors.map((actor) => [actor._id.toString(), { name: actor.name || "", email: actor.email || "" }]));
+
+    const accountWorkspaceIds = [...new Set(whatsappAccounts.map((account) => account.workspaceId?.toString()).filter(Boolean))]
+      .map((id) => new ObjectId(id));
+    const accountWorkspaces = accountWorkspaceIds.length
+      ? await db.collection("workspaces").find(
+          { _id: { $in: accountWorkspaceIds } },
+          { projection: { name: 1, slug: 1 } },
+        ).toArray()
+      : [];
+    const accountWorkspaceMap = new Map(accountWorkspaces.map((workspace) => [
+      workspace._id.toString(),
+      { name: workspace.name || "Workspace", slug: workspace.slug || "" },
+    ]));
 
     const ownerIds = [...new Set(workspaces.map((workspace) => workspace.ownerId?.toString()).filter(Boolean))].map((id) => new ObjectId(id));
     const owners = ownerIds.length
@@ -72,6 +89,20 @@ export async function GET() {
         workspaceName: workspaces.find((workspace) => workspace._id.toString() === log.targetWorkspaceId?.toString())?.name || "Workspace",
         details: log.details || null,
         createdAt: log.createdAt || null,
+      })),
+      whatsappAccounts: whatsappAccounts.map((account) => ({
+        id: account._id.toString(),
+        workspaceId: account.workspaceId?.toString() || "",
+        workspaceName: accountWorkspaceMap.get(account.workspaceId?.toString())?.name || "Workspace",
+        workspaceSlug: accountWorkspaceMap.get(account.workspaceId?.toString())?.slug || "",
+        wabaId: account.wabaId || "",
+        phoneNumberId: account.phoneNumberId || "",
+        businessName: account.businessName || "",
+        displayPhoneNumber: account.displayPhoneNumber || "",
+        status: account.status || "unknown",
+        isActive: account.isActive === true,
+        createdAt: account.createdAt || null,
+        updatedAt: account.updatedAt || null,
       })),
       requests: requests.map((request) => ({
         id: request._id.toString(),
