@@ -50,7 +50,10 @@ async function deliver(urlValue, rawBody, timestamp, signature, eventType, event
     const req = httpsRequest({
       protocol: "https:", hostname: url.hostname, port: 443, method: "POST",
       path: url.pathname + url.search, servername: url.hostname,
-      lookup: (_hostname, _options, callback) => callback(null, target.address, target.family),
+      lookup: (_hostname, options, callback) => {
+        if (options?.all) callback(null, [{ address: target.address, family: target.family }]);
+        else callback(null, target.address, target.family);
+      },
       headers: {
         "Content-Type": "application/json", "User-Agent": "Wavo-Webhooks/1.0",
         "X-Wavo-Event": eventType, "X-Wavo-Delivery": eventId,
