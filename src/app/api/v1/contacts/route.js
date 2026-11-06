@@ -18,7 +18,7 @@ const CONSENT_SOURCES = new Set([
 
 export async function GET(request) {
   const auth = await authenticateApiKey(request, "contacts:read");
-  if (auth.error) return NextResponse.json({ success: false, message: auth.error }, { status: auth.status });
+  if (auth.error) return NextResponse.json(\n    { success: false, message: auth.error },\n    { status: auth.status, headers: auth.retryAfterSeconds ? { "Retry-After": String(auth.retryAfterSeconds) } : undefined },\n  );
   const { searchParams } = new URL(request.url);
   const requestedLimit = Number(searchParams.get("limit") || 100);
   const limit = Math.min(Math.max(Number.isFinite(requestedLimit) ? requestedLimit : 100, 1), 500);
