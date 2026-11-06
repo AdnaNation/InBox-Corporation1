@@ -27,6 +27,7 @@ Available permissions:
 | `contacts:write` | Create contacts and update contact name/tags |
 | `messages:read` | Read delivery status for messages in this workspace |
 | `messages:send` | Send approved WhatsApp templates to existing opted-in contacts |
+| `templates:read` | List templates and their Meta approval status |
 
 A key without the required permission receives `403`. Missing, invalid, revoked, or expired keys receive `401`. Keys are restricted to their own workspace; supplying another workspace ID is not supported.
 
@@ -215,7 +216,28 @@ curl "https://YOUR_WAVO_DOMAIN/api/v1/messages?limit=50&direction=outbound&statu
 
 Use the returned `pagination.nextCursor` as the `before` parameter to fetch the next page. The cursor uses a stable timestamp and message ID ordering, so messages with the same timestamp are not skipped between pages. Treat the cursor as opaque.
 
-## 10. Error responses
+## 11. List WhatsApp templates
+
+`GET /templates`
+
+Requires the `templates:read` permission. Retrieves the template catalog from the workspace’s active connected WhatsApp Business Account. The response includes template name, language, approval status, category, parameter format, and supported component metadata.
+
+Optional query parameters:
+
+- `limit`: 1–100 records, default `100`.
+- `status`: filter by a Meta template status such as `APPROVED`, `PENDING`, `REJECTED`, or `PAUSED`.
+- `after`: the opaque `pagination.nextCursor` from the previous page.
+
+Example:
+
+```bash
+curl "https://YOUR_WAVO_DOMAIN/api/v1/templates?status=APPROVED&limit=100" \
+  -H "Authorization: Bearer $WAVO_API_KEY"
+```
+
+Use `pagination.nextCursor` as `after` to retrieve the next page. Only approved templates can be sent through `POST /messages/template`; the send endpoint re-verifies the template directly with Meta at send time.
+
+## 12. Error responses
 
 Errors use JSON with `success: false` and a human-readable `message`. Some errors include a stable `code`.
 
@@ -236,7 +258,7 @@ Known error codes include:
 - `CONTACT_SUPPRESSED`: the phone number is suppressed because of an opt-out.
 - `PLAN_LIMIT_REACHED`: the workspace has reached its current contact allowance.
 
-## 11. Integration recommendations
+## 13. Integration recommendations
 
 - Keep API keys on your backend, not in a public website or mobile app bundle.
 - Request only the scopes you need and rotate/revoke exposed keys.
@@ -248,4 +270,4 @@ Known error codes include:
 
 ## Current scope
 
-The current public v1 API includes contact listing, creation, limited updates, single-recipient approved template sending, message status lookup, and paginated message history. It does not currently expose contact deletion, bulk import, campaign creation, free-form message sending, or webhook subscription endpoints.
+The current public v1 API includes contact listing, creation, limited updates, single-recipient approved template sending, message status lookup, paginated message history, and WhatsApp template catalog retrieval. It does not currently expose contact deletion, bulk import, campaign creation, free-form message sending, or webhook subscription endpoints.
