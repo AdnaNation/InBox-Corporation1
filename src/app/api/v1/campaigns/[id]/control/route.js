@@ -34,8 +34,8 @@ export async function POST(request, { params }) {
     return respond("Invalid JSON request body.", 400);
   }
   if (!body || typeof body !== "object" || Array.isArray(body) ||
-      Object.keys(body).length !== 1 || !["pause", "resume"].includes(body.action)) {
-    return respond('Provide exactly one supported action: "pause" or "resume".', 400);
+      Object.keys(body).length !== 1 || !["pause", "resume", "cancel"].includes(body.action)) {
+    return respond('Provide exactly one supported action: "pause", "resume", or "cancel".', 400);
   }
 
   const db = await getDatabase();
@@ -46,6 +46,37 @@ export async function POST(request, { params }) {
     { projection: { status: 1, phoneNumberId: 1 } },
   );
   if (!campaign) return respond("Campaign not found.", 404);
+
+  if (body.action === "cancel") {
+    if (campaign.status === "cancelled") {
+      return NextResponse.json({ success: true, data: { campaignId: id, status: "cancelled", changed: false } });
+    }
+    const cancellableStatuses = ["draft", "queued", "scheduled", "sending", "paused"];
+    if (!cancellableStatuses.includes(campaign.status)) {
+      return respond("Only draft, queued, scheduled, sending, or paused campaigns can be cancelled.", 409, { code: "CAMPAIGN_STATE_CONFLICT", status: campaign.status });
+    }
+
+    const now = new Date();
+    const result = await db.collection("campaigns").updateOne(
+      { _id: campaignId, workspaceId, status: { $in: cancellableStatuses } },
+      {
+        $set: {
+          status: "cancelled",
+          cancelledAt: now,
+          cancelledByApiKeyId: auth.apiKey._id,
+          cancelReason: "Cancelled through the public API.",
+          updatedAt: now,
+        },
+      },
+    );
+    if (!result.modifiedCount) return respond("Campaign state changed. Fetch it again before retrying.", 409, { code: "CAMPAIGN_STATE_CONFLICT" });
+
+    return NextResponse.json({
+      success: true,
+      message: "Campaign cancelled. A message already in flight may finish, but no further recipients will be claimed. Recipient outcomes are preserved.",
+      data: { campaignId: id, status: "cancelled", changed: true },
+    });
+  }
 
   if (body.action === "pause") {
     if (campaign.status === "paused") {

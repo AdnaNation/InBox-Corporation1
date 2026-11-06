@@ -8,7 +8,7 @@ import { checkWorkspacePlanLimit } from "@/lib/plan-limits";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const CAMPAIGN_STATUSES = new Set(["draft", "queued", "scheduled", "sending", "paused", "completed", "completed_with_issues"]);
+const CAMPAIGN_STATUSES = new Set(["draft", "queued", "scheduled", "sending", "paused", "cancelled", "completed", "completed_with_issues"]);
 
 function authError(auth) {
   return NextResponse.json(
@@ -36,7 +36,7 @@ export async function GET(request) {
   if (status) filter.status = status;
   const campaigns = await db.collection("campaigns").find(filter)
     .sort({ createdAt: -1, _id: -1 }).limit(limitValue)
-    .project({ name: 1, audience: 1, template: 1, targetCount: 1, recipientCount: 1, status: 1, progress: 1, scheduledAt: 1, createdAt: 1, updatedAt: 1, completedAt: 1, pauseReason: 1 })
+    .project({ name: 1, audience: 1, template: 1, targetCount: 1, recipientCount: 1, status: 1, progress: 1, scheduledAt: 1, createdAt: 1, updatedAt: 1, completedAt: 1, cancelledAt: 1, cancelReason: 1, pauseReason: 1 })
     .toArray();
 
   return NextResponse.json({
@@ -55,6 +55,8 @@ export async function GET(request) {
       createdAt: campaign.createdAt || null,
       updatedAt: campaign.updatedAt || null,
       completedAt: campaign.completedAt || null,
+      cancelledAt: campaign.cancelledAt || null,
+      cancelReason: campaign.cancelReason || null,
     })),
     pagination: { limit: limitValue, returned: campaigns.length },
   });
