@@ -295,7 +295,16 @@ curl -X POST "https://YOUR_WAVO_DOMAIN/api/v1/campaigns/CAMPAIGN_ID/control" \\
   -d '{"action":"pause"}'
 ```
 
-## 13. Error responses
+
+
+You can also cancel a campaign with:
+
+```json
+{ "action": "cancel" }
+```
+
+Cancellation is accepted for `draft`, `queued`, `scheduled`, `sending`, and `paused` campaigns. Repeating cancellation is safe. A recipient already being processed by the worker may finish, but the worker will not claim further recipients after observing the cancelled state. Existing recipient outcomes are preserved. Completed campaigns cannot be cancelled. The campaign list supports the `cancelled` status filter and returns `cancelledAt` and `cancelReason`.
+\n## 13. Error responses
 
 Errors use JSON with `success: false` and a human-readable `message`. Some errors include a stable `code`.
 
@@ -328,4 +337,4 @@ Known error codes include:
 
 ## Current scope
 
-The current public v1 API includes contact listing, creation, limited updates, single-recipient approved template sending, message status lookup, paginated message history, WhatsApp template catalog retrieval, campaign draft creation, campaign listing, campaign queueing/scheduling, and campaign pause/resume. It does not currently expose contact deletion, bulk import, free-form message sending, campaign cancellation, or webhook subscription endpoints.
+The current public v1 API includes contact listing, creation, limited updates, single-recipient approved template sending, message status lookup, paginated message history, WhatsApp template catalog retrieval, campaign draft creation, campaign listing, campaign queueing/scheduling, and campaign pause/resume/cancellation. It does not currently expose contact deletion, bulk import, free-form message sending, or webhook subscription endpoints.
