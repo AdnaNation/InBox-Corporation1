@@ -125,3 +125,18 @@ test("authenticates a valid scoped key and records last use", async () => {
   });
   assert.equal(counter.count, 1);
 });
+
+
+test("keeps campaign read and write permissions separate", async () => {
+  const readKey = await createKey({ scopes: ["campaigns:read"] });
+  const readPermission = await authenticateApiKeyWithDb(requestFor(readKey.secret), "campaigns:read", async () => db);
+  assert.equal(readPermission.error, undefined);
+  const readCannotWrite = await authenticateApiKeyWithDb(requestFor(readKey.secret), "campaigns:write", async () => db);
+  assert.equal(readCannotWrite.status, 403);
+
+  const writeKey = await createKey({ scopes: ["campaigns:write"] });
+  const writePermission = await authenticateApiKeyWithDb(requestFor(writeKey.secret), "campaigns:write", async () => db);
+  assert.equal(writePermission.error, undefined);
+  const writeCannotRead = await authenticateApiKeyWithDb(requestFor(writeKey.secret), "campaigns:read", async () => db);
+  assert.equal(writeCannotRead.status, 403);
+});

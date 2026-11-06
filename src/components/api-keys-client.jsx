@@ -10,6 +10,8 @@ const scopeOptions = [
   { value: "messages:read", label: "Read message status", description: "Check accepted, sent, delivered, read, or failed status for messages in this workspace." },
   { value: "messages:send", label: "Send approved templates", description: "Send approved WhatsApp templates to existing opted-in contacts. Monthly message limits and suppression rules apply." },
   { value: "templates:read", label: "Read WhatsApp templates", description: "List templates and their current Meta approval status for the connected WhatsApp account." },
+  { value: "campaigns:read", label: "Read campaigns", description: "List campaign status and aggregate delivery progress in this workspace." },
+  { value: "campaigns:write", label: "Create campaign drafts", description: "Create recipient snapshots from opted-in, non-suppressed contacts. Drafts are not sent automatically." },
 ];
 
 export default function ApiKeysClient() {

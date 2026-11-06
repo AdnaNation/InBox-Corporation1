@@ -28,6 +28,8 @@ Available permissions:
 | `messages:read` | Read delivery status for messages in this workspace |
 | `messages:send` | Send approved WhatsApp templates to existing opted-in contacts |
 | `templates:read` | List templates and their Meta approval status |
+| `campaigns:read` | List campaign status and aggregate delivery progress |
+| `campaigns:write` | Create campaign drafts from eligible opted-in contacts; does not queue or send them |
 
 A key without the required permission receives `403`. Missing, invalid, revoked, or expired keys receive `401`. Keys are restricted to their own workspace; supplying another workspace ID is not supported.
 
@@ -237,7 +239,32 @@ curl "https://YOUR_WAVO_DOMAIN/api/v1/templates?status=APPROVED&limit=100" \
 
 Use `pagination.nextCursor` as `after` to retrieve the next page. Only approved templates can be sent through `POST /messages/template`; the send endpoint re-verifies the template directly with Meta at send time.
 
-## 12. Error responses
+## 12. Campaigns
+
+### List campaigns
+
+`GET /campaigns` requires `campaigns:read`. Optional parameters: `limit` (1–100, default 50) and `status` (`draft`, `queued`, `scheduled`, `sending`, `paused`, `completed`, or `completed_with_issues`). The response includes campaign metadata and aggregate progress, but no recipient phone numbers.
+
+### Create a campaign draft
+
+`POST /campaigns` requires `campaigns:write`. It creates a frozen recipient snapshot and a draft only. It never queues or sends messages. Queueing and scheduling remain an explicit action in the Wavo dashboard, where current Meta template approval, template parameter format, and delivery settings are revalidated.
+
+Request example:
+
+```json
+{
+  "name": "November update",
+  "audience": { "type": "tag", "tag": "customer" },
+  "template": { "name": "monthly_update", "language": "en_US" },
+  "bodyParameters": ["November", "Wavo"]
+}
+```
+
+Supported audience types are `all`, `group` (with a workspace-owned `groupId`), and `tag` (with a tag string). Only contacts currently marked opted-in and not currently suppressed are included in the snapshot. The worker also rechecks live consent and suppression immediately before each send, so an opt-out after draft creation still prevents delivery. Campaign and estimated message plan limits are checked before the draft is created. Meta template approval is rechecked when an authorized workspace user queues the draft; creating a draft does not guarantee later approval.
+
+A successful request returns HTTP `201` and a campaign ID. A draft is not a send authorization. Do not retry a timed-out create blindly; check `GET /campaigns` first to avoid duplicate drafts.
+
+## 13. Error responses
 
 Errors use JSON with `success: false` and a human-readable `message`. Some errors include a stable `code`.
 
@@ -258,7 +285,7 @@ Known error codes include:
 - `CONTACT_SUPPRESSED`: the phone number is suppressed because of an opt-out.
 - `PLAN_LIMIT_REACHED`: the workspace has reached its current contact allowance.
 
-## 13. Integration recommendations
+## 14. Integration recommendations
 
 - Keep API keys on your backend, not in a public website or mobile app bundle.
 - Request only the scopes you need and rotate/revoke exposed keys.

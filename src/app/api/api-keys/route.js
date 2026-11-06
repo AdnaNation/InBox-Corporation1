@@ -7,7 +7,7 @@ import { isSameOrigin } from "@/lib/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-const ALLOWED_SCOPES = ["contacts:read", "contacts:write", "messages:read", "messages:send", "templates:read"];
+const ALLOWED_SCOPES = ["contacts:read", "contacts:write", "messages:read", "messages:send", "templates:read", "campaigns:read", "campaigns:write"];
 
 function canManage(session) {
   return ["owner", "admin"].includes(session?.membership?.role);
