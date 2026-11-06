@@ -23,6 +23,42 @@ export async function GET(request) {
     const conversationId = searchParams.get("conversationId");
     const db = await getDatabase();
 
+    // Conversations created before multi-number support do not have a
+    // phoneNumberId. They all belonged to the workspace's original WhatsApp
+    // connection, which remains in whatsappAccounts even after disconnect.
+    // Backfill from that oldest account so historical replies never silently
+    // switch to whichever number is currently active.
+    const hasLegacyConversation = await db.collection("conversations").findOne(
+      {
+        workspaceId,
+        $or: [
+          { phoneNumberId: { $exists: false } },
+          { phoneNumberId: null },
+          { phoneNumberId: "" },
+        ],
+      },
+      { projection: { _id: 1 } },
+    );
+    if (hasLegacyConversation) {
+      const originalAccount = await db.collection("whatsappAccounts").findOne(
+        { workspaceId, phoneNumberId: { $type: "string" } },
+        { sort: { createdAt: 1, _id: 1 }, projection: { phoneNumberId: 1 } },
+      );
+      if (originalAccount?.phoneNumberId) {
+        await db.collection("conversations").updateMany(
+          {
+            workspaceId,
+            $or: [
+              { phoneNumberId: { $exists: false } },
+              { phoneNumberId: null },
+              { phoneNumberId: "" },
+            ],
+          },
+          { $set: { phoneNumberId: originalAccount.phoneNumberId, phoneNumberIdMigratedAt: new Date() } },
+        );
+      }
+    }
+
     // Load messages for one selected conversation.
     if (conversationId) {
       if (!ObjectId.isValid(conversationId)) {
@@ -44,15 +80,23 @@ export async function GET(request) {
         );
       }
 
-      const messages = await db
-        .collection("messages")
-        .find({
-          workspaceId,
-          conversationId: conversation._id,
-        })
-        .sort({ timestamp: 1, _id: 1 })
-        .limit(200)
-        .toArray();
+      const [messages, account] = await Promise.all([
+        db
+          .collection("messages")
+          .find({
+            workspaceId,
+            conversationId: conversation._id,
+          })
+          .sort({ timestamp: 1, _id: 1 })
+          .limit(200)
+          .toArray(),
+        conversation.phoneNumberId
+          ? db.collection("whatsappAccounts").findOne(
+              { workspaceId, phoneNumberId: conversation.phoneNumberId },
+              { projection: { businessName: 1, displayPhoneNumber: 1 } },
+            )
+          : null,
+      ]);
 
       // Opening a conversation clears its unread count.
       await db
@@ -66,6 +110,8 @@ export async function GET(request) {
         success: true,
         conversation: {
           ...conversation,
+          businessName: account?.businessName || "",
+          businessPhoneNumber: account?.displayPhoneNumber || "",
           unreadCount: 0,
         },
         messages,
@@ -80,10 +126,31 @@ export async function GET(request) {
       .limit(100)
       .toArray();
 
+    const phoneNumberIds = [...new Set(
+      conversations.map((item) => item.phoneNumberId).filter(Boolean),
+    )];
+    const accounts = phoneNumberIds.length
+      ? await db.collection("whatsappAccounts")
+          .find({ workspaceId, phoneNumberId: { $in: phoneNumberIds } })
+          .project({ phoneNumberId: 1, businessName: 1, displayPhoneNumber: 1 })
+          .toArray()
+      : [];
+    const accountByPhoneNumberId = new Map(
+      accounts.map((item) => [item.phoneNumberId, item]),
+    );
+    const conversationsWithBusinessLine = conversations.map((item) => {
+      const account = accountByPhoneNumberId.get(item.phoneNumberId);
+      return {
+        ...item,
+        businessName: account?.businessName || "",
+        businessPhoneNumber: account?.displayPhoneNumber || "",
+      };
+    });
+
     return NextResponse.json({
       success: true,
       currentUserId: session.user.id,
-      conversations,
+      conversations: conversationsWithBusinessLine,
     });
   } catch (error) {
     console.error("Load conversations error:", error);

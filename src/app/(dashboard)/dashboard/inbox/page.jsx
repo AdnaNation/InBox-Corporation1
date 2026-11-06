@@ -110,6 +110,7 @@ export default function InboxPage() {
   const [assignmentFilter, setAssignmentFilter] = useState("all");
   const [unreadFilter, setUnreadFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
+  const [phoneNumberFilter, setPhoneNumberFilter] = useState("all");
   const [currentUserId, setCurrentUserId] = useState("");
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [teamMembers, setTeamMembers] = useState([]);
@@ -386,6 +387,18 @@ export default function InboxPage() {
     }
   }
 
+  const businessLines = [...new Map(
+    conversations
+      .filter((conversation) => conversation.phoneNumberId)
+      .map((conversation) => [
+        conversation.phoneNumberId,
+        {
+          phoneNumberId: conversation.phoneNumberId,
+          label: conversation.businessPhoneNumber || conversation.businessName || conversation.phoneNumberId,
+        },
+      ]),
+  ).values()];
+
   const filteredConversations = conversations.filter((conversation) => {
     const searchText = search.trim().toLowerCase();
     const status = conversation.status || "open";
@@ -397,6 +410,7 @@ export default function InboxPage() {
     if (unreadFilter === "unread" && !(conversation.unreadCount > 0)) return false;
     if (priorityFilter === "high" && conversation.priority !== "high") return false;
     if (priorityFilter === "normal" && conversation.priority === "high") return false;
+    if (phoneNumberFilter !== "all" && conversation.phoneNumberId !== phoneNumberFilter) return false;
     if (!searchText) return true;
 
     return (
@@ -578,6 +592,22 @@ export default function InboxPage() {
               <option value="mine">Assigned to me</option>
             </select>
 
+            {businessLines.length > 1 && (
+              <select
+                value={phoneNumberFilter}
+                onChange={(event) => setPhoneNumberFilter(event.target.value)}
+                aria-label="Filter by WhatsApp business number"
+                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100"
+              >
+                <option value="all">All business numbers</option>
+                {businessLines.map((line) => (
+                  <option key={line.phoneNumberId} value={line.phoneNumberId}>
+                    {line.label} ({conversations.filter((item) => item.phoneNumberId === line.phoneNumberId).length})
+                  </option>
+                ))}
+              </select>
+            )}
+
             <select
               value={unreadFilter}
               onChange={(event) => setUnreadFilter(event.target.value)}
@@ -681,6 +711,11 @@ export default function InboxPage() {
                           ? `Assigned to ${conversation.assigneeName}`
                           : "Unassigned"}
                       </p>
+                      {conversation.businessPhoneNumber && (
+                        <p className="mt-1 truncate text-[10px] text-slate-400">
+                          Business line · {conversation.businessPhoneNumber}
+                        </p>
+                      )}
                     </div>
                   </button>
                 );
@@ -734,6 +769,9 @@ export default function InboxPage() {
                   </h2>
                   <p className="text-xs text-slate-500">
                     {selectedConversation?.waId || ""}
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    Business line · {selectedConversation?.businessPhoneNumber || selectedConversation?.phoneNumberId || "Unknown"}
                   </p>
                 </div>
 

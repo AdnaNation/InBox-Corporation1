@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { getDatabase } from "@/lib/db";
+import { getActiveWhatsAppAccount } from "@/lib/whatsapp-account";
 import { decryptSecret } from "@/lib/crypto";
 import { applyPendingWhatsAppStatus } from "@/lib/whatsapp-status";
 import { checkWorkspacePlanLimit, reserveWorkspaceMessageUsage, releaseWorkspaceMessageUsage } from "@/lib/plan-limits";
@@ -33,7 +34,7 @@ export async function POST(request) {
     if (!campaign) campaign = await db.collection("campaigns").findOne({ status: "sending" });
     if (!campaign) return NextResponse.json({ success: true, processed: 0, message: "No queued campaigns." });
 
-    const account = await db.collection("whatsappAccounts").findOne({ workspaceId: campaign.workspaceId, status: "connected" });
+    const account = await getActiveWhatsAppAccount(db, campaign.workspaceId, campaign.phoneNumberId || null);
     if (!account?.phoneNumberId || !account?.accessTokenEncrypted) {
       await db.collection("campaigns").updateOne({ _id: campaign._id, status: "sending" }, { $set: { status: "paused", pauseReason: "WhatsApp account disconnected.", updatedAt: new Date() } });
       return NextResponse.json({ success: false, message: "Campaign paused: WhatsApp account disconnected." }, { status: 409 });

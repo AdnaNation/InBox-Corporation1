@@ -7,7 +7,7 @@ import { decryptSecret } from "@/lib/crypto";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request) {
   const session = await getSession();
 
   if (!session) {
@@ -20,8 +20,13 @@ export async function GET() {
   try {
     const db = await getDatabase();
     const workspaceId = new ObjectId(session.workspace.id);
+    const { searchParams } = new URL(request.url);
+    const requestedPhoneNumberId = searchParams.get("phoneNumberId");
+    const accountFilter = { workspaceId, status: "connected" };
+    if (requestedPhoneNumberId) accountFilter.phoneNumberId = requestedPhoneNumberId;
+    else accountFilter.isActive = true;
     const account = await db.collection("whatsappAccounts").findOne(
-      { workspaceId, status: "connected" },
+      accountFilter,
       {
         projection: {
           businessName: 1,
