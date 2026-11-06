@@ -1,6 +1,10 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-export const WEBHOOK_EVENT_TYPES = ["message.received", "message.status_updated"];
+export const WEBHOOK_EVENT_TYPES = [
+  "message.received", "message.status_updated",
+  "campaign.created", "campaign.queued", "campaign.paused",
+  "campaign.resumed", "campaign.cancelled", "campaign.completed",
+];
 
 let indexesPromise;
 async function ensureIndexes(db) {

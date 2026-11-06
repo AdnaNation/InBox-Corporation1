@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
+import { enqueueWebhookEvent } from "@/lib/public-webhooks.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -64,6 +65,13 @@ export async function POST(request, { params }) {
         { $set: { status: "paused", pausedAt: new Date(), pausedBy: new ObjectId(session.user.id), pauseReason: "Paused by workspace user.", updatedAt: new Date() } },
       );
       if (!result.modifiedCount) return NextResponse.json({ success: false, message: "Campaign state changed. Refresh and try again." }, { status: 409 });
+      try {
+        await enqueueWebhookEvent(db, workspaceId, "campaign.paused", {
+          campaignId: id, status: "paused", pauseReason: "Paused by workspace user.", pausedAt: new Date().toISOString(),
+        }, "campaign-" + id + "-paused-" + String(Date.now()));
+      } catch (eventError) {
+        console.error("Campaign paused webhook enqueue failed:", eventError);
+      }
 
       return NextResponse.json({
         success: true,
@@ -86,6 +94,13 @@ export async function POST(request, { params }) {
       { $set: { status: "queued", resumedAt: new Date(), resumedBy: new ObjectId(session.user.id), updatedAt: new Date() }, $unset: { pauseReason: "" } },
     );
     if (!result.modifiedCount) return NextResponse.json({ success: false, message: "Campaign state changed. Refresh and try again." }, { status: 409 });
+    try {
+      await enqueueWebhookEvent(db, workspaceId, "campaign.resumed", {
+        campaignId: id, status: "queued", resumedAt: new Date().toISOString(),
+      }, "campaign-" + id + "-resumed-" + String(Date.now()));
+    } catch (eventError) {
+      console.error("Campaign resumed webhook enqueue failed:", eventError);
+    }
 
     return NextResponse.json({
       success: true,

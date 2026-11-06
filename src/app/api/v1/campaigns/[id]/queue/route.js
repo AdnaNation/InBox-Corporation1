@@ -5,6 +5,7 @@ import { getDatabase } from "@/lib/db";
 import { authenticateApiKey } from "@/lib/api-key-auth";
 import { getActiveWhatsAppAccount } from "@/lib/whatsapp-account";
 import { decryptSecret } from "@/lib/crypto";
+import { enqueueWebhookEvent } from "@/lib/public-webhooks.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -160,6 +161,14 @@ export async function POST(request, { params }) {
       } },
     );
     if (!result.modifiedCount) return await fail("Campaign state changed. Refresh and try again.", 409);
+    try {
+      await enqueueWebhookEvent(db, workspaceId, "campaign.queued", {
+        campaignId: id, name: campaign.name, status: scheduledAt ? "scheduled" : "queued",
+        recipientCount, scheduledAt: scheduledAt?.toISOString() || null, queuedAt: now.toISOString(),
+      }, "campaign-" + id + "-queued-" + String(now.getTime()));
+    } catch (eventError) {
+      console.error("Campaign queued webhook enqueue failed:", eventError);
+    }
 
     const responseBody = {
       success: true,

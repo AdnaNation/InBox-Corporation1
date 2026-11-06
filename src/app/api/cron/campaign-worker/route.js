@@ -5,6 +5,7 @@ import { getActiveWhatsAppAccount } from "@/lib/whatsapp-account";
 import { decryptSecret } from "@/lib/crypto";
 import { applyPendingWhatsAppStatus } from "@/lib/whatsapp-status";
 import { checkWorkspacePlanLimit, reserveWorkspaceMessageUsage, releaseWorkspaceMessageUsage } from "@/lib/plan-limits";
+import { enqueueWebhookEvent } from "@/lib/public-webhooks.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -384,10 +385,21 @@ export async function POST(request) {
     const finalStatus = finished
       ? (counts.failed + counts.unknown + counts.skipped > 0 ? "completed_with_issues" : "completed")
       : "sending";
-    await db.collection("campaigns").updateOne(
+    const campaignUpdate = await db.collection("campaigns").updateOne(
       { _id: campaign._id, status: "sending" },
       { $set: { status: finalStatus, progress: { total: campaign.recipientCount || 0, ...counts }, updatedAt: new Date(), ...(finished ? { completedAt: new Date() } : {}) } },
     );
+    if (finished && campaignUpdate.modifiedCount > 0) {
+      try {
+        await enqueueWebhookEvent(db, campaign.workspaceId, "campaign.completed", {
+          campaignId: campaign._id.toString(), status: finalStatus,
+          recipientCount: campaign.recipientCount || 0, progress: counts,
+          completedAt: new Date().toISOString(),
+        }, "campaign-" + campaign._id.toString() + "-completed");
+      } catch (eventError) {
+        console.error("Campaign completed webhook enqueue failed:", eventError);
+      }
+    }
 
     await leaseCollection.updateOne(
       { _id: leaseKey, leaseOwner },

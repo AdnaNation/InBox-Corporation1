@@ -22,5 +22,9 @@ test("webhook signatures bind the timestamp and exact raw body", () => {
 });
 
 test("only documented event types are supported", () => {
-  assert.deepEqual(WEBHOOK_EVENT_TYPES, ["message.received", "message.status_updated"]);
+  assert.deepEqual(WEBHOOK_EVENT_TYPES, [
+    "message.received", "message.status_updated",
+    "campaign.created", "campaign.queued", "campaign.paused",
+    "campaign.resumed", "campaign.cancelled", "campaign.completed",
+  ]);
 });
