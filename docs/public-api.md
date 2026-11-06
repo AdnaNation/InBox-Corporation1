@@ -243,8 +243,20 @@ Use `pagination.nextCursor` as `after` to retrieve the next page. Only approved 
 
 ### List campaigns
 
-`GET /campaigns` requires `campaigns:read`. Optional parameters: `limit` (1–100, default 50) and `status` (`draft`, `queued`, `scheduled`, `sending`, `paused`, `completed`, or `completed_with_issues`). The response includes campaign metadata and aggregate progress, but no recipient phone numbers.
+`GET /campaigns` requires `campaigns:read`. Optional parameters: `limit` (1–100, default 50) and `status` (`draft`, `queued`, `scheduled`, `sending`, `paused`, `cancelled`, `completed`, or `completed_with_issues`). The response includes campaign metadata and aggregate progress, but no recipient phone numbers.
 
+### Get a campaign
+
+`GET /campaigns/{campaignId}` requires `campaigns:read`. It returns the campaign's configuration, lifecycle timestamps, aggregate progress, and recipient counts grouped by delivery status. Recipient phone numbers and individual recipient records are never returned. A campaign ID outside the API key's workspace is reported as `404 Campaign not found`.
+
+Example:
+
+```bash
+curl "https://YOUR_WAVO_DOMAIN/api/v1/campaigns/CAMPAIGN_ID" \
+  -H "Authorization: Bearer $WAVO_API_KEY"
+```
+
+The `recipientStatusCounts` object may contain counts such as `pending`, `accepted`, `sent`, `delivered`, `read`, `failed`, `skipped`, or `unknown`, depending on campaign progress.
 ### Create a campaign draft
 
 `POST /campaigns` requires `campaigns:write`. It creates a frozen recipient snapshot and a draft only. It never queues or sends messages. Queueing and scheduling remain an explicit action in the Wavo dashboard, where current Meta template approval, template parameter format, and delivery settings are revalidated.
