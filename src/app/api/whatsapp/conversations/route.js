@@ -44,15 +44,23 @@ export async function GET(request) {
         );
       }
 
-      const messages = await db
-        .collection("messages")
-        .find({
-          workspaceId,
-          conversationId: conversation._id,
-        })
-        .sort({ timestamp: 1, _id: 1 })
-        .limit(200)
-        .toArray();
+      const [messages, account] = await Promise.all([
+        db
+          .collection("messages")
+          .find({
+            workspaceId,
+            conversationId: conversation._id,
+          })
+          .sort({ timestamp: 1, _id: 1 })
+          .limit(200)
+          .toArray(),
+        conversation.phoneNumberId
+          ? db.collection("whatsappAccounts").findOne(
+              { workspaceId, phoneNumberId: conversation.phoneNumberId },
+              { projection: { businessName: 1, displayPhoneNumber: 1 } },
+            )
+          : null,
+      ]);
 
       // Opening a conversation clears its unread count.
       await db
@@ -66,6 +74,8 @@ export async function GET(request) {
         success: true,
         conversation: {
           ...conversation,
+          businessName: account?.businessName || "",
+          businessPhoneNumber: account?.displayPhoneNumber || "",
           unreadCount: 0,
         },
         messages,
@@ -80,10 +90,31 @@ export async function GET(request) {
       .limit(100)
       .toArray();
 
+    const phoneNumberIds = [...new Set(
+      conversations.map((item) => item.phoneNumberId).filter(Boolean),
+    )];
+    const accounts = phoneNumberIds.length
+      ? await db.collection("whatsappAccounts")
+          .find({ workspaceId, phoneNumberId: { $in: phoneNumberIds } })
+          .project({ phoneNumberId: 1, businessName: 1, displayPhoneNumber: 1 })
+          .toArray()
+      : [];
+    const accountByPhoneNumberId = new Map(
+      accounts.map((item) => [item.phoneNumberId, item]),
+    );
+    const conversationsWithBusinessLine = conversations.map((item) => {
+      const account = accountByPhoneNumberId.get(item.phoneNumberId);
+      return {
+        ...item,
+        businessName: account?.businessName || "",
+        businessPhoneNumber: account?.displayPhoneNumber || "",
+      };
+    });
+
     return NextResponse.json({
       success: true,
       currentUserId: session.user.id,
-      conversations,
+      conversations: conversationsWithBusinessLine,
     });
   } catch (error) {
     console.error("Load conversations error:", error);
