@@ -6,7 +6,22 @@ import { authenticateApiKey } from "@/lib/api-key-auth";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MESSAGE_STATUSES = new Set(["accepted", "sent", "delivered", "read", "failed"]);
+const MESSAGE_STATUSES = new Set(["received", "accepted", "sent", "delivered", "read", "failed"]);
+const historyIndexByDb = new WeakMap();
+
+async function ensureHistoryIndex(db) {
+  let indexPromise = historyIndexByDb.get(db);
+  if (!indexPromise) {
+    indexPromise = db.collection("messages")
+      .createIndex({ workspaceId: 1, timestamp: -1, _id: -1 }, { name: "public_api_message_history" })
+      .catch((error) => {
+        historyIndexByDb.delete(db);
+        throw error;
+      });
+    historyIndexByDb.set(db, indexPromise);
+  }
+  await indexPromise;
+}
 const DIRECTIONS = new Set(["inbound", "outbound"]);
 
 function decodeCursor(value) {
@@ -76,6 +91,12 @@ export async function GET(request) {
   }
 
   const db = await getDatabase();
+  try {
+    await ensureHistoryIndex(db);
+  } catch (error) {
+    console.error("Public API message history index unavailable:", error);
+    return NextResponse.json({ success: false, message: "Message history is temporarily unavailable." }, { status: 503 });
+  }
   const records = await db.collection("messages")
     .find(filter)
     .sort({ timestamp: -1, _id: -1 })

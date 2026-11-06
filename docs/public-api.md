@@ -203,7 +203,7 @@ Optional query parameters:
 
 - `limit`: 1–100 records, default `50`.
 - `direction`: `inbound` or `outbound`.
-- `status`: `accepted`, `sent`, `delivered`, `read`, or `failed`.
+- `status`: `received`, `accepted`, `sent`, `delivered`, `read`, or `failed`.
 - `before`: the opaque `nextCursor` returned by the previous page.
 
 Example:
