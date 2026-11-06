@@ -163,6 +163,7 @@ Example:
 ```bash
 curl -X POST "https://YOUR_WAVO_DOMAIN/api/v1/messages/template" \
   -H "Authorization: Bearer $WAVO_API_KEY" \
+  -H "Idempotency-Key: order-123-update-1" \
   -H "Content-Type: application/json" \
   -d '{
     "contactId": "66a000000000000000000001",
