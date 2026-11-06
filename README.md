@@ -38,6 +38,10 @@ JavaScript-only Next.js App Router starter for a multi-tenant WhatsApp Business 
 5. Open http://localhost:3000 and register an account.
 6. For campaign processing, generate a separate worker secret with `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` and set it as `CRON_SECRET` in the server environment.
 
+## Public API
+
+The v1 Contacts API supports scoped API keys, contact reads/creates/updates, consent safeguards, and per-key rate limiting. See the [Public API guide](docs/public-api.md) for authentication, permissions, endpoints, examples, and error handling.
+
 ## Meta Embedded Signup v4
 
 The WhatsApp settings page includes the v4 Embedded Signup flow. Configure these environment variables in Vercel (and locally in `.env.local`):
