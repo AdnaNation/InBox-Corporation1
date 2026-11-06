@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Copy, KeyRound, Plus, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 import { showConfirm } from "@/lib/swal";
+import WebhookManager from "@/components/webhook-manager";
 
 const scopeOptions = [
   { value: "contacts:read", label: "Read contacts", description: "List workspace contacts and their opt-in status." },
@@ -166,6 +167,8 @@ curl -X PATCH "https://inbox-corporation-new.vercel.app/api/v1/contacts/CONTACT_
       )}
 
       {(error || notice) && <p role="status" className={`rounded-xl px-4 py-3 text-sm ${error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>{error || notice}</p>}
+
+      <WebhookManager />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
         <div className="flex items-center justify-between gap-3">
