@@ -85,7 +85,7 @@ export async function POST(request) {
       await sendVerificationEmail({
         to: email,
         token: verification.token,
-        origin: new URL(request.url).origin,
+        origin: process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin,
       });
       verificationEmailSent = true;
     } catch (emailError) {
