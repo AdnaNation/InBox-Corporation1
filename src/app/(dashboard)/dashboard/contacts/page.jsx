@@ -60,6 +60,7 @@ export default async function ContactsPage() {
         initialContacts={safeContacts}
         initialPagination={initialPagination}
         initialTags={availableTags.filter((tag) => typeof tag === "string").sort()}
+        canExport={["owner", "admin"].includes(session.membership?.role)}
       />
     </div>
   );
