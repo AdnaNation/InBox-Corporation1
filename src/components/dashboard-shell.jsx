@@ -47,6 +47,15 @@ export default function DashboardShell({ session, children }) {
   useEffect(() => {
     setNavigationReady(true);
   }, []);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open]);
   async function logout() {
     const response = await fetch("/api/auth/logout", { method: "POST" });
     if (response.ok) {
@@ -55,17 +64,17 @@ export default function DashboardShell({ session, children }) {
     }
   }
   const sidebar = (
-    <aside className="flex h-full flex-col border-r border-slate-200 bg-white">
+    <aside className="flex h-full min-h-0 flex-col overflow-hidden border-r border-slate-200 bg-white">
       <Link
         href="/dashboard"
-        className="flex h-16 items-center gap-2 border-b border-slate-100 px-6 text-lg font-bold"
+        className="flex h-16 shrink-0 items-center gap-2 border-b border-slate-100 px-6 text-lg font-bold"
       >
         <span className="rounded-lg bg-green-600 p-2 text-white">
           <MessageCircle size={19} />
         </span>
         InBox Corporation
       </Link>
-      <div className="px-4 py-5">
+      <div className="shrink-0 px-4 py-5">
         <p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">
           Workspace
         </p>
@@ -78,7 +87,7 @@ export default function DashboardShell({ session, children }) {
           </p>
         </div>
       </div>
-      <nav className="flex-1 space-y-1 px-3">
+      <nav aria-label="Dashboard navigation" className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 pb-4">
         {[...links, ...(session.isPlatformAdmin ? [{ href: "/dashboard/platform-admin", label: "Platform admin", icon: ShieldCheck }] : [])].map(({ href, label, icon: Icon }) => {
           const active =
             navigationReady &&
@@ -97,7 +106,7 @@ export default function DashboardShell({ session, children }) {
           );
         })}
       </nav>
-      <div className="border-t border-slate-100 p-4">
+      <div className="shrink-0 border-t border-slate-100 bg-white p-4">
         <div className="mb-3 flex items-center gap-3 px-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-green-100 text-sm font-bold text-green-700">
             {session.user.name.slice(0, 1).toUpperCase()}
@@ -129,6 +138,10 @@ export default function DashboardShell({ session, children }) {
           InBox Corporation
         </Link>
         <button
+          type="button"
+          aria-label={open ? "Close navigation menu" : "Open navigation menu"}
+          aria-expanded={open}
+          aria-controls="mobile-dashboard-navigation"
           onClick={() => setOpen(!open)}
           className="rounded-lg p-2 hover:bg-slate-100"
         >
@@ -139,13 +152,13 @@ export default function DashboardShell({ session, children }) {
         {sidebar}
       </div>
       {open && (
-        <div className="fixed inset-0 z-40 pt-16 lg:hidden">
+        <div className="fixed inset-x-0 bottom-0 top-16 z-40 lg:hidden">
           <button
             aria-label="Close navigation"
             onClick={() => setOpen(false)}
-            className="absolute inset-0 bg-slate-950/30"
+            className="absolute inset-0 h-full w-full bg-slate-950/30"
           />
-          <div className="relative h-full w-72">{sidebar}</div>
+          <div id="mobile-dashboard-navigation" className="relative h-full w-[min(20rem,calc(100vw-2.5rem))] overflow-hidden shadow-xl">{sidebar}</div>
         </div>
       )}
       <main className="min-w-0 flex-1 pt-16 lg:ml-64 lg:pt-0">{children}</main>
