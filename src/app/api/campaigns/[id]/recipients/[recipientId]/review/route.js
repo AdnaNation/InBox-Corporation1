@@ -65,7 +65,7 @@ export async function POST(request, { params }) {
     const unfinished = counts.pending + counts.processing;
     const issues = counts.failed + counts.unknown + counts.skipped;
     await db.collection("campaigns").updateOne(
-      { _id: campaignId, workspaceId },
+      { _id: campaignId, workspaceId, status: { $ne: "cancelled" } },
       {
         $set: {
           progress: { total: Object.values(counts).reduce((sum, count) => sum + count, 0), ...counts },
