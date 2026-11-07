@@ -136,16 +136,16 @@ test("concurrent billing reviews allow only one admin decision to claim a pendin
     collection.findOneAndUpdate(
       { _id: requestId, status: "pending" },
       { $set: { status: "approved", reviewedAt, reviewedBy: new ObjectId() } },
-      { returnDocument: "before" },
+      { returnDocument: "before", includeResultMetadata: false },
     ),
     collection.findOneAndUpdate(
       { _id: requestId, status: "pending" },
       { $set: { status: "rejected", reviewedAt, reviewedBy: new ObjectId() } },
-      { returnDocument: "before" },
+      { returnDocument: "before", includeResultMetadata: false },
     ),
   ]);
 
-  const claimed = [approval?.value || approval, rejection?.value || rejection].filter(Boolean);
+  const claimed = [approval, rejection].filter(Boolean);
   assert.equal(claimed.length, 1);
   const finalRequest = await collection.findOne({ _id: requestId });
   assert.ok(["approved", "rejected"].includes(finalRequest.status));
