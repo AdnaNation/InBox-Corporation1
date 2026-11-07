@@ -4,7 +4,7 @@ import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
 import { isPlatformAdmin } from "@/lib/platform-admin";
-import { canTransitionWorkspaceDataRequest } from "@/lib/workspace-data-requests.mjs";
+import { canTransitionWorkspaceDataRequest, normalizeWorkspaceDataRequestNote } from "@/lib/workspace-data-requests.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -228,6 +228,13 @@ export async function POST(request) {
       if (!canTransitionWorkspaceDataRequest(existing.status, body.status)) {
         return NextResponse.json({ success: false, message: "This request has already been reviewed or cannot move to that status." }, { status: 409 });
       }
+      const note = normalizeWorkspaceDataRequestNote(body.note);
+      if (["completed", "rejected"].includes(body.status) && !note) {
+        return NextResponse.json({ success: false, message: "Add a short operator note before closing this request (maximum 500 characters)." }, { status: 400 });
+      }
+      if (typeof body.note === "string" && body.note.length > 500) {
+        return NextResponse.json({ success: false, message: "Operator notes must be 500 characters or fewer." }, { status: 400 });
+      }
       const update = {
         status: body.status,
         active: body.status === "in_review",
@@ -236,6 +243,11 @@ export async function POST(request) {
         reviewedBy: actorId,
       };
       if (body.status === "completed") update.completedAt = now;
+      if (note) {
+        update.operatorNote = note;
+        update.operatorNoteUpdatedAt = now;
+        update.operatorNoteUpdatedBy = actorId;
+      }
       const changed = await requestCollection.updateOne(
         { _id: requestId, status: existing.status },
         { $set: update },
@@ -246,7 +258,7 @@ export async function POST(request) {
         actorId,
         targetWorkspaceId: existing.workspaceId,
         targetId: requestId,
-        details: { type: existing.type, from: existing.status, to: body.status },
+        details: { type: existing.type, from: existing.status, to: body.status, ...(note ? { note } : {}) },
         createdAt: now,
       });
       await db.collection("workspaceAuditLogs").insertOne({
@@ -254,7 +266,7 @@ export async function POST(request) {
         action: "workspace_data_request_status_changed",
         actorId,
         targetId: requestId,
-        details: { type: existing.type, status: body.status },
+        details: { type: existing.type, status: body.status, ...(note ? { note } : {}) },
         createdAt: now,
       });
       return NextResponse.json({ success: true, message: "Data request status updated." });
