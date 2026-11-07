@@ -4,6 +4,7 @@ import { MongoClient, ObjectId } from "mongodb";
 import {
   releaseWorkspaceCampaignUsage,
   releaseWorkspaceContactUsage,
+  ensureWorkspaceContactUsageCounter,
   reserveWorkspaceCampaignUsage,
   reserveWorkspaceContactUsage,
   reserveWorkspaceMessageUsage,
@@ -128,4 +129,25 @@ test("contact reservations initialize from existing contacts and remain separate
   const counter = await db.collection("planUsageCounters").findOne({ _id: workspaceId.toString() + ":contacts" });
   assert.equal(counter.contacts, 500);
   assert.equal(await db.collection("planUsageCounters").countDocuments({ workspaceId, periodStart: { $exists: true } }), 0);
+});
+
+
+test("deleting a legacy contact releases capacity after initializing the counter", async () => {
+  const workspaceId = await createFreeWorkspace();
+  const contacts = Array.from({ length: 500 }, (_, index) => ({
+    workspaceId,
+    name: "Existing " + index,
+    phone: "1666000" + String(index).padStart(4, "0"),
+    createdAt: new Date(),
+  }));
+  await db.collection("contacts").insertMany(contacts);
+  await ensureWorkspaceContactUsageCounter(db, workspaceId);
+
+  const removed = await db.collection("contacts").deleteOne({ workspaceId, phone: contacts[0].phone });
+  assert.equal(removed.deletedCount, 1);
+  await releaseWorkspaceContactUsage(db, workspaceId, 1);
+
+  const replacement = await reserveWorkspaceContactUsage(db, workspaceId, 1);
+  assert.equal(replacement.allowed, true);
+  assert.equal(replacement.usage.contacts, 500);
 });
