@@ -9,7 +9,7 @@ async function ensureSuppressionIndex(db) {
     indexPromise = db.collection("contactSuppressions")
       .createIndex(
         { workspaceId: 1, phone: 1 },
-        { unique: true },
+        { name: "contact_suppression_workspace_phone" },
       )
       .catch((error) => {
         suppressionIndexByDb.delete(cacheKey);
