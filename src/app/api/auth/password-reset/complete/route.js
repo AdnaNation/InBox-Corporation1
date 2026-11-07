@@ -38,6 +38,8 @@ export async function POST(request) {
     let updated = false;
 
     await session.withTransaction(async () => {
+      // The driver may retry this callback after a transient transaction error.
+      updated = false;
       const now = new Date();
       const claim = await db.collection("passwordResetTokens").findOneAndUpdate(
         { tokenHash, status: "pending", expiresAt: { $gt: now } },
