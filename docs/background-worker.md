@@ -33,7 +33,7 @@ Set these environment variables on the worker service:
 | `WORKER_REQUEST_TIMEOUT_MS` | Optional; defaults to `45000` (45 seconds) |
 | `WORKER_HEALTH_INTERVAL_MS` | Optional; defaults to `900000` (15 minutes); allowed range 1 minute–24 hours |
 
-The process invokes `POST /api/cron/campaign-worker`, `POST /api/cron/webhook-delivery`, on every polling cycle. The WhatsApp health monitor runs separately on `WORKER_HEALTH_INTERVAL_MS` (15 minutes by default), checks connected Meta phone-number tokens and queues owner email alerts for status changes. The campaign worker processes at most one recipient per invocation and enforces the per-WhatsApp-number database lease/cooldown. The webhook worker claims a bounded batch and retries failures with exponential backoff. The WhatsApp health monitor checks connected Meta phone-number tokens and queues owner email alerts for status changes. The worker does not store Meta tokens or connect directly to MongoDB.
+The process invokes `POST /api/cron/campaign-worker` and `POST /api/cron/webhook-delivery` on every polling cycle. The campaign worker processes at most one recipient per invocation and enforces the per-WhatsApp-number database lease/cooldown. The webhook worker claims a bounded batch and retries failures with exponential backoff. Separately, the WhatsApp health monitor runs at `WORKER_HEALTH_INTERVAL_MS` (15 minutes by default), checks connected Meta phone-number tokens and queues owner email alerts for status changes. The worker does not store Meta tokens or connect directly to MongoDB.
 
 ## Operational notes
 
