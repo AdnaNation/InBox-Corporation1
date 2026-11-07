@@ -23,6 +23,7 @@ export async function retryFailedWebhookDelivery(db, { workspaceId, subscription
         manualRetryAt: now,
         updatedAt: now,
       },
+      $inc: { manualRetries: 1 },
       $unset: {
         failedAt: "",
         lastError: "",
