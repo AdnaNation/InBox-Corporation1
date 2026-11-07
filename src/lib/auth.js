@@ -11,7 +11,14 @@ if (!secret || secret.length < 32) {
 const key = new TextEncoder().encode(secret);
 
 export async function createSession(userId, workspaceId) {
-  const token = await new SignJWT({ workspaceId: workspaceId.toString() })
+  const db = await getDatabase();
+  const user = await db.collection("users").findOne(
+    { _id: new ObjectId(userId), status: "active" },
+    { projection: { sessionVersion: 1 } },
+  );
+  if (!user) throw new Error("Cannot create a session for an inactive account.");
+  const sessionVersion = Number.isSafeInteger(user.sessionVersion) ? user.sessionVersion : 0;
+  const token = await new SignJWT({ workspaceId: workspaceId.toString(), sessionVersion })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(userId.toString())
     .setIssuedAt()
@@ -80,11 +87,9 @@ export async function getSession() {
       return null;
     }
 
-    // A password reset invalidates every JWT issued before the password change.
-    if (user.passwordChangedAt instanceof Date
-      && Number(payload.iat || 0) * 1000 < user.passwordChangedAt.getTime()) {
-      return null;
-    }
+    const tokenSessionVersion = Number.isSafeInteger(payload.sessionVersion) ? payload.sessionVersion : 0;
+    const currentSessionVersion = Number.isSafeInteger(user.sessionVersion) ? user.sessionVersion : 0;
+    if (tokenSessionVersion !== currentSessionVersion) return null;
 
     return {
       user: {
