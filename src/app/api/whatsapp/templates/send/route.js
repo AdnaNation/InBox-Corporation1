@@ -41,6 +41,7 @@ export async function POST(request) {
     );
   }
 
+  let acceptedMessageId = null;
   try {
     const session = await getSession();
 
@@ -376,8 +377,8 @@ export async function POST(request) {
       }, { status: 502 });
     }
 
-    try {
-      const bodyText =
+    acceptedMessageId = waMessageId;
+    const bodyText =
       template.components?.find((component) => component.type === "BODY")
         ?.text || "";
 
@@ -435,20 +436,20 @@ export async function POST(request) {
       waMessageId,
     });
 
-      return NextResponse.json({
-        success: true,
-        message: savedMessage || messageDocument,
-      });
-    } catch (error) {
-      console.error("Meta accepted template message but Wavo could not finish saving it:", { waMessageId, error: error.message });
+    return NextResponse.json({
+      success: true,
+      message: savedMessage || messageDocument,
+    });
+  } catch (error) {
+    if (acceptedMessageId) {
+      console.error("Meta accepted template message but Wavo could not finish saving it:", { waMessageId: acceptedMessageId, error: error.message });
       return NextResponse.json({
         success: false,
         code: "MESSAGE_ACCEPTED_SAVE_FAILED",
-        waMessageId,
+        waMessageId: acceptedMessageId,
         message: "Meta accepted this template, but Wavo could not finish saving its history. Do not send it again. Refresh the inbox and check the delivery status.",
       }, { status: 502 });
     }
-  } catch (error) {
     console.error("Send WhatsApp template error:", error);
 
     return NextResponse.json(
