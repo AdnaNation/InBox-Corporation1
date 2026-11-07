@@ -3,7 +3,7 @@ import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { authenticateApiKey } from "@/lib/api-key-auth";
 import { getActiveWhatsAppAccount } from "@/lib/whatsapp-account";
-import { checkWorkspacePlanLimit } from "@/lib/plan-limits";
+import { checkWorkspacePlanLimit, reserveWorkspaceCampaignUsage, releaseWorkspaceCampaignUsage } from "@/lib/plan-limits";
 import { enqueueWebhookEvent } from "@/lib/public-webhooks.mjs";
 import { buildCampaignHistoryFilter, decodeCampaignCursor, encodeCampaignCursor } from "@/lib/campaign-pagination.mjs";
 import { getActiveSuppressedPhones } from "@/lib/contact-suppression.mjs";
@@ -130,6 +130,8 @@ export async function POST(request) {
   const db = await getDatabase();
   const workspaceId = new ObjectId(auth.apiKey.workspaceId);
   let campaignId = null;
+  let campaignUsageReserved = false;
+  let campaignUsageCommitted = false;
 
   try {
     const account = await getActiveWhatsAppAccount(db, workspaceId);
@@ -163,12 +165,15 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: "This audience has no eligible opted-in contacts." }, { status: 400 });
     }
 
-    const campaignQuota = await checkWorkspacePlanLimit(db, workspaceId, "campaigns", 1);
     const messageQuota = await checkWorkspacePlanLimit(db, workspaceId, "messages", targetCount);
-    if (!campaignQuota.allowed || !messageQuota.allowed) {
-      const quota = !campaignQuota.allowed ? campaignQuota : messageQuota;
-      return NextResponse.json({ success: false, code: "PLAN_LIMIT_REACHED", message: quota.reason, plan: quota.plan, usage: quota.usage, limits: quota.limits, remainingMessages: messageQuota.remaining }, { status: 429 });
+    if (!messageQuota.allowed) {
+      return NextResponse.json({ success: false, code: "PLAN_LIMIT_REACHED", message: messageQuota.reason, plan: messageQuota.plan, usage: messageQuota.usage, limits: messageQuota.limits, remainingMessages: messageQuota.remaining }, { status: 429 });
     }
+    const campaignQuota = await reserveWorkspaceCampaignUsage(db, workspaceId, 1);
+    if (!campaignQuota.allowed) {
+      return NextResponse.json({ success: false, code: "PLAN_LIMIT_REACHED", message: campaignQuota.reason, plan: campaignQuota.plan, usage: campaignQuota.usage, limits: campaignQuota.limits, remainingMessages: messageQuota.remaining, remainingCampaigns: campaignQuota.remaining }, { status: 429 });
+    }
+    campaignUsageReserved = true;
 
     await db.collection("campaignRecipients").createIndex(
       { workspaceId: 1, campaignId: 1, contactId: 1 },
@@ -222,10 +227,12 @@ export async function POST(request) {
     }
 
     if (insertedCount !== targetCount) throw new Error("Campaign recipient snapshot count changed during creation.");
-    await db.collection("campaigns").updateOne(
+    const finalized = await db.collection("campaigns").updateOne(
       { _id: campaignId, workspaceId, status: "preparing" },
       { $set: { recipientCount: insertedCount, status: "draft", updatedAt: new Date(), recipientSnapshotAt: new Date() } },
     );
+    if (finalized.modifiedCount !== 1) throw new Error("Campaign draft snapshot could not be finalized.");
+    campaignUsageCommitted = true;
     try {
       await enqueueWebhookEvent(db, workspaceId, "campaign.created", {
         campaignId: campaignId.toString(), name, status: "draft", recipientCount: insertedCount,
@@ -250,6 +257,11 @@ export async function POST(request) {
         db.collection("campaignRecipients").deleteMany({ workspaceId, campaignId }),
         db.collection("campaigns").deleteOne({ _id: campaignId, workspaceId }),
       ]).catch((cleanupError) => console.error("Public API campaign cleanup error:", cleanupError));
+    }
+    if (campaignUsageReserved && !campaignUsageCommitted) {
+      await releaseWorkspaceCampaignUsage(db, workspaceId).catch((releaseError) => {
+        console.error("Campaign usage reservation release failed:", releaseError);
+      });
     }
     return NextResponse.json({ success: false, message: "Could not create campaign draft." }, { status: 500 });
   }
