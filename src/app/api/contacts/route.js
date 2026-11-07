@@ -6,7 +6,7 @@ import { contactSchema } from "@/lib/schemas";
 import { normalizePhoneNumbers } from "@/lib/contact-utils";
 import { isSameOrigin } from "@/lib/security";
 import { reserveWorkspaceContactUsage, releaseWorkspaceContactUsage } from "@/lib/plan-limits";
-import { buildContactHistoryFilter, decodeContactCursor, encodeContactCursor } from "@/lib/contact-pagination.mjs";
+import { buildContactQueryFilter, decodeContactCursor, encodeContactCursor } from "@/lib/contact-pagination.mjs";
 
 export const runtime = "nodejs";
 
@@ -33,16 +33,7 @@ export async function GET(request) {
 
   const db = await getDatabase();
   const workspaceId = new ObjectId(session.workspace.id);
-  const filter = { $and: [buildContactHistoryFilter(workspaceId, cursor)] };
-
-  if (query) {
-    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const phoneQuery = query.replace(/\D/g, "");
-    const searchConditions = [{ name: { $regex: escapedQuery, $options: "i" } }];
-    if (phoneQuery) searchConditions.push({ phone: { $regex: phoneQuery } });
-    filter.$and.push({ $or: searchConditions });
-  }
-  if (tag) filter.$and.push({ tags: tag });
+  const filter = buildContactQueryFilter(workspaceId, { cursor, query, tag });
 
   const [rows, availableTags] = await Promise.all([
     db.collection("contacts")
