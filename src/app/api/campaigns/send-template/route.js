@@ -7,6 +7,7 @@ import { isSameOrigin } from "@/lib/security";
 import { decryptSecret } from "@/lib/crypto";
 import { applyPendingWhatsAppStatus } from "@/lib/whatsapp-status";
 import { reserveWorkspaceMessageUsage, releaseWorkspaceMessageUsage } from "@/lib/plan-limits";
+import { findActiveContactSuppression } from "@/lib/contact-suppression.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -207,10 +208,7 @@ export async function POST(request) {
       return NextResponse.json({ success: false, code: "PLAN_LIMIT_REACHED", message: quota.reason, plan: quota.plan, usage: quota.usage, limits: quota.limits }, { status: 429 });
     }
 
-    const suppression = await db.collection("contactSuppressions").findOne(
-      { workspaceId, phone: contact.phone, active: { $ne: false } },
-      { projection: { _id: 1 } },
-    );
+    const suppression = await findActiveContactSuppression(db, workspaceId, contact.phone);
     if (suppression) {
       await releaseWorkspaceMessageUsage(db, workspaceId, 1);
       return NextResponse.json(
