@@ -22,6 +22,18 @@ export async function authenticateApiKeyWithDb(request, requiredScope, getDataba
   if (apiKey.expiresAt && apiKey.expiresAt <= new Date()) {
     return { error: "API key has expired.", status: 401 };
   }
+
+  // Session authentication already rejects suspended workspaces. Public API
+  // keys must enforce the same boundary or a suspended tenant can keep using
+  // integrations after its dashboard access has been disabled.
+  const workspace = await db.collection("workspaces").findOne(
+    { _id: apiKey.workspaceId, status: "active" },
+    { projection: { _id: 1 } },
+  );
+  if (!workspace) {
+    return { error: "This workspace is inactive or suspended.", status: 403 };
+  }
+
   if (!apiKey.scopes?.includes(requiredScope)) {
     return { error: `This key does not have the ${requiredScope} permission.`, status: 403 };
   }
