@@ -4,6 +4,7 @@ import { getDatabase } from "@/lib/db";
 import { authenticateApiKey } from "@/lib/api-key-auth";
 import { normalizePhoneNumber } from "@/lib/contact-utils";
 import { checkWorkspacePlanLimit } from "@/lib/plan-limits";
+import { decodeContactCursor, encodeContactCursor } from "@/lib/contact-pagination.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,14 +24,33 @@ export async function GET(request) {
     { status: auth.status, headers: auth.retryAfterSeconds ? { "Retry-After": String(auth.retryAfterSeconds) } : undefined },
   );
   const { searchParams } = new URL(request.url);
-  const requestedLimit = Number(searchParams.get("limit") || 100);
-  const limit = Math.min(Math.max(Number.isFinite(requestedLimit) ? requestedLimit : 100, 1), 500);
+  const rawLimit = searchParams.get("limit");
+  const requestedLimit = rawLimit === null ? 100 : Number(rawLimit);
+  if (!Number.isInteger(requestedLimit) || requestedLimit < 1 || requestedLimit > 500) {
+    return NextResponse.json({ success: false, message: "Limit must be an integer between 1 and 500." }, { status: 400 });
+  }
+  const limit = requestedLimit;
+  const rawCursor = searchParams.get("before");
+  const cursor = rawCursor ? decodeContactCursor(rawCursor) : null;
+  if (rawCursor && !cursor) {
+    return NextResponse.json({ success: false, message: "Invalid pagination cursor." }, { status: 400 });
+  }
+
+  const workspaceId = new ObjectId(auth.apiKey.workspaceId);
+  const filter = { workspaceId };
+  if (cursor) {
+    filter.$or = [
+      { createdAt: { $lt: cursor.createdAt } },
+      { createdAt: cursor.createdAt, _id: { $lt: new ObjectId(cursor.id) } },
+    ];
+  }
   const db = await getDatabase();
-  const contacts = await db.collection("contacts").find({
-    workspaceId: new ObjectId(auth.apiKey.workspaceId),
-  }).sort({ createdAt: -1 }).limit(limit).project({
+  await db.collection("contacts").createIndex({ workspaceId: 1, createdAt: -1, _id: -1 });
+  const rows = await db.collection("contacts").find(filter).sort({ createdAt: -1, _id: -1 }).limit(limit + 1).project({
     name: 1, phone: 1, tags: 1, createdAt: 1, optIn: 1,
   }).toArray();
+  const hasMore = rows.length > limit;
+  const contacts = hasMore ? rows.slice(0, limit) : rows;
 
   return NextResponse.json({
     success: true,
@@ -42,7 +62,12 @@ export async function GET(request) {
       optedIn: contact.optIn?.status === true,
       createdAt: contact.createdAt || null,
     })),
-    pagination: { limit, returned: contacts.length },
+    pagination: {
+      limit,
+      returned: contacts.length,
+      hasMore,
+      nextCursor: hasMore && contacts.length ? encodeContactCursor(contacts[contacts.length - 1]) : null,
+    },
   });
 }
 
