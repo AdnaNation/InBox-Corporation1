@@ -9,3 +9,17 @@ export async function findActiveContactSuppression(db, workspaceId, phone) {
     { projection: { _id: 1, reason: 1, optedOutAt: 1 } },
   );
 }
+
+/**
+ * Return active workspace-level suppressions for audience filtering.
+ */
+export async function getActiveSuppressedPhones(db, workspaceId) {
+  const records = await db.collection("contactSuppressions")
+    .find({ workspaceId, active: { $ne: false } })
+    .project({ phone: 1 })
+    .toArray();
+  return [...new Set(records
+    .map((record) => record.phone)
+    .filter((phone) => typeof phone === "string" && phone.trim())
+    .map((phone) => phone.trim()))];
+}
