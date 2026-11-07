@@ -4,7 +4,7 @@ import { getDatabase } from "@/lib/db";
 import { getActiveWhatsAppAccount } from "@/lib/whatsapp-account";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
-import { checkWorkspacePlanLimit } from "@/lib/plan-limits";
+import { checkWorkspacePlanLimit, reserveWorkspaceCampaignUsage, releaseWorkspaceCampaignUsage } from "@/lib/plan-limits";
 import { enqueueWebhookEvent } from "@/lib/public-webhooks.mjs";
 import { getActiveSuppressedPhones } from "@/lib/contact-suppression.mjs";
 
@@ -29,6 +29,8 @@ export async function POST(request) {
   }
 
   let campaignId = null;
+  let campaignUsageReserved = false;
+  let campaignUsageCommitted = false;
   const db = await getDatabase();
 
   try {
@@ -151,12 +153,15 @@ export async function POST(request) {
       );
     }
 
-    const campaignQuota = await checkWorkspacePlanLimit(db, workspaceId, "campaigns", 1);
     const messageQuota = await checkWorkspacePlanLimit(db, workspaceId, "messages", targetCount);
-    if (!campaignQuota.allowed || !messageQuota.allowed) {
-      const quota = !campaignQuota.allowed ? campaignQuota : messageQuota;
-      return NextResponse.json({ success: false, code: "PLAN_LIMIT_REACHED", message: quota.reason, plan: quota.plan, usage: quota.usage, limits: quota.limits, remainingMessages: messageQuota.remaining }, { status: 429 });
+    if (!messageQuota.allowed) {
+      return NextResponse.json({ success: false, code: "PLAN_LIMIT_REACHED", message: messageQuota.reason, plan: messageQuota.plan, usage: messageQuota.usage, limits: messageQuota.limits, remainingMessages: messageQuota.remaining }, { status: 429 });
     }
+    const campaignQuota = await reserveWorkspaceCampaignUsage(db, workspaceId, 1);
+    if (!campaignQuota.allowed) {
+      return NextResponse.json({ success: false, code: "PLAN_LIMIT_REACHED", message: campaignQuota.reason, plan: campaignQuota.plan, usage: campaignQuota.usage, limits: campaignQuota.limits, remainingMessages: messageQuota.remaining }, { status: 429 });
+    }
+    campaignUsageReserved = true;
 
     // Unique recipient per contact per campaign.
     await db
@@ -234,7 +239,7 @@ export async function POST(request) {
       insertedCount += batch.length;
     }
 
-    await db.collection("campaigns").updateOne(
+    const finalized = await db.collection("campaigns").updateOne(
       {
         _id: campaignId,
         workspaceId,
@@ -249,6 +254,8 @@ export async function POST(request) {
         },
       },
     );
+    if (finalized.modifiedCount !== 1) throw new Error("Campaign draft snapshot could not be finalized.");
+    campaignUsageCommitted = true;
     try {
       await enqueueWebhookEvent(db, workspaceId, "campaign.created", {
         campaignId: campaignId.toString(), name, status: "draft", recipientCount: insertedCount,
@@ -290,6 +297,11 @@ export async function POST(request) {
       });
     }
 
+    if (campaignUsageReserved && !campaignUsageCommitted) {
+      await releaseWorkspaceCampaignUsage(db, workspaceId).catch((releaseError) => {
+        console.error("Campaign usage reservation release failed:", releaseError);
+      });
+    }
     return NextResponse.json(
       { success: false, message: "Could not create campaign draft." },
       { status: 500 },
