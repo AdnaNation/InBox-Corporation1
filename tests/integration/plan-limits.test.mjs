@@ -35,6 +35,7 @@ async function createFreeWorkspace() {
   workspaceIds.push(workspaceId);
   await db.collection("workspaces").insertOne({
     _id: workspaceId,
+    slug: `test-${workspaceId.toString()}`,
     status: "active",
     subscription: { plan: "free" },
   });
