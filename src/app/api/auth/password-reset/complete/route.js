@@ -51,7 +51,7 @@ export async function POST(request) {
 
       const result = await db.collection("users").updateOne(
         { _id: tokenRecord.userId, status: "active" },
-        { $set: { passwordHash, passwordChangedAt: now, updatedAt: now } },
+        { $set: { passwordHash, updatedAt: now }, $inc: { sessionVersion: 1 } },
         { session },
       );
       if (!result.matchedCount) throw new Error("Password reset account is no longer active.");
