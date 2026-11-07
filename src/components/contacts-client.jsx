@@ -13,6 +13,7 @@ import {
   Save,
   Pencil,
   ShieldCheck,
+  Download,
 } from "lucide-react";
 
 import ContactCsvImport from "@/components/contact-csv-import";
@@ -22,11 +23,13 @@ export default function ContactsClient({
   initialContacts = [],
   initialPagination = { limit: 200, hasMore: false, nextCursor: null },
   initialTags = [],
+  canExport = false,
 }) {
   const [contacts, setContacts] = useState(initialContacts);
   const [pagination, setPagination] = useState(initialPagination);
   const [availableTags, setAvailableTags] = useState(initialTags);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [searching, setSearching] = useState(false);
   const [search, setSearch] = useState("");
   const [tagFilter, setTagFilter] = useState("all");
@@ -131,6 +134,36 @@ export default function ContactsClient({
 
   // The server applies search and tag filters across every page.
   const filtered = contacts;
+
+  async function exportContacts() {
+    setExporting(true);
+    setError("");
+    try {
+      const params = new URLSearchParams();
+      if (search.trim()) params.set("q", search.trim());
+      if (tagFilter !== "all") params.set("tag", tagFilter);
+      const response = await fetch(`/api/contacts/export?${params.toString()}`, {
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "Could not export contacts.");
+      }
+      const blob = await response.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `wavo-contacts-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+    } catch (error) {
+      setError(error.message || "Could not export contacts.");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   // Add contacts
   async function addContact(event) {
@@ -488,6 +521,17 @@ export default function ContactsClient({
                 className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-green-500 sm:w-56"
               />
             </div>
+            {canExport && (
+              <button
+                type="button"
+                onClick={exportContacts}
+                disabled={exporting}
+                className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {exporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+                {exporting ? "Exporting..." : "Export CSV"}
+              </button>
+            )}
           </div>
 
           {/* Tag Filter */}
