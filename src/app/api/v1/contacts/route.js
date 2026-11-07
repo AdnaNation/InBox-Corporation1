@@ -4,7 +4,7 @@ import { getDatabase } from "@/lib/db";
 import { authenticateApiKey } from "@/lib/api-key-auth";
 import { normalizePhoneNumber } from "@/lib/contact-utils";
 import { checkWorkspacePlanLimit } from "@/lib/plan-limits";
-import { decodeContactCursor, encodeContactCursor } from "@/lib/contact-pagination.mjs";
+import { buildContactHistoryFilter, decodeContactCursor, encodeContactCursor } from "@/lib/contact-pagination.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,13 +56,7 @@ export async function GET(request) {
   }
 
   const workspaceId = new ObjectId(auth.apiKey.workspaceId);
-  const filter = { workspaceId };
-  if (cursor) {
-    filter.$or = [
-      { createdAt: { $lt: cursor.createdAt } },
-      { createdAt: cursor.createdAt, _id: { $lt: new ObjectId(cursor.id) } },
-    ];
-  }
+  const filter = buildContactHistoryFilter(workspaceId, cursor);
   const db = await getDatabase();
   try {
     await ensureContactHistoryIndex(db);

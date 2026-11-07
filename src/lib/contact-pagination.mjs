@@ -1,3 +1,16 @@
+import { ObjectId } from "mongodb";
+
+export function buildContactHistoryFilter(workspaceId, cursor = null) {
+  const filter = { workspaceId };
+  if (cursor) {
+    filter.$or = [
+      { createdAt: { $lt: cursor.createdAt } },
+      { createdAt: cursor.createdAt, _id: { $lt: new ObjectId(cursor.id) } },
+    ];
+  }
+  return filter;
+}
+
 export function decodeContactCursor(value) {
   if (typeof value !== "string" || !value || value.length > 512) return null;
   try {
