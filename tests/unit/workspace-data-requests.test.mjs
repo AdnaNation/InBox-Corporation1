@@ -4,6 +4,7 @@ import {
   canTransitionWorkspaceDataRequest,
   ensureWorkspaceDataRequestIndexes,
   WORKSPACE_DATA_REQUEST_TYPES,
+  normalizeWorkspaceDataRequestNote,
 } from "../../src/lib/workspace-data-requests.mjs";
 
 test("accepts only the supported workspace data request types", () => {
@@ -69,4 +70,12 @@ test("retries index setup after a transient failure", async () => {
   await assert.rejects(ensureWorkspaceDataRequestIndexes(fakeDb), /temporary index failure/);
   assert.equal(await ensureWorkspaceDataRequestIndexes(fakeDb), "created");
   assert.equal(attempts, 3);
+});
+
+test("normalizes bounded operator notes for request closure", () => {
+  assert.equal(normalizeWorkspaceDataRequestNote("  Export delivered securely.  "), "Export delivered securely.");
+  assert.equal(normalizeWorkspaceDataRequestNote("   "), null);
+  assert.equal(normalizeWorkspaceDataRequestNote(null), null);
+  assert.equal(normalizeWorkspaceDataRequestNote("x".repeat(501)), null);
+  assert.equal(normalizeWorkspaceDataRequestNote("x".repeat(500)), "x".repeat(500));
 });
