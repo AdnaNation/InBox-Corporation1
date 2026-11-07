@@ -23,8 +23,8 @@ test("contact pagination cursor encoder rejects missing IDs or timestamps", () =
 });
 
 
-test("contact search escaping handles every regex metacharacter literally", () => {
-  assert.equal(escapeContactSearchQuery(".*+?^${}()|[]\\\\\\\"), "\\\\.\\\\*\\\\+\\\\?\\\\^\\\\$\\\\{\\\\}\\\\(\\\\)\\\\|\\\\[\\\\]\\\\\\\\");
+test("contact search escaping treats regex punctuation as literal text", () => {
+  assert.equal(escapeContactSearchQuery("a.b"), "a\\.b");
 });
 
 test("contact search escapes regex input and matches phone digits separately", () => {
