@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
 import { checkWorkspacePlanLimit } from "@/lib/plan-limits";
 import { enqueueWebhookEvent } from "@/lib/public-webhooks.mjs";
+import { getActiveSuppressedPhones } from "@/lib/contact-suppression.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -133,6 +134,9 @@ export async function POST(request) {
 
       savedAudience = { type: "tag", tag };
     }
+
+    const suppressedPhones = await getActiveSuppressedPhones(db, workspaceId);
+    if (suppressedPhones.length) contactFilter.phone = { $nin: suppressedPhones };
 
     const contacts = db.collection("contacts");
     const targetCount = await contacts.countDocuments(contactFilter);
