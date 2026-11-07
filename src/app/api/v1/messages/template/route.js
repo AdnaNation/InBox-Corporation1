@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHash } from "node:crypto";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
+import { ensureMongoIndex } from "@/lib/mongo-indexes.mjs";
 import { authenticateApiKey } from "@/lib/api-key-auth";
 import { getActiveWhatsAppAccount } from "@/lib/whatsapp-account";
 import { decryptSecret } from "@/lib/crypto";
@@ -12,19 +13,6 @@ import { findActiveContactSuppression } from "@/lib/contact-suppression.mjs";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-let idempotencyIndexPromise;
-
-async function ensureIdempotencyIndex(db) {
-  if (!idempotencyIndexPromise) {
-    idempotencyIndexPromise = db.collection("apiRequestIdempotency")
-      .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: "api_request_idempotency_ttl" })
-      .catch((error) => {
-        idempotencyIndexPromise = null;
-        throw error;
-      });
-  }
-  await idempotencyIndexPromise;
-}
 
 function errorResponse(message, status, extra = {}, headers) {
   return NextResponse.json({ success: false, message, ...extra }, { status, headers });
@@ -138,7 +126,7 @@ export async function POST(request) {
   const idempotencyId = auth.apiKey._id.toString() + ":" + createHash("sha256").update(idempotencyKey).digest("hex");
   const requestHash = createHash("sha256").update(JSON.stringify([contactId, templateName, language, parameters])).digest("hex");
   try {
-    await ensureIdempotencyIndex(db);
+    await ensureMongoIndex(db, "apiRequestIdempotency", { expiresAt: 1 }, { expireAfterSeconds: 0, name: "api_request_idempotency_ttl" });
     await idempotencyCollection.insertOne({
       _id: idempotencyId,
       apiKeyId: auth.apiKey._id,

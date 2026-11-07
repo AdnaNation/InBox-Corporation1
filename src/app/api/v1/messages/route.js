@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
+import { ensureMongoIndex } from "@/lib/mongo-indexes.mjs";
 import { authenticateApiKey } from "@/lib/api-key-auth";
 import { decodeMessageCursor, encodeMessageCursor } from "@/lib/message-pagination.mjs";
 
@@ -8,21 +9,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MESSAGE_STATUSES = new Set(["received", "accepted", "sent", "delivered", "read", "failed"]);
-const historyIndexByDb = new WeakMap();
-
-async function ensureHistoryIndex(db) {
-  let indexPromise = historyIndexByDb.get(db);
-  if (!indexPromise) {
-    indexPromise = db.collection("messages")
-      .createIndex({ workspaceId: 1, timestamp: -1, _id: -1 }, { name: "public_api_message_history" })
-      .catch((error) => {
-        historyIndexByDb.delete(db);
-        throw error;
-      });
-    historyIndexByDb.set(db, indexPromise);
-  }
-  await indexPromise;
-}
 const DIRECTIONS = new Set(["inbound", "outbound"]);
 
 export async function GET(request) {
@@ -74,7 +60,7 @@ export async function GET(request) {
 
   const db = await getDatabase();
   try {
-    await ensureHistoryIndex(db);
+    await ensureMongoIndex(db, "messages", { workspaceId: 1, timestamp: -1, _id: -1 }, { name: "public_api_message_history" });
   } catch (error) {
     console.error("Public API message history index unavailable:", error);
     return NextResponse.json({ success: false, message: "Message history is temporarily unavailable." }, { status: 503 });

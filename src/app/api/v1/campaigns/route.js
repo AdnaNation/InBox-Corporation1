@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
+import { ensureMongoIndex } from "@/lib/mongo-indexes.mjs";
 import { authenticateApiKey } from "@/lib/api-key-auth";
 import { getActiveWhatsAppAccount } from "@/lib/whatsapp-account";
 import { checkWorkspacePlanLimit, reserveWorkspaceCampaignUsage, releaseWorkspaceCampaignUsage } from "@/lib/plan-limits";
@@ -12,21 +13,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const CAMPAIGN_STATUSES = new Set(["draft", "queued", "scheduled", "sending", "paused", "cancelled", "completed", "completed_with_issues"]);
-const campaignHistoryIndexByDb = new WeakMap();
-
-async function ensureCampaignHistoryIndex(db) {
-  let indexPromise = campaignHistoryIndexByDb.get(db);
-  if (!indexPromise) {
-    indexPromise = db.collection("campaigns")
-      .createIndex({ workspaceId: 1, createdAt: -1, _id: -1 }, { name: "public_api_campaign_history" })
-      .catch((error) => {
-        campaignHistoryIndexByDb.delete(db);
-        throw error;
-      });
-    campaignHistoryIndexByDb.set(db, indexPromise);
-  }
-  await indexPromise;
-}
 
 function authError(auth) {
   return NextResponse.json(
@@ -56,7 +42,7 @@ export async function GET(request) {
 
   const db = await getDatabase();
   try {
-    await ensureCampaignHistoryIndex(db);
+    await ensureMongoIndex(db, "campaigns", { workspaceId: 1, createdAt: -1, _id: -1 }, { name: "public_api_campaign_history" });
   } catch (error) {
     console.error("Public API campaign history index unavailable:", error);
     return NextResponse.json({ success: false, message: "Campaign history is temporarily unavailable." }, { status: 503 });

@@ -4,6 +4,7 @@ import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { randomUUID } from "node:crypto";
 import { getDatabase } from "@/lib/db";
+import { ensureMongoIndex } from "@/lib/mongo-indexes.mjs";
 import { decryptSecret } from "@/lib/crypto";
 import { signWebhookPayload, isValidWebhookTarget } from "@/lib/public-webhooks.mjs";
 
@@ -79,9 +80,9 @@ export async function GET(request) {
   try {
     const db = await getDatabase();
     await Promise.all([
-      db.collection("webhookSubscriptions").createIndex({ workspaceId: 1, createdAt: -1 }),
-      db.collection("webhookDeliveries").createIndex({ subscriptionId: 1, eventId: 1 }, { unique: true }),
-      db.collection("webhookDeliveries").createIndex({ status: 1, nextAttemptAt: 1, leaseUntil: 1 }),
+      ensureMongoIndex(db, "webhookSubscriptions", { workspaceId: 1, createdAt: -1 }),
+      ensureMongoIndex(db, "webhookDeliveries", { subscriptionId: 1, eventId: 1 }, { unique: true }),
+      ensureMongoIndex(db, "webhookDeliveries", { status: 1, nextAttemptAt: 1, leaseUntil: 1 }),
     ]);
     const workerId = randomUUID();
     const now = new Date();
