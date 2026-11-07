@@ -49,8 +49,11 @@ export function summarizeWorkerResponse(endpointName, status, body) {
   if ((status < 200 || status >= 300) && !acceptedNon2xx) {
     throw new Error(endpointName + " worker returned HTTP " + status + ".");
   }
-  if (acceptedNon2xx && body.success !== false) {
+  if ((status === 409 || status === 429) && body.success !== false) {
     throw new Error(endpointName + " worker returned an unexpected HTTP " + status + " response.");
+  }
+  if (status === 202 && body.success !== true) {
+    throw new Error(endpointName + " worker returned an unexpected HTTP 202 response.");
   }
 
   return {
