@@ -14,6 +14,9 @@ export async function GET(request) {
     if (!session) {
       return NextResponse.json({ success: false, message: "Unauthorized." }, { status: 401 });
     }
+    if (!["owner", "admin"].includes(session.membership?.role)) {
+      return NextResponse.json({ success: false, message: "Only workspace owners and admins can export contacts." }, { status: 403 });
+    }
 
     const { searchParams } = new URL(request.url);
     const query = (searchParams.get("q") || "").trim().slice(0, 100);
