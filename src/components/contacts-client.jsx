@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Plus,
   Search,
@@ -18,10 +18,23 @@ import {
 import ContactCsvImport from "@/components/contact-csv-import";
 import { showAlert, showConfirm } from "@/lib/swal";
 
-export default function ContactsClient({ initialContacts = [] }) {
+export default function ContactsClient({
+  initialContacts = [],
+  initialPagination = { limit: 200, hasMore: false, nextCursor: null },
+  initialTags = [],
+}) {
   const [contacts, setContacts] = useState(initialContacts);
+  const [pagination, setPagination] = useState(initialPagination);
+  const [availableTags, setAvailableTags] = useState(initialTags);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [search, setSearch] = useState("");
   const [tagFilter, setTagFilter] = useState("all");
+  const skipInitialSearch = useRef(true);
+  const searchRequestId = useRef(0);
+  const pageGenerationRef = useRef(0);
+  const activeFilterRef = useRef("");
+  activeFilterRef.current = `${search.trim()}\u0000${tagFilter}`;
 
   const [form, setForm] = useState({
     name: "",
@@ -44,41 +57,80 @@ export default function ContactsClient({ initialContacts = [] }) {
   const [consentConfirmed, setConsentConfirmed] = useState(false);
   const [savingConsent, setSavingConsent] = useState(false);
 
-  // Refresh contacts after CSV import
-  async function refreshContacts() {
-    const response = await fetch("/api/contacts", {
-      cache: "no-store",
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
+  // Refresh the first page after imports, search changes, or tag filters.
+  const refreshContacts = useCallback(async () => {
+    const requestId = ++searchRequestId.current;
+    pageGenerationRef.current += 1;
+    setSearching(true);
+    try {
+      const params = new URLSearchParams({ limit: "200" });
+      if (search.trim()) params.set("q", search.trim());
+      if (tagFilter !== "all") params.set("tag", tagFilter);
+      const response = await fetch(`/api/contacts?${params.toString()}`, {
+        cache: "no-store",
+      });
+      const data = await response.json();
+      if (requestId !== searchRequestId.current) return;
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Could not load contacts.");
+      }
       setContacts(data.contacts || []);
+      setPagination(data.pagination || { limit: 200, hasMore: false, nextCursor: null });
+      setAvailableTags(data.availableTags || []);
+    } catch (error) {
+      if (requestId === searchRequestId.current) {
+        setError(error.message || "Could not load contacts.");
+      }
+    } finally {
+      if (requestId === searchRequestId.current) setSearching(false);
+    }
+  }, [search, tagFilter]);
+
+  useEffect(() => {
+    if (skipInitialSearch.current) {
+      skipInitialSearch.current = false;
+      return;
+    }
+    const timer = setTimeout(() => {
+      refreshContacts();
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [refreshContacts]);
+
+  async function loadMoreContacts() {
+    if (!pagination.nextCursor || loadingMore) return;
+    const requestedFilter = `${search.trim()}\u0000${tagFilter}`;
+    const requestedGeneration = pageGenerationRef.current;
+    setLoadingMore(true);
+    try {
+      const params = new URLSearchParams({
+        limit: String(pagination.limit || 200),
+        cursor: pagination.nextCursor,
+      });
+      if (search.trim()) params.set("q", search.trim());
+      if (tagFilter !== "all") params.set("tag", tagFilter);
+      const response = await fetch(`/api/contacts?${params.toString()}`, {
+        cache: "no-store",
+      });
+      const data = await response.json();
+      if (requestedFilter !== activeFilterRef.current || requestedGeneration !== pageGenerationRef.current) return;
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Could not load more contacts.");
+      }
+      setContacts((current) => [...current, ...(data.contacts || [])]);
+      setPagination(data.pagination || { limit: 200, hasMore: false, nextCursor: null });
+      setAvailableTags(data.availableTags || []);
+    } catch (error) {
+      if (requestedFilter === activeFilterRef.current && requestedGeneration === pageGenerationRef.current) {
+        setError(error.message || "Could not load more contacts.");
+      }
+    } finally {
+      setLoadingMore(false);
     }
   }
 
-  // Get all unique tags from loaded contacts
-  const availableTags = useMemo(() => {
-    return [
-      ...new Set(contacts.flatMap((contact) => contact.tags || [])),
-    ].sort();
-  }, [contacts]);
-
-  // Search and filter contacts
-  const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase();
-
-    return contacts.filter((contact) => {
-      const matchesSearch =
-        !query ||
-        `${contact.name} ${contact.phone}`.toLowerCase().includes(query);
-
-      const matchesTag =
-        tagFilter === "all" || (contact.tags || []).includes(tagFilter);
-
-      return matchesSearch && matchesTag;
-    });
-  }, [contacts, search, tagFilter]);
+  // The server applies search and tag filters across every page.
+  const filtered = contacts;
 
   // Add contacts
   async function addContact(event) {
@@ -138,17 +190,7 @@ export default function ContactsClient({ initialContacts = [] }) {
         return;
       }
 
-      if (data.contacts?.length) {
-        setContacts((current) => {
-          const existingIds = new Set(current.map((item) => item.id));
-
-          const newContacts = data.contacts.filter(
-            (item) => !existingIds.has(item.id),
-          );
-
-          return [...newContacts, ...current];
-        });
-      }
+      await refreshContacts();
 
       setNotice(
         `${data.added ?? data.contacts?.length ?? 0} added, ` +
@@ -224,11 +266,7 @@ export default function ContactsClient({ initialContacts = [] }) {
         return;
       }
 
-      setContacts((current) =>
-        current.map((contact) =>
-          contact.id === contactId ? { ...contact, tags: data.tags } : contact,
-        ),
-      );
+      await refreshContacts();
 
       setEditingId(null);
       setTagDraft([]);
@@ -295,6 +333,7 @@ export default function ContactsClient({ initialContacts = [] }) {
       }
 
       setContacts((current) => current.filter((contact) => contact.id !== id));
+      await refreshContacts();
     } catch {
       await showAlert({ title: "Network error", text: "Please check your connection and try again.", icon: "error" });
     }
@@ -432,7 +471,7 @@ export default function ContactsClient({ initialContacts = [] }) {
               <h2 className="font-semibold">All contacts</h2>
 
               <p className="mt-1 text-xs text-slate-500">
-                {contacts.length} contacts loaded
+                {searching ? "Searching contacts..." : `${contacts.length} contacts loaded`}
               </p>
             </div>
 
@@ -672,6 +711,20 @@ export default function ContactsClient({ initialContacts = [] }) {
               </div>
             )}
           </div>
+
+          {pagination.hasMore && (
+            <div className="flex justify-center border-t border-slate-100 p-4">
+              <button
+                type="button"
+                onClick={loadMoreContacts}
+                disabled={loadingMore || searching}
+                className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loadingMore && <Loader2 size={15} className="animate-spin" />}
+                {loadingMore ? "Loading contacts..." : "Load more contacts"}
+              </button>
+            </div>
+          )}
         </section>
       {consentContact && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">

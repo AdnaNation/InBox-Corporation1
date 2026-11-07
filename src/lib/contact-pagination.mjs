@@ -35,3 +35,20 @@ export function encodeContactCursor(contact) {
     id: contact._id.toString(),
   })).toString("base64url");
 }
+
+
+export function buildContactQueryFilter(workspaceId, { cursor = null, query = "", tag = "" } = {}) {
+  const clauses = [buildContactHistoryFilter(workspaceId, cursor)];
+  const normalizedQuery = typeof query === "string" ? query.trim().slice(0, 100) : "";
+  const normalizedTag = typeof tag === "string" ? tag.trim().toLowerCase().slice(0, 30) : "";
+
+  if (normalizedQuery) {
+    const escapedQuery = normalizedQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const phoneQuery = normalizedQuery.replace(/\D/g, "");
+    const searchConditions = [{ name: { $regex: escapedQuery, $options: "i" } }];
+    if (phoneQuery) searchConditions.push({ phone: { $regex: phoneQuery } });
+    clauses.push({ $or: searchConditions });
+  }
+  if (normalizedTag) clauses.push({ tags: normalizedTag });
+  return { $and: clauses };
+}
