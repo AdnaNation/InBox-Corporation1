@@ -4,7 +4,7 @@ import { getDatabase } from "@/lib/db";
 import { ensureMongoIndex } from "@/lib/mongo-indexes.mjs";
 import { authenticateApiKey } from "@/lib/api-key-auth";
 import { normalizePhoneNumber } from "@/lib/contact-utils";
-import { checkWorkspacePlanLimit } from "@/lib/plan-limits";
+import { reserveWorkspaceContactUsage, releaseWorkspaceContactUsage } from "@/lib/plan-limits";
 import { buildContactHistoryFilter, decodeContactCursor, encodeContactCursor } from "@/lib/contact-pagination.mjs";
 
 export const runtime = "nodejs";
@@ -116,7 +116,7 @@ export async function POST(request) {
     return NextResponse.json({ success: false, code: "CONTACT_SUPPRESSED", message: "This phone number has opted out and cannot be re-added through the API. Record fresh consent through the workspace consent workflow." }, { status: 409 });
   }
 
-  const quota = await checkWorkspacePlanLimit(db, workspaceId, "contacts", 1);
+  const quota = await reserveWorkspaceContactUsage(db, workspaceId, 1);
   if (!quota.allowed) {
     return NextResponse.json({ success: false, code: "PLAN_LIMIT_REACHED", message: quota.reason, plan: quota.plan, usage: quota.usage, limits: quota.limits }, { status: 429 });
   }
@@ -153,8 +153,11 @@ export async function POST(request) {
     }, { status: 201 });
   } catch (error) {
     if (error.code === 11000) {
+      await releaseWorkspaceContactUsage(db, workspaceId, 1);
       return NextResponse.json({ success: false, code: "CONTACT_EXISTS", message: "A contact with this phone number already exists in this workspace." }, { status: 409 });
     }
+    // A database/network error can leave the insert outcome uncertain. Keep
+    // the reservation rather than risk freeing capacity for a saved contact.
     console.error("Public API contact creation error:", error);
     return NextResponse.json({ success: false, message: "Could not create contact." }, { status: 500 });
   }

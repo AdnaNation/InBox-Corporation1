@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
+import { ensureWorkspaceContactUsageCounter, releaseWorkspaceContactUsage } from "@/lib/plan-limits";
 
 export const runtime = "nodejs";
 
@@ -118,6 +119,11 @@ export async function DELETE(request, { params }) {
   const workspaceId = new ObjectId(session.workspace.id);
   const contactId = new ObjectId(id);
 
+  // Initialize the lifetime counter before removing a legacy contact so its
+  // capacity is released even when this workspace has never created a contact
+  // reservation before.
+  await ensureWorkspaceContactUsageCounter(db, workspaceId);
+
   const result = await db.collection("contacts").deleteOne({
     _id: contactId,
     workspaceId,
@@ -130,6 +136,7 @@ export async function DELETE(request, { params }) {
     );
   }
 
+  await releaseWorkspaceContactUsage(db, workspaceId, 1);
   await db.collection("groups").updateMany(
     { workspaceId },
     {

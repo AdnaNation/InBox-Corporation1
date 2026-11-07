@@ -9,6 +9,10 @@ export function getMonthStart(date = new Date()) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
 }
 
+function getContactUsageCounterKey(workspaceId) {
+  return `${workspaceId.toString()}:contacts`;
+}
+
 function getUsagePeriodKey(workspaceId, date = new Date()) {
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, "0");
@@ -22,7 +26,7 @@ export async function getWorkspacePlanUsage(db, workspaceId) {
   );
   const plan = PLAN_LIMITS[workspace?.subscription?.plan] ? workspace.subscription.plan : "free";
   const monthStart = getMonthStart();
-  const [contacts, messages, campaigns, counter] = await Promise.all([
+  const [contactCount, messages, campaigns, counter, contactCounter] = await Promise.all([
     db.collection("contacts").countDocuments({ workspaceId }),
     db.collection("messages").countDocuments({
       workspaceId,
@@ -35,11 +39,12 @@ export async function getWorkspacePlanUsage(db, workspaceId) {
       createdAt: { $gte: monthStart },
     }),
     db.collection("planUsageCounters").findOne({ _id: getUsagePeriodKey(workspaceId) }),
+    db.collection("planUsageCounters").findOne({ _id: getContactUsageCounterKey(workspaceId) }),
   ]);
   return {
     plan,
     workspaceStatus: workspace?.status || "active",
-    usage: { contacts, messages: Math.max(messages, counter?.messages || 0), campaigns: Math.max(campaigns, counter?.campaigns || 0) },
+    usage: { contacts: Math.max(contactCount, contactCounter?.contacts || 0), messages: Math.max(messages, counter?.messages || 0), campaigns: Math.max(campaigns, counter?.campaigns || 0) },
     limits: PLAN_LIMITS[plan],
   };
 }
@@ -201,4 +206,68 @@ export async function reserveWorkspaceCampaignUsage(db, workspaceId, requested =
     usage: { ...state.usage, campaigns: used },
     reason: reservation.modifiedCount === 1 ? null : getLimitReason("campaigns"),
   };
+}
+
+
+// Contact allowances are lifetime workspace capacity, not monthly usage.
+// Keep their reservation counter separate from the monthly message/campaign
+// ledger so month rollover cannot reset the contact limit.
+async function ensureContactUsageCounter(db, workspaceId, state, now) {
+  const counters = db.collection("planUsageCounters");
+  const counterId = getContactUsageCounterKey(workspaceId);
+  try {
+    await counters.updateOne(
+      { _id: counterId },
+      { $setOnInsert: { workspaceId, contacts: state.usage.contacts, createdAt: now }, $set: { updatedAt: now } },
+      { upsert: true },
+    );
+  } catch (error) {
+    if (error?.code !== 11000) throw error;
+  }
+}
+
+export async function ensureWorkspaceContactUsageCounter(db, workspaceId) {
+  const state = await getWorkspacePlanUsage(db, workspaceId);
+  await ensureContactUsageCounter(db, workspaceId, state, new Date());
+  return state;
+}
+
+export async function reserveWorkspaceContactUsage(db, workspaceId, requested = 1) {
+  const state = await getWorkspacePlanUsage(db, workspaceId);
+  const limit = state.limits.contacts;
+  if (state.workspaceStatus !== "active") {
+    return { ...state, allowed: false, reason: "This workspace is suspended. Contact support to restore access." };
+  }
+  if (!Number.isSafeInteger(requested) || requested < 1) {
+    return { ...state, allowed: false, reason: "Invalid contact reservation." };
+  }
+
+  const now = new Date();
+  const counterId = getContactUsageCounterKey(workspaceId);
+  await ensureContactUsageCounter(db, workspaceId, state, now);
+  const reservation = await db.collection("planUsageCounters").updateOne(
+    { _id: counterId, contacts: { $lte: limit - requested } },
+    { $inc: { contacts: requested }, $set: { updatedAt: now } },
+  );
+  const counter = await db.collection("planUsageCounters").findOne({ _id: counterId });
+  const used = Math.max(state.usage.contacts, counter?.contacts || 0);
+  return {
+    ...state,
+    allowed: reservation.modifiedCount === 1,
+    resource: "contacts",
+    used,
+    limit,
+    requested,
+    remaining: Math.max(0, limit - used),
+    usage: { ...state.usage, contacts: used },
+    reason: reservation.modifiedCount === 1 ? null : getLimitReason("contacts"),
+  };
+}
+
+export async function releaseWorkspaceContactUsage(db, workspaceId, requested = 1) {
+  if (!Number.isSafeInteger(requested) || requested < 1) return;
+  await db.collection("planUsageCounters").updateOne(
+    { _id: getContactUsageCounterKey(workspaceId), contacts: { $gte: requested } },
+    { $inc: { contacts: -requested }, $set: { updatedAt: new Date() } },
+  );
 }
