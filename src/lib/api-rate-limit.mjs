@@ -1,18 +1,24 @@
 export const API_RATE_LIMIT = 120;
 export const API_RATE_WINDOW_MS = 60_000;
 
-let rateLimitIndexPromise;
+const rateLimitIndexByDb = new WeakMap();
 
-export async function consumeApiRateLimit(db, apiKeyId) {
-  if (!rateLimitIndexPromise) {
-    rateLimitIndexPromise = db.collection("apiRateLimits")
+export function ensureApiRateLimitIndex(db) {
+  let indexPromise = rateLimitIndexByDb.get(db);
+  if (!indexPromise) {
+    indexPromise = db.collection("apiRateLimits")
       .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: "api_rate_limits_ttl" })
       .catch((error) => {
-        rateLimitIndexPromise = null;
+        rateLimitIndexByDb.delete(db);
         throw error;
       });
+    rateLimitIndexByDb.set(db, indexPromise);
   }
-  await rateLimitIndexPromise;
+  return indexPromise;
+}
+
+export async function consumeApiRateLimit(db, apiKeyId) {
+  await ensureApiRateLimitIndex(db);
 
   const now = Date.now();
   const windowStart = Math.floor(now / API_RATE_WINDOW_MS) * API_RATE_WINDOW_MS;

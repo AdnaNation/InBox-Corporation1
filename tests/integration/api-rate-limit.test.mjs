@@ -60,3 +60,54 @@ test("rate limits are isolated between API keys", async () => {
   assert.equal(first.remaining, API_RATE_LIMIT - 1);
   assert.equal(second.remaining, API_RATE_LIMIT - 1);
 });
+
+
+test("creates the rate-limit TTL index once per database connection", async () => {
+  const { ensureApiRateLimitIndex } = await import("../../src/lib/api-rate-limit.mjs");
+  function createDb() {
+    let calls = 0;
+    return {
+      getIndexCalls: () => calls,
+      collection(name) {
+        assert.equal(name, "apiRateLimits");
+        return {
+          async createIndex(keys, options) {
+            calls += 1;
+            assert.deepEqual(keys, { expiresAt: 1 });
+            assert.equal(options.expireAfterSeconds, 0);
+            assert.equal(options.name, "api_rate_limits_ttl");
+            return options.name;
+          },
+        };
+      },
+    };
+  }
+  const firstDb = createDb();
+  const secondDb = createDb();
+  await Promise.all([
+    ensureApiRateLimitIndex(firstDb),
+    ensureApiRateLimitIndex(firstDb),
+    ensureApiRateLimitIndex(secondDb),
+  ]);
+  assert.equal(firstDb.getIndexCalls(), 1);
+  assert.equal(secondDb.getIndexCalls(), 1);
+});
+
+test("retries rate-limit index creation after a failed attempt", async () => {
+  const { ensureApiRateLimitIndex } = await import("../../src/lib/api-rate-limit.mjs");
+  let attempts = 0;
+  const mockDb = {
+    collection() {
+      return {
+        async createIndex() {
+          attempts += 1;
+          if (attempts === 1) throw new Error("temporary index failure");
+          return "api_rate_limits_ttl";
+        },
+      };
+    },
+  };
+  await assert.rejects(ensureApiRateLimitIndex(mockDb), /temporary index failure/);
+  assert.equal(await ensureApiRateLimitIndex(mockDb), "api_rate_limits_ttl");
+  assert.equal(attempts, 2);
+});
