@@ -148,7 +148,7 @@ export async function POST(request) {
       const claim = await billingRequests.findOneAndUpdate(
         { _id: requestId, status: "pending" },
         { $set: { status: body.decision, reviewedAt: now, reviewedBy: actorId, updatedAt: now } },
-        { returnDocument: "before" },
+        { returnDocument: "before", includeResultMetadata: false },
       );
       const billingRequest = claim?.value || claim;
       if (!billingRequest) {
