@@ -19,7 +19,7 @@ export async function GET(request) {
     const workspaceIdValue = searchParams.get("workspaceId") || "";
     const phoneNumberId = searchParams.get("phoneNumberId") || "";
     const after = searchParams.get("after") || "";
-    if (!ObjectId.isValid(workspaceIdValue) || !/^\d{5,30}$/.test(phoneNumberId)) {
+    if (!ObjectId.isValid(workspaceIdValue) || !/^\d{5,30}$/.test(phoneNumberId) || after.length > 1024) {
       return NextResponse.json({ success: false, message: "A valid workspace, Phone Number ID, and pagination cursor are required." }, { status: 400 });
     }
 
