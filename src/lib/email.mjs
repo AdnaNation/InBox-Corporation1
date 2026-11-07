@@ -13,6 +13,7 @@ export async function sendVerificationEmail({ to, token, origin }) {
       Authorization: "Bearer " + apiKey,
       "Content-Type": "application/json",
     },
+    signal: AbortSignal.timeout(10_000),
     body: JSON.stringify({
       from,
       to: [to],
