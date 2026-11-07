@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { MongoClient, ObjectId } from "mongodb";
-import { findActiveContactSuppression, getActiveSuppressedPhones } from "../../src/lib/contact-suppression.mjs";
+import { ensureContactSuppressionIndex, findActiveContactSuppression, getActiveSuppressedPhones } from "../../src/lib/contact-suppression.mjs";
 
 const mongoUri = process.env.MONGODB_URI;
 if (!mongoUri) throw new Error("MONGODB_URI is required to run contact suppression integration tests.");
@@ -33,6 +33,8 @@ test("active and legacy suppressions block sends, while explicitly inactive reco
   ]);
 
   assert.ok(await findActiveContactSuppression(db, workspaceId, "8801700000001"));
+  const indexes = await collection.listIndexes().toArray();
+  assert.ok(indexes.some((index) => index.key?.workspaceId === 1 && index.key?.phone === 1 && index.unique === true));
   assert.ok(await findActiveContactSuppression(db, workspaceId, "8801700000002"));
   assert.equal(await findActiveContactSuppression(db, workspaceId, "8801700000003"), null);
   assert.equal(await findActiveContactSuppression(db, workspaceId, ""), null);
@@ -56,4 +58,39 @@ test("suppression lookups are isolated by workspace", async () => {
   assert.ok(await findActiveContactSuppression(db, workspaceId, "8801700000004"));
   assert.deepEqual(await getActiveSuppressedPhones(db, otherWorkspaceId), []);
   assert.deepEqual(await getActiveSuppressedPhones(db, workspaceId), ["8801700000004"]);
+});
+
+test("creates the suppression collection and lookup index on first use", async () => {
+  const isolatedClient = new MongoClient(mongoUri);
+  await isolatedClient.connect();
+  const isolatedDb = isolatedClient.db("wavo_suppression_index_" + new ObjectId().toString());
+  try {
+    await ensureContactSuppressionIndex(isolatedDb);
+    const indexes = await isolatedDb.collection("contactSuppressions").listIndexes().toArray();
+    assert.ok(indexes.some((index) => index.key?.workspaceId === 1 && index.key?.phone === 1));
+  } finally {
+    await isolatedDb.dropDatabase();
+    await isolatedClient.close();
+  }
+});
+
+test("falls back to a non-unique lookup index when legacy duplicate rows exist", async () => {
+  const isolatedClient = new MongoClient(mongoUri);
+  await isolatedClient.connect();
+  const isolatedDb = isolatedClient.db("wavo_suppression_duplicates_" + new ObjectId().toString());
+  try {
+    const workspaceId = new ObjectId();
+    await isolatedDb.collection("contactSuppressions").insertMany([
+      { workspaceId, phone: "8801700000099", active: true },
+      { workspaceId, phone: "8801700000099", active: true, reason: "legacy_duplicate" },
+    ]);
+    await ensureContactSuppressionIndex(isolatedDb);
+    const indexes = await isolatedDb.collection("contactSuppressions").listIndexes().toArray();
+    const lookupIndex = indexes.find((index) => index.key?.workspaceId === 1 && index.key?.phone === 1);
+    assert.ok(lookupIndex);
+    assert.notEqual(lookupIndex.unique, true);
+  } finally {
+    await isolatedDb.dropDatabase();
+    await isolatedClient.close();
+  }
 });

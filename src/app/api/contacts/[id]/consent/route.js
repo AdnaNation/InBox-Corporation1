@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
+import { findActiveContactSuppression } from "@/lib/contact-suppression.mjs";
 
 export const runtime = "nodejs";
 
@@ -61,13 +62,13 @@ export async function POST(request, { params }) {
     return NextResponse.json({ success: false, message: "Contact not found." }, { status: 404 });
   }
 
-  const suppression = await db.collection("contactSuppressions").findOne({ workspaceId, phone: contact.phone });
+  const suppression = await findActiveContactSuppression(db, workspaceId, contact.phone);
   if (!suppression && contact.optIn?.status === true) {
     return NextResponse.json({ success: false, message: "This contact is already opted in." }, { status: 409 });
   }
 
   const update = await db.collection("contacts").updateOne(
-    { _id: contactId, workspaceId, "optIn.status": { $ne: true } },
+    { _id: contactId, workspaceId },
     {
       $set: {
         "optIn.status": true,
@@ -92,8 +93,8 @@ export async function POST(request, { params }) {
   }
 
   if (suppression) {
-    await db.collection("contactSuppressions").updateOne(
-      { _id: suppression._id, workspaceId },
+    await db.collection("contactSuppressions").updateMany(
+      { workspaceId, phone: contact.phone, active: { $ne: false } },
       {
         $set: {
           active: false,

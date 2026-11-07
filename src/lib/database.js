@@ -1,4 +1,5 @@
 import { getDatabase } from "@/lib/db";
+import { ensureContactSuppressionIndex } from "@/lib/contact-suppression.mjs";
 
 let indexesPromise;
 
@@ -18,6 +19,7 @@ export async function initializeDatabase() {
         db.collection("workspaces").createIndex({ slug: 1 }, { unique: true }),
         db.collection("memberships").createIndex({ workspaceId: 1, userId: 1 }, { unique: true }),
         db.collection("contacts").createIndex({ workspaceId: 1, phone: 1 }, { unique: true }),
+        ensureContactSuppressionIndex(db),
         db.collection("contacts").createIndex({ workspaceId: 1, name: 1 }),
         db.collection("whatsappAccounts").createIndex(
           { workspaceId: 1, phoneNumberId: 1 },
