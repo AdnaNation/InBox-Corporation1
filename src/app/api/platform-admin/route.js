@@ -28,7 +28,7 @@ export async function GET() {
       ).sort({ createdAt: -1 }).limit(100).toArray(),
       db.collection("billingRequests").find(
         {},
-        { projection: { workspaceId: 1, workspaceName: 1, requestedBy: 1, requesterName: 1, requesterEmail: 1, requestedPlan: 1, billingCycle: 1, status: 1, createdAt: 1, updatedAt: 1 } },
+        { projection: { workspaceId: 1, workspaceName: 1, requestedBy: 1, requesterName: 1, requesterEmail: 1, requestedPlan: 1, billingCycle: 1, status: 1, activationStatus: 1, createdAt: 1, updatedAt: 1 } },
       ).sort({ createdAt: -1 }).limit(100).toArray(),
       Promise.all([
         db.collection("workspaces").countDocuments({}),
@@ -112,6 +112,7 @@ export async function GET() {
         plan: request.requestedPlan,
         billingCycle: request.billingCycle,
         status: request.status,
+        activationStatus: request.activationStatus || null,
         createdAt: request.createdAt || null,
       })),
       admin: { email: session.user.email },
