@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
+import { ensureWorkspaceDataRequestIndexes, WORKSPACE_DATA_REQUEST_TYPES } from "@/lib/workspace-data-requests.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,25 +21,13 @@ async function requireWorkspaceOwner() {
   return { session };
 }
 
-async function ensureIndexes(collection) {
-  await collection.createIndex(
-    { workspaceId: 1, type: 1 },
-    {
-      name: "one_pending_data_request_per_workspace_type",
-      unique: true,
-      partialFilterExpression: { active: true },
-    },
-  );
-  await collection.createIndex({ workspaceId: 1, createdAt: -1 }, { name: "workspace_data_request_history" });
-}
-
 export async function GET() {
   try {
     const { session, response } = await requireWorkspaceOwner();
     if (response) return response;
     const db = await getDatabase();
     const collection = db.collection(collectionName);
-    await ensureIndexes(collection);
+    await ensureWorkspaceDataRequestIndexes(db);
     const workspaceId = new ObjectId(session.workspace.id);
     const requests = await collection.find(
       { workspaceId },
@@ -74,7 +63,7 @@ export async function POST(request) {
     if (response) return response;
     const body = await request.json();
     const type = String(body.type || "").trim().toLowerCase();
-    if (!["export", "deletion"].includes(type)) {
+    if (!WORKSPACE_DATA_REQUEST_TYPES.includes(type)) {
       return NextResponse.json({ success: false, message: "Choose a valid data request type." }, { status: 400 });
     }
     if (body.confirmed !== true) {
@@ -83,7 +72,7 @@ export async function POST(request) {
 
     const db = await getDatabase();
     const collection = db.collection(collectionName);
-    await ensureIndexes(collection);
+    await ensureWorkspaceDataRequestIndexes(db);
     const workspaceId = new ObjectId(session.workspace.id);
     const actorId = new ObjectId(session.user.id);
     const now = new Date();
