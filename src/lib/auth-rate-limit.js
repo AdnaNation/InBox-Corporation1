@@ -1,18 +1,31 @@
 import { createHmac } from "node:crypto";
 
 const WINDOW_MS = 15 * 60 * 1000;
-let indexesPromise;
+const indexesByClient = new WeakMap();
 
 async function ensureRateLimitIndexes(db) {
-  if (!indexesPromise) {
-    indexesPromise = db.collection("authRateLimits")
+  // Db handles can be recreated per request. Cache by client + database so
+  // tests, preview deployments, and multi-database processes stay isolated.
+  const cacheKey = db.client || db;
+  const databaseName = db.databaseName || "";
+  let indexesByDatabase = indexesByClient.get(cacheKey);
+  if (!indexesByDatabase) {
+    indexesByDatabase = new Map();
+    indexesByClient.set(cacheKey, indexesByDatabase);
+  }
+
+  let indexPromise = indexesByDatabase.get(databaseName);
+  if (!indexPromise) {
+    indexPromise = db.collection("authRateLimits")
       .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: "ttl_auth_rate_limits" })
       .catch((error) => {
-        indexesPromise = null;
+        indexesByDatabase.delete(databaseName);
+        if (!indexesByDatabase.size) indexesByClient.delete(cacheKey);
         throw error;
       });
+    indexesByDatabase.set(databaseName, indexPromise);
   }
-  return indexesPromise;
+  return indexPromise;
 }
 
 function makeBucketId(scope, identity, now) {
