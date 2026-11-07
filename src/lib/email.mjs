@@ -55,14 +55,14 @@ export async function sendPasswordResetEmail({ to, token, origin }) {
       from,
       to: [to],
       subject: "Reset your Wavo password",
-      html: "<div style=\\"font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#0f172a\\">"
-        + "<h1 style=\\"font-size:24px\\">Reset your password</h1>"
-        + "<p>We received a request to reset the password for your Wavo account.</p>"
-        + "<p><a href=\\"" + resetUrl.toString() + "\\" style=\\"display:inline-block;background:#16a34a;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none\\">Choose a new password</a></p>"
-        + "<p>This link expires in 1 hour and can be used only once. If you did not request a reset, you can ignore this email.</p>"
-        + "</div>",
+      html: '<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#0f172a">'
+        + '<h1 style="font-size:24px">Reset your password</h1>'
+        + '<p>We received a request to reset the password for your Wavo account.</p>'
+        + '<p><a href="' + resetUrl.toString() + '" style="display:inline-block;background:#16a34a;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none">Choose a new password</a></p>'
+        + '<p>This link expires in 1 hour and can be used only once. If you did not request a reset, you can ignore this email.</p>'
+        + '</div>',
       text: "Reset your Wavo password: " + resetUrl.toString()
-        + "\\nThis link expires in 1 hour and can be used only once. If you did not request a reset, you can ignore this email.",
+        + "\nThis link expires in 1 hour and can be used only once. If you did not request a reset, you can ignore this email.",
     }),
   });
 
