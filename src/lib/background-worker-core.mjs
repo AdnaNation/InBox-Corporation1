@@ -65,10 +65,25 @@ export function summarizeWorkerResponse(endpointName, status, body) {
     counts[key] = value;
   }
 
-  return {
+  const summary = {
     name: endpointName,
     httpStatus: status,
     success: body.success,
     ...counts,
   };
+
+  // The account-health monitor uses domain-specific counters rather than
+  // campaign/webhook delivery counters. Validate and log only aggregate
+  // numbers; never emit its per-account failure details or provider payload.
+  if (endpointName === "whatsapp-health") {
+    for (const key of ["checked", "healthy", "attention", "unavailable", "alertsSent", "alertsPending", "alertsFailed"]) {
+      const value = body[key] ?? 0;
+      if (!Number.isSafeInteger(value) || value < 0) {
+        throw new Error(endpointName + " worker returned an invalid " + key + " count.");
+      }
+      summary[key] = value;
+    }
+  }
+
+  return summary;
 }
