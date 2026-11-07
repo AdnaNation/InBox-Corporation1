@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
+import { releaseWorkspaceContactUsage } from "@/lib/plan-limits";
 
 export const runtime = "nodejs";
 
@@ -130,6 +131,7 @@ export async function DELETE(request, { params }) {
     );
   }
 
+  await releaseWorkspaceContactUsage(db, workspaceId, 1);
   await db.collection("groups").updateMany(
     { workspaceId },
     {
