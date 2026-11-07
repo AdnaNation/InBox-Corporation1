@@ -18,8 +18,9 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const workspaceIdValue = searchParams.get("workspaceId") || "";
     const phoneNumberId = searchParams.get("phoneNumberId") || "";
-    if (!ObjectId.isValid(workspaceIdValue) || !/^\d{5,30}$/.test(phoneNumberId)) {
-      return NextResponse.json({ success: false, message: "A valid workspace and Phone Number ID are required." }, { status: 400 });
+    const after = searchParams.get("after") || "";
+    if (!ObjectId.isValid(workspaceIdValue) || !/^\d{5,30}$/.test(phoneNumberId) || after.length > 1024) {
+      return NextResponse.json({ success: false, message: "A valid workspace, Phone Number ID, and pagination cursor are required." }, { status: 400 });
     }
 
     const db = await getDatabase();
@@ -34,6 +35,7 @@ export async function GET(request) {
     const url = new URL(`https://graph.facebook.com/${apiVersion}/${account.wabaId}/message_templates`);
     url.searchParams.set("fields", "id,name,status,language,category,quality_score,rejected_reason");
     url.searchParams.set("limit", "100");
+    if (after) url.searchParams.set("after", after);
 
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -59,7 +61,8 @@ export async function GET(request) {
         qualityScore: template.quality_score?.score || null,
         rejectedReason: template.rejected_reason || null,
       })),
-      hasMore: Boolean(result.paging?.next),
+      hasMore: Boolean(result.paging?.cursors?.after && result.paging?.next),
+      nextCursor: result.paging?.next ? result.paging?.cursors?.after || null : null,
       account: {
         businessName: account.businessName || "",
         displayPhoneNumber: account.displayPhoneNumber || "",
