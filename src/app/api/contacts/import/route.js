@@ -4,7 +4,7 @@ import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { normalizePhoneNumber } from "@/lib/contact-utils";
 import { isSameOrigin } from "@/lib/security";
-import { checkWorkspacePlanLimit } from "@/lib/plan-limits";
+import { reserveWorkspaceContactUsage, releaseWorkspaceContactUsage } from "@/lib/plan-limits";
 
 export const runtime = "nodejs";
 
@@ -56,6 +56,8 @@ function parseCSV(text) {
 }
 
 export async function POST(request) {
+  let contactReservation = 0;
+  let reservationWorkspaceId = null;
   if (!isSameOrigin(request)) {
     return NextResponse.json(
       { success: false, message: "Invalid origin." },
@@ -221,7 +223,9 @@ export async function POST(request) {
 
     // Only genuinely new contacts consume plan capacity. Re-importing an
     // existing CSV must not be rejected just because the workspace is full.
-    const quota = await checkWorkspacePlanLimit(db, workspaceId, "contacts", newContacts.length);
+    const quota = await reserveWorkspaceContactUsage(db, workspaceId, newContacts.length);
+    contactReservation = newContacts.length;
+    reservationWorkspaceId = workspaceId;
     if (!quota.allowed) {
       return NextResponse.json({ success: false, code: "PLAN_LIMIT_REACHED", message: quota.reason, plan: quota.plan, usage: quota.usage, limits: quota.limits }, { status: 429 });
     }
@@ -254,6 +258,9 @@ export async function POST(request) {
     const result = await db.collection("contacts").bulkWrite(operations, {
       ordered: false,
     });
+    contactReservation = 0;
+    const unusedReservation = newContacts.length - result.upsertedCount;
+    if (unusedReservation > 0) await releaseWorkspaceContactUsage(db, workspaceId, unusedReservation);
 
     return NextResponse.json({
       success: true,
@@ -264,6 +271,10 @@ export async function POST(request) {
       invalid: invalidRows,
     });
   } catch (error) {
+    if (contactReservation > 0 && reservationWorkspaceId) {
+      const insertedCount = Number(error?.result?.upsertedCount || 0);
+      await releaseWorkspaceContactUsage(await getDatabase(), reservationWorkspaceId, Math.max(0, contactReservation - insertedCount)).catch(() => {});
+    }
     console.error("CSV contact import error:", error);
 
     return NextResponse.json(
