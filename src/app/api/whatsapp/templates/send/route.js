@@ -289,7 +289,13 @@ export async function POST(request) {
       );
     }
 
-    const suppression = await findActiveContactSuppression(db, workspaceId, conversation.waId);
+    let suppression;
+    try {
+      suppression = await findActiveContactSuppression(db, workspaceId, conversation.waId);
+    } catch (error) {
+      await releaseWorkspaceMessageUsage(db, workspaceId, 1);
+      throw error;
+    }
     if (suppression) {
       await releaseWorkspaceMessageUsage(db, workspaceId, 1);
       return NextResponse.json(
