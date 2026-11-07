@@ -132,7 +132,13 @@ export async function POST(request) {
       return NextResponse.json({ success: false, code: "PLAN_LIMIT_REACHED", message: quota.reason, plan: quota.plan, usage: quota.usage, limits: quota.limits }, { status: 429 });
     }
 
-    const suppression = await findActiveContactSuppression(db, workspaceId, conversation.waId);
+    let suppression;
+    try {
+      suppression = await findActiveContactSuppression(db, workspaceId, conversation.waId);
+    } catch (error) {
+      await releaseWorkspaceMessageUsage(db, workspaceId, 1);
+      throw error;
+    }
     if (suppression) {
       await releaseWorkspaceMessageUsage(db, workspaceId, 1);
       return NextResponse.json(
