@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Plus,
   Search,
@@ -18,10 +18,19 @@ import {
 import ContactCsvImport from "@/components/contact-csv-import";
 import { showAlert, showConfirm } from "@/lib/swal";
 
-export default function ContactsClient({ initialContacts = [] }) {
+export default function ContactsClient({
+  initialContacts = [],
+  initialPagination = { limit: 200, hasMore: false, nextCursor: null },
+  initialTags = [],
+}) {
   const [contacts, setContacts] = useState(initialContacts);
+  const [pagination, setPagination] = useState(initialPagination);
+  const [availableTags, setAvailableTags] = useState(initialTags);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [search, setSearch] = useState("");
   const [tagFilter, setTagFilter] = useState("all");
+  const skipInitialSearch = useRef(true);
 
   const [form, setForm] = useState({
     name: "",
@@ -44,25 +53,67 @@ export default function ContactsClient({ initialContacts = [] }) {
   const [consentConfirmed, setConsentConfirmed] = useState(false);
   const [savingConsent, setSavingConsent] = useState(false);
 
-  // Refresh contacts after CSV import
-  async function refreshContacts() {
-    const response = await fetch("/api/contacts", {
-      cache: "no-store",
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
+  // Refresh the first page after imports, search changes, or tag filters.
+  const refreshContacts = useCallback(async () => {
+    setSearching(true);
+    try {
+      const params = new URLSearchParams({ limit: "200" });
+      if (search.trim()) params.set("q", search.trim());
+      if (tagFilter !== "all") params.set("tag", tagFilter);
+      const response = await fetch(`/api/contacts?${params.toString()}`, {
+        cache: "no-store",
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Could not load contacts.");
+      }
       setContacts(data.contacts || []);
+      setPagination(data.pagination || { limit: 200, hasMore: false, nextCursor: null });
+      setAvailableTags(data.availableTags || []);
+    } catch (error) {
+      setError(error.message || "Could not load contacts.");
+    } finally {
+      setSearching(false);
+    }
+  }, [search, tagFilter]);
+
+  useEffect(() => {
+    if (skipInitialSearch.current) {
+      skipInitialSearch.current = false;
+      return;
+    }
+    const timer = setTimeout(() => {
+      refreshContacts();
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [refreshContacts]);
+
+  async function loadMoreContacts() {
+    if (!pagination.nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const params = new URLSearchParams({
+        limit: String(pagination.limit || 200),
+        cursor: pagination.nextCursor,
+      });
+      if (search.trim()) params.set("q", search.trim());
+      if (tagFilter !== "all") params.set("tag", tagFilter);
+      const response = await fetch(`/api/contacts?${params.toString()}`, {
+        cache: "no-store",
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Could not load more contacts.");
+      }
+      setContacts((current) => [...current, ...(data.contacts || [])]);
+      setPagination(data.pagination || { limit: 200, hasMore: false, nextCursor: null });
+      setAvailableTags(data.availableTags || []);
+    } catch (error) {
+      setError(error.message || "Could not load more contacts.");
+    } finally {
+      setLoadingMore(false);
     }
   }
-
-  // Get all unique tags from loaded contacts
-  const availableTags = useMemo(() => {
-    return [
-      ...new Set(contacts.flatMap((contact) => contact.tags || [])),
-    ].sort();
-  }, [contacts]);
 
   // Search and filter contacts
   const filtered = useMemo(() => {
