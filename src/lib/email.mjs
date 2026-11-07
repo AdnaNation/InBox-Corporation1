@@ -6,7 +6,7 @@ export async function sendVerificationEmail({ to, token, origin }) {
   }
 
   const verifyUrl = new URL("/verify-email", origin);
-  verifyUrl.searchParams.set("token", token);
+  verifyUrl.hash = "token=" + encodeURIComponent(token);
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
