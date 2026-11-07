@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { MongoClient, ObjectId } from "mongodb";
-import { findActiveContactSuppression } from "../../src/lib/contact-suppression.mjs";
+import { findActiveContactSuppression, getActiveSuppressedPhones } from "../../src/lib/contact-suppression.mjs";
 
 const mongoUri = process.env.MONGODB_URI;
 if (!mongoUri) throw new Error("MONGODB_URI is required to run contact suppression integration tests.");
@@ -36,6 +36,10 @@ test("active and legacy suppressions block sends, while explicitly inactive reco
   assert.ok(await findActiveContactSuppression(db, workspaceId, "8801700000002"));
   assert.equal(await findActiveContactSuppression(db, workspaceId, "8801700000003"), null);
   assert.equal(await findActiveContactSuppression(db, workspaceId, ""), null);
+  assert.deepEqual(
+    (await getActiveSuppressedPhones(db, workspaceId)).sort(),
+    ["8801700000001", "8801700000002"],
+  );
 });
 
 test("suppression lookups are isolated by workspace", async () => {
@@ -50,4 +54,6 @@ test("suppression lookups are isolated by workspace", async () => {
 
   assert.equal(await findActiveContactSuppression(db, otherWorkspaceId, "8801700000004"), null);
   assert.ok(await findActiveContactSuppression(db, workspaceId, "8801700000004"));
+  assert.deepEqual(await getActiveSuppressedPhones(db, otherWorkspaceId), []);
+  assert.deepEqual(await getActiveSuppressedPhones(db, workspaceId), ["8801700000004"]);
 });
