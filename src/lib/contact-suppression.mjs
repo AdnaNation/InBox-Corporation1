@@ -1,20 +1,26 @@
 const suppressionIndexByDb = new WeakMap();
 
-async function ensureSuppressionIndex(db) {
+export async function ensureContactSuppressionIndex(db) {
   // Db instances can be recreated by client.db() for each request. Cache by
-  // the shared MongoClient so createIndex is not repeated on every send.
+  // the shared MongoClient so index inspection is not repeated on every send.
   const cacheKey = db.client || db;
   let indexPromise = suppressionIndexByDb.get(cacheKey);
   if (!indexPromise) {
-    indexPromise = db.collection("contactSuppressions")
-      .createIndex(
+    indexPromise = (async () => {
+      const collection = db.collection("contactSuppressions");
+      const indexes = await collection.listIndexes().toArray();
+      const existing = indexes.some(
+        (index) => index.key?.workspaceId === 1 && index.key?.phone === 1,
+      );
+      if (existing) return;
+      await collection.createIndex(
         { workspaceId: 1, phone: 1 },
         { name: "contact_suppression_workspace_phone" },
-      )
-      .catch((error) => {
-        suppressionIndexByDb.delete(cacheKey);
-        throw error;
-      });
+      );
+    })().catch((error) => {
+      suppressionIndexByDb.delete(cacheKey);
+      throw error;
+    });
     suppressionIndexByDb.set(cacheKey, indexPromise);
   }
   await indexPromise;
@@ -26,7 +32,7 @@ async function ensureSuppressionIndex(db) {
  */
 export async function findActiveContactSuppression(db, workspaceId, phone) {
   if (typeof phone !== "string" || !phone.trim()) return null;
-  await ensureSuppressionIndex(db);
+  await ensureContactSuppressionIndex(db);
   return db.collection("contactSuppressions").findOne(
     { workspaceId, phone: phone.trim(), active: { $ne: false } },
     { projection: { _id: 1, reason: 1, optedOutAt: 1 } },
