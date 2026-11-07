@@ -38,9 +38,9 @@ export function encodeContactCursor(contact) {
 
 
 export function escapeContactSearchQuery(value) {
-  const specialCharacters = new Set(["\\\\", "^", "$", ".", "*", "+", "?", "(", ")", "[", "]", "{", "}", "|"]);
+  const specialCharacters = new Set(["\\", "^", "$", ".", "*", "+", "?", "(", ")", "[", "]", "{", "}", "|"]);
   return Array.from(String(value ?? ""), (character) =>
-    specialCharacters.has(character) ? `\\\\${character}` : character
+    specialCharacters.has(character) ? "\\" + character : character
   ).join("");
 }
 
