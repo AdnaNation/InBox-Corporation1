@@ -7,6 +7,7 @@ import { decryptSecret } from "@/lib/crypto";
 import { applyPendingWhatsAppStatus } from "@/lib/whatsapp-status";
 import { reserveWorkspaceMessageUsage, releaseWorkspaceMessageUsage } from "@/lib/plan-limits";
 import { findActiveContactSuppression } from "@/lib/contact-suppression.mjs";
+import { isAmbiguousMetaSendResponse } from "@/lib/campaign-delivery.mjs";
 
 export const runtime = "nodejs";
 
@@ -147,7 +148,9 @@ export async function POST(request) {
       );
     }
 
-    const metaResponse = await fetch(url, {
+    let metaResponse;
+    try {
+      metaResponse = await fetch(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -164,11 +167,28 @@ export async function POST(request) {
         },
       }),
       cache: "no-store",
-    });
+      signal: AbortSignal.timeout(20000),
+      });
+    } catch (error) {
+      console.error("Meta text message outcome is unknown:", error.message);
+      return NextResponse.json({
+        success: false,
+        code: "MESSAGE_OUTCOME_UNKNOWN",
+        message: "Meta did not confirm whether this message was accepted. Check the conversation and delivery status before trying again; do not resend yet.",
+      }, { status: 502 });
+    }
 
-    const metaData = await metaResponse.json();
+    const metaData = await metaResponse.json().catch(() => null);
 
     if (!metaResponse.ok) {
+      if (isAmbiguousMetaSendResponse(metaResponse.status)) {
+        console.error("Meta text message outcome is unknown:", { status: metaResponse.status, error: metaData?.error?.message });
+        return NextResponse.json({
+          success: false,
+          code: "MESSAGE_OUTCOME_UNKNOWN",
+          message: "Meta returned an uncertain response. Check the conversation and delivery status before trying again; do not resend yet.",
+        }, { status: 502 });
+      }
       await releaseWorkspaceMessageUsage(db, workspaceId, 1);
       console.error("Meta send message error:", metaData);
 
@@ -188,11 +208,11 @@ export async function POST(request) {
 
     if (!waMessageId) {
       console.error("Meta response did not contain a message ID:", metaData);
-
-      return NextResponse.json(
-        { success: false, message: "Meta did not return a message ID." },
-        { status: 502 },
-      );
+      return NextResponse.json({
+        success: false,
+        code: "MESSAGE_OUTCOME_UNKNOWN",
+        message: "Meta returned no message ID, so delivery cannot be confirmed. Check the conversation and delivery status before trying again; do not resend yet.",
+      }, { status: 502 });
     }
 
     const now = new Date();
