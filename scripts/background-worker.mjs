@@ -6,6 +6,7 @@ const { appUrl, cronSecret, intervalMs, requestTimeoutMs } = parseBackgroundWork
 const endpoints = [
   { name: "campaign", path: "/api/cron/campaign-worker" },
   { name: "webhook", path: "/api/cron/webhook-delivery" },
+  { name: "whatsapp-health", path: "/api/cron/whatsapp-health" },
 ];
 
 let stopping = false;
