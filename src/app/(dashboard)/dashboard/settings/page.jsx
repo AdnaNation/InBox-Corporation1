@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import WebhookManager from "@/components/webhook-manager";
+import WorkspaceDataRequests from "@/components/workspace-data-requests";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,8 @@ export default async function SettingsPage() {
           <WebhookManager />
         </div>
       )}
+
+      {session.membership.role === "owner" && <WorkspaceDataRequests />}
     </div>
   );
 }
