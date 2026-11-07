@@ -148,6 +148,7 @@ export async function POST(request) {
     const validContacts = [];
     const invalidRows = [];
     const seenNumbers = new Set();
+    let duplicateRows = 0;
 
     for (let i = 0; i < dataRows.length; i++) {
       const row = dataRows[i];
@@ -168,6 +169,7 @@ export async function POST(request) {
       }
 
       if (seenNumbers.has(phone)) {
+        duplicateRows++;
         continue;
       }
 
@@ -180,7 +182,7 @@ export async function POST(request) {
         success: true,
         message: "No valid contacts found.",
         added: 0,
-        duplicates: 0,
+        duplicates: duplicateRows,
         invalid: invalidRows,
       });
     }
@@ -196,24 +198,35 @@ export async function POST(request) {
       .toArray();
     const suppressedNumbers = new Set(suppressionRows.map((item) => item.phone));
     const importableContacts = validContacts.filter((contact) => !suppressedNumbers.has(contact.phone));
+    const existingRows = importableContacts.length
+      ? await db.collection("contacts")
+        .find({ workspaceId, phone: { $in: importableContacts.map((contact) => contact.phone) } })
+        .project({ phone: 1 })
+        .toArray()
+      : [];
+    const existingNumbers = new Set(existingRows.map((item) => item.phone));
+    const newContacts = importableContacts.filter((contact) => !existingNumbers.has(contact.phone));
+    const duplicates = duplicateRows + existingNumbers.size;
 
-    if (importableContacts.length === 0) {
+    if (newContacts.length === 0) {
       return NextResponse.json({
         success: true,
-        message: "All valid numbers are already present or suppressed.",
+        message: "No new contacts to import. Existing and suppressed numbers were skipped.",
         added: 0,
-        duplicates: validContacts.length - suppressedNumbers.size,
+        duplicates,
         suppressed: suppressedNumbers.size,
         invalid: invalidRows,
       });
     }
 
-    const quota = await checkWorkspacePlanLimit(db, workspaceId, "contacts", importableContacts.length);
+    // Only genuinely new contacts consume plan capacity. Re-importing an
+    // existing CSV must not be rejected just because the workspace is full.
+    const quota = await checkWorkspacePlanLimit(db, workspaceId, "contacts", newContacts.length);
     if (!quota.allowed) {
       return NextResponse.json({ success: false, code: "PLAN_LIMIT_REACHED", message: quota.reason, plan: quota.plan, usage: quota.usage, limits: quota.limits }, { status: 429 });
     }
 
-    const operations = importableContacts.map((contact) => ({
+    const operations = newContacts.map((contact) => ({
       updateOne: {
         filter: {
           workspaceId,
@@ -246,7 +259,7 @@ export async function POST(request) {
       success: true,
       message: "CSV import completed.",
       added: result.upsertedCount,
-      duplicates: importableContacts.length - result.upsertedCount,
+      duplicates: duplicates + newContacts.length - result.upsertedCount,
       suppressed: suppressedNumbers.size,
       invalid: invalidRows,
     });
