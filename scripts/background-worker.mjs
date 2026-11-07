@@ -1,22 +1,7 @@
 import { setTimeout as sleep } from "node:timers/promises";
+import { parseBackgroundWorkerConfig, summarizeWorkerResponse } from "../src/lib/background-worker-core.mjs";
 
-const appUrl = process.env.WAVO_APP_URL?.trim().replace(/\/$/, "");
-const cronSecret = process.env.CRON_SECRET;
-const intervalMs = Number(process.env.WORKER_INTERVAL_MS || 5000);
-const requestTimeoutMs = Number(process.env.WORKER_REQUEST_TIMEOUT_MS || 45000);
-
-if (!appUrl || !/^https:\/\//i.test(appUrl)) {
-  throw new Error("WAVO_APP_URL must be the HTTPS base URL of the deployed Wavo app.");
-}
-if (!cronSecret || cronSecret.length < 32) {
-  throw new Error("CRON_SECRET must match the secret configured in the Wavo app and contain at least 32 characters.");
-}
-if (!Number.isInteger(intervalMs) || intervalMs < 2000 || intervalMs > 60000) {
-  throw new Error("WORKER_INTERVAL_MS must be an integer between 2000 and 60000.");
-}
-if (!Number.isInteger(requestTimeoutMs) || requestTimeoutMs < 5000 || requestTimeoutMs > 120000) {
-  throw new Error("WORKER_REQUEST_TIMEOUT_MS must be an integer between 5000 and 120000.");
-}
+const { appUrl, cronSecret, intervalMs, requestTimeoutMs } = parseBackgroundWorkerConfig(process.env);
 
 const endpoints = [
   { name: "campaign", path: "/api/cron/campaign-worker" },
@@ -39,26 +24,9 @@ async function invoke(endpoint) {
     signal: AbortSignal.timeout(requestTimeoutMs),
   });
 
-  let body = {};
-  try { body = await response.json(); } catch { /* Keep logs free of response bodies. */ }
-
-  if (response.status === 401 || response.status === 403) {
-    const error = new Error(endpoint.name + " worker rejected CRON_SECRET (HTTP " + response.status + ").");
-    error.fatal = true;
-    throw error;
-  }
-  if (!response.ok && response.status !== 202 && response.status !== 409 && response.status !== 429) {
-    throw new Error(endpoint.name + " worker returned HTTP " + response.status + ".");
-  }
-  return {
-    name: endpoint.name,
-    httpStatus: response.status,
-    success: body.success !== false,
-    processed: Number(body.processed || 0),
-    delivered: Number(body.delivered || 0),
-    retried: Number(body.retried || 0),
-    failed: Number(body.failed || 0),
-  };
+  let body = null;
+  try { body = await response.json(); } catch { /* Never log response bodies. */ }
+  return summarizeWorkerResponse(endpoint.name, response.status, body);
 }
 
 console.log("Wavo background worker started.");
