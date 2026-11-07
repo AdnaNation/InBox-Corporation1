@@ -162,7 +162,7 @@ export default function BillingClient() {
         )}
       </section>
 
-      <p className="text-xs leading-5 text-slate-500">Payments, invoices, automatic renewals, and automatic plan changes are not enabled yet. Submitting a request does not charge your account or change your plan. Usage figures are informational and are not plan limits.</p>
+      <p className="text-xs leading-5 text-slate-500">Payments, invoices, and automatic renewals are not enabled yet. Submitting a request does not charge your account or change your plan. Usage shows your current totals against the included limits for your selected plan.</p>
     </div>
   );
 }
