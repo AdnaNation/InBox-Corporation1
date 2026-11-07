@@ -118,7 +118,7 @@ Before onboarding real customer data:
 
 ### Workspace data request workflow
 
-Workspace owners can submit export or deletion-review requests from **Dashboard → Settings → Your workspace data**. Requests are stored in the `workspaceDataRequests` collection and appear in the platform-admin console. Only the workspace owner can submit/view requests; duplicate active requests of the same type are blocked. Status changes are recorded in both platform and workspace audit logs.
+Workspace owners can submit export or deletion-review requests from **Dashboard → Settings → Your workspace data**. Requests are stored in the `workspaceDataRequests` collection and appear in the platform-admin console. Only the workspace owner can submit/view requests; duplicate active requests of the same type are blocked. Status changes are recorded in both platform and workspace audit logs. Platform administrators must add a short operator note (up to 500 characters) when completing or rejecting a request; the note is visible in the owner's request history.
 
 The request queue is an intake and review workflow only. It does **not** generate or deliver exports, delete workspace records, revoke integrations, or notify customers automatically. Operators must complete those actions manually and only after verifying the requester and applicable obligations:
 
