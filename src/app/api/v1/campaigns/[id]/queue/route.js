@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHash } from "node:crypto";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
+import { ensureMongoIndex } from "@/lib/mongo-indexes.mjs";
 import { authenticateApiKey } from "@/lib/api-key-auth";
 import { getActiveWhatsAppAccount } from "@/lib/whatsapp-account";
 import { decryptSecret } from "@/lib/crypto";
@@ -10,15 +11,6 @@ import { enqueueWebhookEvent } from "@/lib/public-webhooks.mjs";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-let idempotencyIndexPromise;
-async function ensureIdempotencyIndex(db) {
-  if (!idempotencyIndexPromise) {
-    idempotencyIndexPromise = db.collection("apiRequestIdempotency")
-      .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: "api_request_idempotency_ttl" })
-      .catch((error) => { idempotencyIndexPromise = null; throw error; });
-  }
-  await idempotencyIndexPromise;
-}
 
 function respond(message, status, extra = {}, headers) {
   return NextResponse.json({ success: false, message, ...extra }, { status, headers });
@@ -65,7 +57,7 @@ export async function POST(request, { params }) {
   const requestHash = createHash("sha256").update(JSON.stringify([id, scheduledAt?.toISOString() || null])).digest("hex");
   const idem = db.collection("apiRequestIdempotency");
   try {
-    await ensureIdempotencyIndex(db);
+    await ensureMongoIndex(db, "apiRequestIdempotency", { expiresAt: 1 }, { expireAfterSeconds: 0, name: "api_request_idempotency_ttl" });
     await idem.insertOne({ _id: idemId, apiKeyId: auth.apiKey._id, requestHash, status: "processing", createdAt: new Date(), updatedAt: new Date(), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) });
   } catch (error) {
     if (error?.code !== 11000) {
