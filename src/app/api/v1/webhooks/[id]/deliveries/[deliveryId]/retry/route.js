@@ -38,7 +38,7 @@ export async function POST(request, { params }) {
   const result = await db.collection("webhookDeliveries").findOneAndUpdate(
     { _id: deliveryObjectId, subscriptionId, workspaceId, status: "failed" },
     {
-      $set: { status: "pending", attempts: 0, nextAttemptAt: now, updatedAt: now },
+      $set: { status: "pending", attempts: 0, nextAttemptAt: now, manualRetryAt: now, updatedAt: now },
       $inc: { manualRetries: 1 },
       $unset: { failedAt: "", lastError: "", responseStatus: "", deliveredAt: "", leaseOwner: "", leaseUntil: "" },
     },
