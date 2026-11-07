@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getDatabase } from "@/lib/db";
 import clientPromise from "@/lib/mongodb";
-import { destroySession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
 import { hashPasswordResetToken } from "@/lib/password-reset.mjs";
 
@@ -66,9 +65,6 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: "This password reset link is invalid, expired, or already used." }, { status: 400 });
     }
 
-    await destroySession().catch((cookieError) => {
-      console.error("Password reset session cookie cleanup failed:", cookieError.message);
-    });
     return NextResponse.json({ success: true, message: "Password updated. Sign in with your new password." });
   } catch (error) {
     console.error("Password reset completion error:", error.message);
