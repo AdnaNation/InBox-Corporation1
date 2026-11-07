@@ -403,5 +403,14 @@ Wavo retries non-2xx responses and transport failures with exponential backoff, 
 - `GET /webhooks` lists subscriptions.
 - `DELETE /webhooks/{subscriptionId}` disables a subscription and cancels pending deliveries.
 - `GET /webhooks/{subscriptionId}/deliveries?limit=50` returns recent delivery attempts (maximum 100).
+- `POST /webhooks/{subscriptionId}/deliveries/{deliveryId}/retry` manually requeues a terminally failed delivery. Requires `webhooks:write` and an active subscription. Only a delivery in `failed` state can be retried; pending, processing, retrying, delivered, or cancelled deliveries are not reset. The retry starts a fresh automatic attempt budget while preserving a `manualRetries` counter. Repeated or concurrent retry requests are safe: only one can transition the failed delivery.
+
+Example:
+
+```bash
+curl -X POST "https://YOUR_WAVO_DOMAIN/api/v1/webhooks/SUBSCRIPTION_ID/deliveries/DELIVERY_ID/retry" \
+  -H "Authorization: Bearer $WAVO_API_KEY"
+```
+
 
 A delivery-history response includes event type and ID, status, attempt count, response status, last error, and retry/delivery timestamps. It does not include the signing secret. The delivery worker is `GET /api/cron/webhook-delivery`; configure a scheduler to call it periodically with `Authorization: Bearer $CRON_SECRET`. Each run processes up to 20 due deliveries. The worker is not automatically scheduled by this API change.
