@@ -82,10 +82,21 @@ Successful response:
   ],
   "pagination": {
     "limit": 100,
-    "returned": 1
+    "returned": 1,
+    "hasMore": true,
+    "nextCursor": "OPAQUE_CURSOR_FROM_RESPONSE"
   }
 }
 ```
+
+When `hasMore` is true, pass the cursor back unchanged to retrieve the next page:
+
+```bash
+curl "https://YOUR_WAVO_DOMAIN/api/v1/contacts?limit=100&before=$WAVO_NEXT_CURSOR" \
+  -H "Authorization: Bearer $WAVO_API_KEY"
+```
+
+The cursor shown above is illustrative. Always use the exact `nextCursor` value returned by the API; do not decode, construct, or edit it. When `hasMore` is false, `nextCursor` is `null`.
 
 The `optedIn` field reflects the workspace's recorded consent status. A contact being present in the address book does not mean it is eligible for marketing messages.
 
@@ -262,6 +273,35 @@ Use `pagination.nextCursor` as `after` to retrieve the next page. Only approved 
 
 `GET /campaigns` requires `campaigns:read`. Optional parameters: `limit` (1–100, default 50), `status` (`draft`, `queued`, `scheduled`, `sending`, `paused`, `cancelled`, `completed`, or `completed_with_issues`), and `before` (the opaque `pagination.nextCursor` from the previous page). The response includes campaign metadata and aggregate progress, but no recipient phone numbers. Use `pagination.hasMore` and `pagination.nextCursor` to fetch the next page. Ordering uses `createdAt` and campaign ID as a stable tie-breaker, so campaigns with matching timestamps are not skipped. Treat cursors as opaque; invalid cursors return HTTP `400`.
 
+Example — first page:
+
+```bash
+curl "https://YOUR_WAVO_DOMAIN/api/v1/campaigns?limit=50&status=completed" \
+  -H "Authorization: Bearer $WAVO_API_KEY"
+```
+
+The response's `pagination` object contains `limit`, `returned`, `hasMore`, and `nextCursor`. For example:
+
+```json
+{
+  "pagination": {
+    "limit": 50,
+    "returned": 50,
+    "hasMore": true,
+    "nextCursor": "OPAQUE_CURSOR_FROM_RESPONSE"
+  }
+}
+```
+
+Example — next page (keep the returned cursor unchanged):
+
+```bash
+curl "https://YOUR_WAVO_DOMAIN/api/v1/campaigns?limit=50&status=completed&before=$WAVO_NEXT_CURSOR" \
+  -H "Authorization: Bearer $WAVO_API_KEY"
+```
+
+When `hasMore` is false, `nextCursor` is `null`. If a status filter is used, keep it on every page request so the same filtered result set is traversed.
+
 ### Get a campaign
 
 `GET /campaigns/{campaignId}` requires `campaigns:read`. It returns the campaign's configuration, lifecycle timestamps, aggregate progress, and recipient counts grouped by delivery status. Recipient phone numbers and individual recipient records are never returned. A campaign ID outside the API key's workspace is reported as `404 Campaign not found`.
@@ -346,7 +386,7 @@ Errors use JSON with `success: false` and a human-readable `message`. Some error
 | `409` | Duplicate or suppressed contact | Check the existing contact and suppression status |
 | `429` | API rate limit or workspace plan limit reached | Check `code`; for API rate limiting, wait for `Retry-After` |
 | `500` | Unexpected contact creation failure | Retry cautiously; check for a duplicate before retrying |
-| `503` | Rate-limit storage unavailable | Retry with exponential backoff |
+| `503` | A required shared store or history index is temporarily unavailable | Retry with exponential backoff; avoid tight retry loops |
 
 Known error codes include:
 
