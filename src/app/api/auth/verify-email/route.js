@@ -19,7 +19,7 @@ export async function GET(request) {
   // Email security scanners often follow links automatically. A GET must never
   // consume a one-time token; the user confirms on the interstitial page.
   const destination = new URL("/verify-email", request.url);
-  destination.searchParams.set("token", token);
+  destination.hash = "token=" + encodeURIComponent(token);
   return NextResponse.redirect(destination, {
     headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" },
   });
