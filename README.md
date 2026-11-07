@@ -104,6 +104,7 @@ The current implementation supports the standard Cloud API signup path. It does 
 - Public landing page
 - Registration, login and logout
 - One-time email verification links and a dashboard reminder for unverified accounts
+- Password reset links with one-time tokens and cross-device session invalidation
 - JWT session stored in HttpOnly cookie
 - Transactional user + workspace + owner membership creation
 - Protected dashboard
