@@ -35,3 +35,10 @@ export function ensureWorkspaceDataRequestIndexes(db) {
   }
   return indexPromise;
 }
+
+export function normalizeWorkspaceDataRequestNote(value) {
+  if (typeof value !== "string") return null;
+  const note = value.trim();
+  if (!note || note.length > 500) return null;
+  return note;
+}
