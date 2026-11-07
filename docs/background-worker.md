@@ -42,3 +42,27 @@ The process invokes both `POST /api/cron/campaign-worker` and `POST /api/cron/we
 - Keep the worker running continuously. Pausing or stopping it delays scheduled campaigns and webhook delivery; it does not delete queued work.
 - Do not configure a Vercel Hobby Cron schedule for these endpoints. A once-daily schedule is not a substitute for a continuously running worker.
 - The host may charge for an always-on worker. Check its current pricing and sleep policy before enabling it for production messaging.
+
+
+## Run the worker with Docker Compose
+
+A minimal container definition is included for a VPS or any Docker-compatible always-on host. It runs only the polling worker, not a second Next.js application.
+
+1. Copy `.env.worker.example` to `.env.worker`.
+2. Set `WAVO_APP_URL` to the deployed Wavo HTTPS origin.
+3. Set `CRON_SECRET` to exactly the same secret configured in the Vercel Production environment.
+4. Start the worker:
+
+   ```bash
+   docker compose -f docker-compose.worker.yml up -d --build
+   ```
+
+5. Inspect logs and confirm both campaign and webhook worker cycles return successful JSON summaries:
+
+   ```bash
+   docker compose -f docker-compose.worker.yml logs -f
+   ```
+
+The container runs as the unprivileged Node user, drops Linux capabilities, uses a read-only root filesystem, and restarts automatically after a host or process restart. Keep `.env.worker` private; it is ignored by Git. To stop the worker, run `docker compose -f docker-compose.worker.yml down`.
+
+This container does not create a Vercel deployment and does not contain Meta credentials. It calls only the app's protected worker endpoints over HTTPS.
