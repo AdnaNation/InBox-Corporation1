@@ -3,6 +3,8 @@ import bcrypt from "bcryptjs";
 import { getDatabase } from "@/lib/db";
 import clientPromise from "@/lib/mongodb";
 import { isSameOrigin } from "@/lib/security";
+import { initializeDatabase } from "@/lib/database";
+import { consumeAuthRateLimits } from "@/lib/auth-rate-limit.mjs";
 import { hashPasswordResetToken } from "@/lib/password-reset.mjs";
 
 export const runtime = "nodejs";
@@ -31,9 +33,32 @@ export async function POST(request) {
 
   let session;
   try {
+    await initializeDatabase();
+    const db = await getDatabase();
+    const forwardedIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      || request.headers.get("x-real-ip")?.trim()
+      || "";
+    const rateLimit = await consumeAuthRateLimits(db, [
+      { scope: "password-reset-complete-token", identity: tokenHash, limit: 5 },
+      ...(forwardedIp ? [{ scope: "password-reset-complete-ip", identity: forwardedIp, limit: 10 }] : []),
+    ]);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, message: "Too many password reset attempts. Request a new link or try again later." },
+        { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } },
+      );
+    }
+
+    const availableToken = await db.collection("passwordResetTokens").findOne(
+      { tokenHash, status: "pending", expiresAt: { $gt: new Date() } },
+      { projection: { _id: 1 } },
+    );
+    if (!availableToken) {
+      return NextResponse.json({ success: false, message: "This password reset link is invalid, expired, or already used." }, { status: 400 });
+    }
+
     const passwordHash = await bcrypt.hash(password, 12);
     const client = await clientPromise;
-    const db = await getDatabase();
     session = client.startSession();
     let updated = false;
 
