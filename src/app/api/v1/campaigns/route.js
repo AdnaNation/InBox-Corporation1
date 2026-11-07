@@ -5,11 +5,27 @@ import { authenticateApiKey } from "@/lib/api-key-auth";
 import { getActiveWhatsAppAccount } from "@/lib/whatsapp-account";
 import { checkWorkspacePlanLimit } from "@/lib/plan-limits";
 import { enqueueWebhookEvent } from "@/lib/public-webhooks.mjs";
+import { decodeCampaignCursor, encodeCampaignCursor } from "@/lib/campaign-pagination.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const CAMPAIGN_STATUSES = new Set(["draft", "queued", "scheduled", "sending", "paused", "cancelled", "completed", "completed_with_issues"]);
+const campaignHistoryIndexByDb = new WeakMap();
+
+async function ensureCampaignHistoryIndex(db) {
+  let indexPromise = campaignHistoryIndexByDb.get(db);
+  if (!indexPromise) {
+    indexPromise = db.collection("campaigns")
+      .createIndex({ workspaceId: 1, createdAt: -1, _id: -1 }, { name: "public_api_campaign_history" })
+      .catch((error) => {
+        campaignHistoryIndexByDb.delete(db);
+        throw error;
+      });
+    campaignHistoryIndexByDb.set(db, indexPromise);
+  }
+  await indexPromise;
+}
 
 function authError(auth) {
   return NextResponse.json(
@@ -31,14 +47,34 @@ export async function GET(request) {
   if (status && !CAMPAIGN_STATUSES.has(status)) {
     return NextResponse.json({ success: false, message: "Unsupported campaign status." }, { status: 400 });
   }
+  const cursorValue = searchParams.get("before");
+  const cursor = cursorValue ? decodeCampaignCursor(cursorValue) : null;
+  if (cursorValue && !cursor) {
+    return NextResponse.json({ success: false, message: "The before cursor is invalid." }, { status: 400 });
+  }
 
   const db = await getDatabase();
+  try {
+    await ensureCampaignHistoryIndex(db);
+  } catch (error) {
+    console.error("Public API campaign history index unavailable:", error);
+    return NextResponse.json({ success: false, message: "Campaign history is temporarily unavailable." }, { status: 503 });
+  }
   const filter = { workspaceId: new ObjectId(auth.apiKey.workspaceId) };
   if (status) filter.status = status;
-  const campaigns = await db.collection("campaigns").find(filter)
-    .sort({ createdAt: -1, _id: -1 }).limit(limitValue)
+  if (cursor) {
+    filter.$or = [
+      { createdAt: { $lt: cursor.createdAt } },
+      { createdAt: cursor.createdAt, _id: { $lt: new ObjectId(cursor.id) } },
+    ];
+  }
+  const records = await db.collection("campaigns").find(filter)
+    .sort({ createdAt: -1, _id: -1 }).limit(limitValue + 1)
     .project({ name: 1, audience: 1, template: 1, targetCount: 1, recipientCount: 1, status: 1, progress: 1, scheduledAt: 1, createdAt: 1, updatedAt: 1, completedAt: 1, cancelledAt: 1, cancelReason: 1, pauseReason: 1 })
     .toArray();
+  const hasMore = records.length > limitValue;
+  const campaigns = records.slice(0, limitValue);
+  const last = campaigns[campaigns.length - 1];
 
   return NextResponse.json({
     success: true,
@@ -59,7 +95,7 @@ export async function GET(request) {
       cancelledAt: campaign.cancelledAt || null,
       cancelReason: campaign.cancelReason || null,
     })),
-    pagination: { limit: limitValue, returned: campaigns.length },
+    pagination: { limit: limitValue, returned: campaigns.length, hasMore, nextCursor: hasMore && last?.createdAt ? encodeCampaignCursor(last) : null },
   });
 }
 
