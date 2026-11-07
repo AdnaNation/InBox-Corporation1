@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
+import { ensureMongoIndex } from "@/lib/mongo-indexes.mjs";
 import { authenticateApiKey } from "@/lib/api-key-auth";
 import { normalizePhoneNumber } from "@/lib/contact-utils";
 import { checkWorkspacePlanLimit } from "@/lib/plan-limits";
@@ -9,24 +10,6 @@ import { buildContactHistoryFilter, decodeContactCursor, encodeContactCursor } f
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const contactHistoryIndexByDb = new WeakMap();
-
-async function ensureContactHistoryIndex(db) {
-  let indexPromise = contactHistoryIndexByDb.get(db);
-  if (!indexPromise) {
-    indexPromise = db.collection("contacts")
-      .createIndex(
-        { workspaceId: 1, createdAt: -1, _id: -1 },
-        { name: "public_api_contact_history" },
-      )
-      .catch((error) => {
-        contactHistoryIndexByDb.delete(db);
-        throw error;
-      });
-    contactHistoryIndexByDb.set(db, indexPromise);
-  }
-  await indexPromise;
-}
 
 const CONSENT_SOURCES = new Set([
   "website_form",
@@ -59,7 +42,7 @@ export async function GET(request) {
   const filter = buildContactHistoryFilter(workspaceId, cursor);
   const db = await getDatabase();
   try {
-    await ensureContactHistoryIndex(db);
+    await ensureMongoIndex(db, "contacts", { workspaceId: 1, createdAt: -1, _id: -1 }, { name: "public_api_contact_history" });
   } catch (error) {
     console.error("Public API contact history index unavailable:", error);
     return NextResponse.json({ success: false, message: "Contact history is temporarily unavailable." }, { status: 503 });
