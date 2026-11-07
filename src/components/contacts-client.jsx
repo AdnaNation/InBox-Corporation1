@@ -32,6 +32,7 @@ export default function ContactsClient({
   const [tagFilter, setTagFilter] = useState("all");
   const skipInitialSearch = useRef(true);
   const searchRequestId = useRef(0);
+  const pageGenerationRef = useRef(0);
   const activeFilterRef = useRef("");
   activeFilterRef.current = `${search.trim()}\u0000${tagFilter}`;
 
@@ -59,6 +60,7 @@ export default function ContactsClient({
   // Refresh the first page after imports, search changes, or tag filters.
   const refreshContacts = useCallback(async () => {
     const requestId = ++searchRequestId.current;
+    pageGenerationRef.current += 1;
     setSearching(true);
     try {
       const params = new URLSearchParams({ limit: "200" });
@@ -98,6 +100,7 @@ export default function ContactsClient({
   async function loadMoreContacts() {
     if (!pagination.nextCursor || loadingMore) return;
     const requestedFilter = `${search.trim()}\u0000${tagFilter}`;
+    const requestedGeneration = pageGenerationRef.current;
     setLoadingMore(true);
     try {
       const params = new URLSearchParams({
@@ -110,7 +113,7 @@ export default function ContactsClient({
         cache: "no-store",
       });
       const data = await response.json();
-      if (requestedFilter !== activeFilterRef.current) return;
+      if (requestedFilter !== activeFilterRef.current || requestedGeneration !== pageGenerationRef.current) return;
       if (!response.ok || !data.success) {
         throw new Error(data.message || "Could not load more contacts.");
       }
@@ -118,7 +121,7 @@ export default function ContactsClient({
       setPagination(data.pagination || { limit: 200, hasMore: false, nextCursor: null });
       setAvailableTags(data.availableTags || []);
     } catch (error) {
-      if (requestedFilter === activeFilterRef.current) {
+      if (requestedFilter === activeFilterRef.current && requestedGeneration === pageGenerationRef.current) {
         setError(error.message || "Could not load more contacts.");
       }
     } finally {
@@ -263,12 +266,7 @@ export default function ContactsClient({
         return;
       }
 
-      setContacts((current) =>
-        current.map((contact) =>
-          contact.id === contactId ? { ...contact, tags: data.tags } : contact,
-        ),
-      );
-      setAvailableTags((current) => [...new Set([...current, ...data.tags])].sort());
+      await refreshContacts();
 
       setEditingId(null);
       setTagDraft([]);
@@ -335,6 +333,7 @@ export default function ContactsClient({
       }
 
       setContacts((current) => current.filter((contact) => contact.id !== id));
+      await refreshContacts();
     } catch {
       await showAlert({ title: "Network error", text: "Please check your connection and try again.", icon: "error" });
     }
