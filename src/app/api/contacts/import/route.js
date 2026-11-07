@@ -58,6 +58,7 @@ function parseCSV(text) {
 export async function POST(request) {
   let contactReservation = 0;
   let reservationWorkspaceId = null;
+  let reservationDb = null;
   if (!isSameOrigin(request)) {
     return NextResponse.json(
       { success: false, message: "Invalid origin." },
@@ -190,6 +191,7 @@ export async function POST(request) {
     }
 
     const db = await getDatabase();
+    reservationDb = db;
     const workspaceId = new ObjectId(session.workspace.id);
     const userId = new ObjectId(session.user.id);
     const now = new Date();
@@ -274,7 +276,7 @@ export async function POST(request) {
     if (contactReservation > 0 && reservationWorkspaceId) {
       const insertedCount = error?.result?.upsertedCount;
       if (Number.isInteger(insertedCount) && contactReservation > insertedCount) {
-        await releaseWorkspaceContactUsage(await getDatabase(), reservationWorkspaceId, contactReservation - insertedCount).catch(() => {});
+        await releaseWorkspaceContactUsage(reservationDb, reservationWorkspaceId, contactReservation - insertedCount).catch(() => {});
       }
     }
     console.error("CSV contact import error:", error);
