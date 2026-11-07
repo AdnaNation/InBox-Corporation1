@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Plus,
   Search,
@@ -115,21 +115,8 @@ export default function ContactsClient({
     }
   }
 
-  // Search and filter contacts
-  const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase();
-
-    return contacts.filter((contact) => {
-      const matchesSearch =
-        !query ||
-        `${contact.name} ${contact.phone}`.toLowerCase().includes(query);
-
-      const matchesTag =
-        tagFilter === "all" || (contact.tags || []).includes(tagFilter);
-
-      return matchesSearch && matchesTag;
-    });
-  }, [contacts, search, tagFilter]);
+  // The server applies search and tag filters across every page.
+  const filtered = contacts;
 
   // Add contacts
   async function addContact(event) {
