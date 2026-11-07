@@ -189,17 +189,7 @@ export default function ContactsClient({
         return;
       }
 
-      if (data.contacts?.length) {
-        setContacts((current) => {
-          const existingIds = new Set(current.map((item) => item.id));
-
-          const newContacts = data.contacts.filter(
-            (item) => !existingIds.has(item.id),
-          );
-
-          return [...newContacts, ...current];
-        });
-      }
+      await refreshContacts();
 
       setNotice(
         `${data.added ?? data.contacts?.length ?? 0} added, ` +
@@ -280,6 +270,7 @@ export default function ContactsClient({
           contact.id === contactId ? { ...contact, tags: data.tags } : contact,
         ),
       );
+      setAvailableTags((current) => [...new Set([...current, ...data.tags])].sort());
 
       setEditingId(null);
       setTagDraft([]);
@@ -723,6 +714,20 @@ export default function ContactsClient({
               </div>
             )}
           </div>
+
+          {pagination.hasMore && (
+            <div className="flex justify-center border-t border-slate-100 p-4">
+              <button
+                type="button"
+                onClick={loadMoreContacts}
+                disabled={loadingMore || searching}
+                className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loadingMore && <Loader2 size={15} className="animate-spin" />}
+                {loadingMore ? "Loading contacts..." : "Load more contacts"}
+              </button>
+            </div>
+          )}
         </section>
       {consentContact && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
