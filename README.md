@@ -111,6 +111,7 @@ The current implementation supports the standard Cloud API signup path. It does 
 - Transactional user + workspace + owner membership creation
 - Protected dashboard
 - Workspace-scoped contacts CRUD
+- Owner-only workspace data export/deletion request intake with platform-admin review and audit history (fulfillment remains manual)
 - WhatsApp account credentials stored encrypted at rest
 - Send an approved WhatsApp template to a contact
 - Meta webhook verification and inbound/status event storage
@@ -128,7 +129,7 @@ This is a runnable MVP foundation, not a finished, audited commercial SaaS. Befo
 - Production queue scheduling, configurable per-number pacing, lease recovery, operator review tools and monitoring for the campaign worker
 - Subscription billing, usage metering and payment webhook verification
 - Consent evidence, suppression lists, opt-out handling, template approval checks and policy enforcement
-- Data retention, exports/deletion, monitoring, backups and security review
+- Automated export delivery and deletion execution, data-retention policy enforcement, monitoring, backups and security review
 
 The single-contact endpoint sends one approved template to one opted-in contact. Campaign drafts require explicit queueing. The protected campaign worker processes one recipient per invocation and requires a CRON_SECRET of at least 32 characters. Configure that secret in the deployment environment and call GET or POST /api/cron/campaign-worker with Authorization: Bearer <CRON_SECRET>. Vercel Cron uses GET; a cron schedule must be added to vercel.json after confirming the Vercel plan supports the desired frequency. Do not expose the secret in browser code. Ambiguous network outcomes and processing leases older than five minutes are marked unknown for manual reconciliation; they are not automatically resent. Workspace users can pause queued/sending campaigns and resume paused campaigns from the campaign review page. A request already in flight may still finish after pausing. HTTP 401/403 from Meta pauses the campaign and leaves that recipient pending until the account is repaired. Recipients marked unknown can be manually reconciled from the campaign review page as delivered or failed, with an audit note, reviewer and timestamp. Manual reconciliation never sends or retries a message. Campaign worker invocations also acquire a database lease keyed by WhatsApp Phone Number ID, preventing concurrent sends through the same number across campaigns. A successful worker invocation enforces a two-second cooldown before that number can be claimed again; abandoned leases expire after 90 seconds.
 
@@ -140,7 +141,7 @@ The internal platform admin console is available at `/dashboard/platform-admin`.
 PLATFORM_ADMIN_EMAILS=admin@example.com,owner@example.com
 ```
 
-Add this variable in Vercel Project Settings → Environment Variables, then redeploy. It is not a `NEXT_PUBLIC_` variable. Workspace owners and admins do not automatically receive platform-wide access. The console can review plan requests, activate plans, change workspace plans, and suspend/reactivate workspaces; actions are recorded in `platformAdminAuditLogs`. Plan activation is manual and does not collect payment.
+Add this variable in Vercel Project Settings → Environment Variables, then redeploy. It is not a `NEXT_PUBLIC_` variable. Workspace owners and admins do not automatically receive platform-wide access. The console can review plan requests, activate plans, change workspace plans, suspend/reactivate workspaces, and review customer export/deletion requests; actions are recorded in `platformAdminAuditLogs`. Data request completion is an operator attestation and does not automatically export or delete records. Plan activation is manual and does not collect payment.
 
 ## Vercel deployment
 
