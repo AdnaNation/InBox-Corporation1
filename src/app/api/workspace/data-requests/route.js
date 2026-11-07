@@ -26,7 +26,7 @@ async function ensureIndexes(collection) {
     {
       name: "one_pending_data_request_per_workspace_type",
       unique: true,
-      partialFilterExpression: { status: "pending" },
+      partialFilterExpression: { active: true },
     },
   );
   await collection.createIndex({ workspaceId: 1, createdAt: -1 }, { name: "workspace_data_request_history" });
@@ -94,6 +94,7 @@ export async function POST(request) {
         workspaceName: session.workspace.name,
         type,
         status: "pending",
+        active: true,
         requestedBy: actorId,
         requesterName: session.user.name || "",
         requesterEmail: session.user.email,
