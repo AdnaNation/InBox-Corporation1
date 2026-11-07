@@ -31,6 +31,7 @@ export async function POST(request) {
   let campaignId = null;
   let campaignUsageReserved = false;
   let campaignUsageCommitted = false;
+  let campaignUsageWorkspaceId = null;
   const db = await getDatabase();
 
   try {
@@ -66,6 +67,7 @@ export async function POST(request) {
     }
 
     const workspaceId = new ObjectId(session.workspace.id);
+    campaignUsageWorkspaceId = workspaceId;
 
     // A connected account is required, but we do not call Meta here.
     const account = await getActiveWhatsAppAccount(db, workspaceId);
@@ -298,7 +300,7 @@ export async function POST(request) {
     }
 
     if (campaignUsageReserved && !campaignUsageCommitted) {
-      await releaseWorkspaceCampaignUsage(db, workspaceId).catch((releaseError) => {
+      await releaseWorkspaceCampaignUsage(db, campaignUsageWorkspaceId).catch((releaseError) => {
         console.error("Campaign usage reservation release failed:", releaseError);
       });
     }
