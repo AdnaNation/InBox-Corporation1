@@ -531,8 +531,8 @@ export default function ContactsClient({
                 {exporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
                 {exporting ? "Exporting..." : "Export CSV"}
               </button>
-  
-            )}          </div>
+            )}
+          </div>
 
           {/* Tag Filter */}
           <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 p-4">
