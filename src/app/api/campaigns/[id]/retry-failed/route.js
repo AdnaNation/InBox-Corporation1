@@ -5,6 +5,7 @@ import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
 import { decryptSecret } from "@/lib/crypto";
+import { getActiveWhatsAppAccount } from "@/lib/whatsapp-account";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,7 +45,10 @@ export async function POST(request, { params }) {
       return NextResponse.json({ success: false, message: "There are no failed recipients to retry." }, { status: 409 });
     }
 
-    const account = await db.collection("whatsappAccounts").findOne({ workspaceId, status: "connected" });
+    // Retry against the exact number originally assigned to this campaign.
+    // Falling back to the currently active number is only for legacy campaigns
+    // created before campaign-level phoneNumberId routing was stored.
+    const account = await getActiveWhatsAppAccount(db, workspaceId, campaign.phoneNumberId || null);
     if (!account?.wabaId || !account?.phoneNumberId || !account?.accessTokenEncrypted) {
       return NextResponse.json({ success: false, message: "Reconnect a WhatsApp Business Account before retrying." }, { status: 400 });
     }
