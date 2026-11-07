@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isValidWebhookTarget, signWebhookPayload, verifyWebhookSignature, WEBHOOK_EVENT_TYPES } from "../../src/lib/public-webhooks.mjs";
+import { isValidWebhookTarget, signWebhookPayload, verifyWebhookSignature, WEBHOOK_EVENT_TYPES, WEBHOOK_EVENT_CATALOG } from "../../src/lib/public-webhooks.mjs";
 
 test("webhook target validation requires a public HTTPS hostname shape", () => {
   assert.equal(isValidWebhookTarget("https://example.com/hooks/wavo"), true);
@@ -27,4 +27,14 @@ test("only documented event types are supported", () => {
     "campaign.created", "campaign.queued", "campaign.paused",
     "campaign.resumed", "campaign.cancelled", "campaign.completed",
   ]);
+});
+
+
+test("webhook event catalog documents real events and the test-only event", () => {
+  assert.deepEqual(WEBHOOK_EVENT_CATALOG.map((item) => item.type), [
+    ...WEBHOOK_EVENT_TYPES, "webhook.test",
+  ]);
+  assert.equal(WEBHOOK_EVENT_CATALOG.every((item) => item.description.length > 0), true);
+  assert.equal(WEBHOOK_EVENT_CATALOG.find((item) => item.type === "webhook.test").testable, true);
+  assert.equal(WEBHOOK_EVENT_TYPES.includes("webhook.test"), false);
 });
