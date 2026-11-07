@@ -8,7 +8,14 @@ export async function ensureContactSuppressionIndex(db) {
   if (!indexPromise) {
     indexPromise = (async () => {
       const collection = db.collection("contactSuppressions");
-      const indexes = await collection.listIndexes().toArray();
+      let indexes = [];
+      try {
+        indexes = await collection.listIndexes().toArray();
+      } catch (error) {
+        // MongoDB raises NamespaceNotFound before the first suppression is
+        // written. createIndex below safely creates the collection.
+        if (error?.code !== 26 && error?.codeName !== "NamespaceNotFound") throw error;
+      }
       const existing = indexes.some(
         (index) => index.key?.workspaceId === 1 && index.key?.phone === 1,
       );
