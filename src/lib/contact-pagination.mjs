@@ -44,7 +44,7 @@ export function buildContactQueryFilter(workspaceId, { cursor = null, query = ""
 
   if (normalizedQuery) {
     const escapedQuery = normalizedQuery.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&");
-    const phoneQuery = normalizedQuery.replace(/\\D/g, "");
+    const phoneQuery = normalizedQuery.replace(/\D/g, "");
     const searchConditions = [{ name: { $regex: escapedQuery, $options: "i" } }];
     if (phoneQuery) searchConditions.push({ phone: { $regex: phoneQuery } });
     clauses.push({ $or: searchConditions });
