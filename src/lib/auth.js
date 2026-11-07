@@ -85,6 +85,7 @@ export async function getSession() {
         id: user._id.toString(),
         name: user.name,
         email: user.email,
+        emailVerified: user.emailVerified === true,
         role: user.role,
       },
       workspace: {

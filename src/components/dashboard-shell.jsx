@@ -39,6 +39,8 @@ export default function DashboardShell({ session, children }) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [verificationSending, setVerificationSending] = useState(false);
+  const [verificationMessage, setVerificationMessage] = useState("");
   // Avoid rendering a pathname-dependent active link until hydration is complete.
   // This keeps server HTML and the first client render identical, including when
   // Next.js rewrites or browser navigation affect the initial pathname.
@@ -56,6 +58,20 @@ export default function DashboardShell({ session, children }) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open]);
+  async function resendVerificationEmail() {
+    setVerificationSending(true);
+    setVerificationMessage("");
+    try {
+      const response = await fetch("/api/auth/verification/resend", { method: "POST" });
+      const result = await response.json();
+      setVerificationMessage(result.message || (response.ok ? "Verification email sent." : "Could not send verification email."));
+    } catch {
+      setVerificationMessage("Could not send verification email. Please try again.");
+    } finally {
+      setVerificationSending(false);
+    }
+  }
+
   async function logout() {
     const response = await fetch("/api/auth/logout", { method: "POST" });
     if (response.ok) {
@@ -161,7 +177,26 @@ export default function DashboardShell({ session, children }) {
           <div id="mobile-dashboard-navigation" className="relative h-full w-[min(20rem,calc(100vw-2.5rem))] overflow-hidden shadow-xl">{sidebar}</div>
         </div>
       )}
-      <main className="min-w-0 flex-1 pt-16 lg:ml-64 lg:pt-0">{children}</main>
+      <main className="min-w-0 flex-1 pt-16 lg:ml-64 lg:pt-0">
+        {session.user.emailVerified === false && (
+          <section className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-950 sm:px-8" aria-label="Email verification">
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold">Verify your email address</p>
+              <p className="mt-0.5 text-amber-800">Confirm {session.user.email} to help secure your account and make recovery easier.</p>
+              {verificationMessage && <p className="mt-1" role="status">{verificationMessage}</p>}
+            </div>
+            <button
+              type="button"
+              onClick={resendVerificationEmail}
+              disabled={verificationSending}
+              className="shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {verificationSending ? "Sending…" : "Resend verification email"}
+            </button>
+          </section>
+        )}
+        {children}
+      </main>
     </div>
   );
 }

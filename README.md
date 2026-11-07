@@ -21,7 +21,7 @@ JavaScript-only Next.js App Router starter for a multi-tenant WhatsApp Business 
 ## Setup
 
 1. Extract the ZIP.
-2. Copy `.env.example` to `.env.local`.
+2. Create `.env.local` and configure the required variables described in the sections below. The worker-specific template is `.env.worker.example`.
 3. Set `MONGODB_URI` and generate `JWT_SECRET`:
 
    ```bash
@@ -38,6 +38,20 @@ JavaScript-only Next.js App Router starter for a multi-tenant WhatsApp Business 
 5. Open http://localhost:3000 and register an account.
 6. For campaign processing, generate a separate worker secret with `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` and set it as `CRON_SECRET` in the server environment.
 
+## Email verification
+
+New accounts receive a one-time verification link by email. Links expire after 24 hours; only a SHA-256 hash of each token is stored. Signed-in users can request another link from the dashboard, with resend requests rate-limited. Existing users can continue signing in while verification is pending; verification is currently a security reminder, not an access gate.
+
+Configure these server-side Vercel environment variables:
+
+```env
+RESEND_API_KEY=your_resend_api_key
+EMAIL_FROM=Wavo <no-reply@your-verified-domain.com>
+NEXT_PUBLIC_APP_URL=https://your-production-domain.com
+```
+
+The sender domain must be verified in Resend. Never expose `RESEND_API_KEY` through a `NEXT_PUBLIC_` variable.
+
 ## Background worker
 
 Vercel Hobby does not provide the frequent schedule needed for campaigns and webhook retries. Run the standalone Node.js worker on an always-on background-worker host. See [background worker deployment](docs/background-worker.md). Start command: `npm run worker`. The worker requires `WAVO_APP_URL` and the same 32+ character `CRON_SECRET` configured on the app. Keep one worker instance running and monitor its logs; queued campaigns and webhook deliveries do not progress while the worker is stopped.
@@ -45,7 +59,7 @@ Vercel Hobby does not provide the frequent schedule needed for campaigns and web
 ## Tests
 
 - `npm run lint` — ESLint checks.
-- `npm run test:unit` — isolated unit tests, including worker configuration and response handling.
+- `npm run test:unit` — isolated unit tests, including worker configuration, response handling, and email verification tokens.
 - `MONGODB_URI=... npm run test:integration` — MongoDB-backed integration tests for persistence, consent suppression and authentication rate limits.
 
 ## Public API
@@ -83,6 +97,7 @@ The current implementation supports the standard Cloud API signup path. It does 
 
 - Public landing page
 - Registration, login and logout
+- One-time email verification links and a dashboard reminder for unverified accounts
 - JWT session stored in HttpOnly cookie
 - Transactional user + workspace + owner membership creation
 - Protected dashboard
@@ -97,7 +112,7 @@ The current implementation supports the standard Cloud API signup path. It does 
 
 This is a runnable MVP foundation, not a finished, audited commercial SaaS. Before accepting real customers or sending campaigns, implement and test:
 
-- Email verification, password reset, bot protection and account recovery
+- Password reset, bot protection and account recovery
 - CSRF/origin policy appropriate for custom domains and preview deployments
 - Admin provisioning and audited role management
 - Meta Tech Provider eligibility, App Review / Advanced Access, token-expiry handling and customer offboarding automation
