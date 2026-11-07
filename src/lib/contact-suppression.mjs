@@ -31,10 +31,20 @@ export async function ensureContactSuppressionIndex(db) {
         (index) => index.key?.workspaceId === 1 && index.key?.phone === 1,
       );
       if (conflicting) throw new Error("The workspace/phone suppression index must be unique.");
-      await collection.createIndex(
-        { workspaceId: 1, phone: 1 },
-        { unique: true },
-      );
+      try {
+        await collection.createIndex(
+          { workspaceId: 1, phone: 1 },
+          { unique: true },
+        );
+      } catch (error) {
+        // Legacy duplicate rows must not make every send fail closed. Keep
+        // the lookup index even when a unique migration cannot be applied.
+        if (error?.code !== 11000 && error?.codeName !== "DuplicateKey") throw error;
+        await collection.createIndex(
+          { workspaceId: 1, phone: 1 },
+          { name: "contact_suppression_workspace_phone" },
+        );
+      }
     })().catch((error) => {
       indexesByDatabase.delete(databaseName);
       if (!indexesByDatabase.size) suppressionIndexesByClient.delete(cacheKey);
