@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { authenticateApiKey } from "@/lib/api-key-auth";
+import { decodeMessageCursor, encodeMessageCursor } from "@/lib/message-pagination.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,25 +24,6 @@ async function ensureHistoryIndex(db) {
   await indexPromise;
 }
 const DIRECTIONS = new Set(["inbound", "outbound"]);
-
-function decodeCursor(value) {
-  if (!value || value.length > 512) return null;
-  try {
-    const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8"));
-    const timestamp = new Date(parsed.timestamp);
-    if (!ObjectId.isValid(parsed.id) || !Number.isFinite(timestamp.getTime())) return null;
-    return { id: new ObjectId(parsed.id), timestamp };
-  } catch {
-    return null;
-  }
-}
-
-function encodeCursor(message) {
-  return Buffer.from(JSON.stringify({
-    timestamp: message.timestamp.toISOString(),
-    id: message._id.toString(),
-  })).toString("base64url");
-}
 
 export async function GET(request) {
   const auth = await authenticateApiKey(request, "messages:read");
@@ -74,7 +56,7 @@ export async function GET(request) {
   }
 
   const cursorValue = searchParams.get("before");
-  const cursor = cursorValue ? decodeCursor(cursorValue) : null;
+  const cursor = cursorValue ? decodeMessageCursor(cursorValue) : null;
   if (cursorValue && !cursor) {
     return NextResponse.json({ success: false, message: "The before cursor is invalid." }, { status: 400 });
   }
@@ -142,7 +124,7 @@ export async function GET(request) {
       limit: requestedLimit,
       returned: page.length,
       hasMore,
-      nextCursor: hasMore && last?.timestamp ? encodeCursor(last) : null,
+      nextCursor: hasMore && last?.timestamp ? encodeMessageCursor(last) : null,
     },
   });
 }

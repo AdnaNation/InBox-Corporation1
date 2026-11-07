@@ -233,7 +233,7 @@ curl "https://YOUR_WAVO_DOMAIN/api/v1/messages?limit=50&direction=outbound&statu
   -H "Authorization: Bearer $WAVO_API_KEY"
 ```
 
-Use the returned `pagination.nextCursor` as the `before` parameter to fetch the next page. The cursor uses a stable timestamp and message ID ordering, so messages with the same timestamp are not skipped between pages. Treat the cursor as opaque.
+Use the returned `pagination.nextCursor` as the `before` parameter to fetch the next page. The cursor uses a stable timestamp and message ID ordering, so messages with the same timestamp are not skipped between pages. Treat the cursor as opaque. Invalid or oversized cursors return HTTP `400`.
 
 ## 11. List WhatsApp templates
 
