@@ -5,7 +5,7 @@ import { getSession } from "@/lib/auth";
 import { contactSchema } from "@/lib/schemas";
 import { normalizePhoneNumbers } from "@/lib/contact-utils";
 import { isSameOrigin } from "@/lib/security";
-import { checkWorkspacePlanLimit } from "@/lib/plan-limits";
+import { reserveWorkspaceContactUsage, releaseWorkspaceContactUsage } from "@/lib/plan-limits";
 
 export const runtime = "nodejs";
 
@@ -152,7 +152,7 @@ export async function POST(request) {
     });
   }
 
-  const quota = await checkWorkspacePlanLimit(db, workspaceId, "contacts", newNumbers.length);
+  const quota = await reserveWorkspaceContactUsage(db, workspaceId, newNumbers.length);
   if (!quota.allowed) {
     return NextResponse.json({ success: false, code: "PLAN_LIMIT_REACHED", message: quota.reason, plan: quota.plan, usage: quota.usage, limits: quota.limits }, { status: 429 });
   }
@@ -178,6 +178,8 @@ export async function POST(request) {
     const result = await collection.insertMany(documents, {
       ordered: false,
     });
+    const unusedReservation = newNumbers.length - result.insertedCount;
+    if (unusedReservation > 0) await releaseWorkspaceContactUsage(db, workspaceId, unusedReservation);
 
     const insertedContacts = documents.map((contact, index) => ({
       id: result.insertedIds[index].toString(),
@@ -203,6 +205,8 @@ export async function POST(request) {
   } catch (error) {
     // unordered insertMany may insert valid records before reporting duplicates.
     if (error.code === 11000 || error.writeErrors) {
+      const insertedCount = Number(error?.result?.insertedCount || 0);
+      if (newNumbers.length > insertedCount) await releaseWorkspaceContactUsage(db, workspaceId, newNumbers.length - insertedCount);
       const saved = await collection
         .find({
           workspaceId,
@@ -228,6 +232,7 @@ export async function POST(request) {
       });
     }
 
+    await releaseWorkspaceContactUsage(db, workspaceId, newNumbers.length).catch(() => {});
     console.error("Contact creation error:", error);
 
     return NextResponse.json(
