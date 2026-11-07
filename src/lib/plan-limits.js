@@ -133,7 +133,6 @@ export async function reserveWorkspaceMessageUsage(db, workspaceId, requested = 
   }
 
   const now = new Date();
-  const monthStart = getMonthStart(now);
   const counterId = getUsagePeriodKey(workspaceId, now);
   const counters = db.collection("planUsageCounters");
 
