@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
+import { getActiveWhatsAppAccount } from "@/lib/whatsapp-account";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
 import { enqueueWebhookEvent } from "@/lib/public-webhooks.mjs";
@@ -84,7 +85,7 @@ export async function POST(request, { params }) {
       return NextResponse.json({ success: false, message: "Only paused campaigns can be resumed." }, { status: 409 });
     }
 
-    const account = await db.collection("whatsappAccounts").findOne({ workspaceId, status: "connected" });
+    const account = await getActiveWhatsAppAccount(db, workspaceId, campaign.phoneNumberId || null);
     if (!account?.phoneNumberId || !account?.accessTokenEncrypted) {
       return NextResponse.json({ success: false, message: "Reconnect your WhatsApp account before resuming." }, { status: 409 });
     }
