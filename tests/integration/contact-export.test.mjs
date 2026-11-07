@@ -18,8 +18,15 @@ test("contact rows include consent, tags, and an ISO timestamp", () => {
     name: "Customer",
     phone: "8801712345678",
     tags: ["vip", "new"],
-    optIn: { status: true },
+    optIn: {
+      status: true,
+      consentSource: "website_form",
+      evidence: "Consent form #123",
+      date: new Date("2026-11-06T05:00:00.000Z"),
+      revokedAt: null,
+      revocationSource: "",
+    },
     createdAt: new Date("2026-11-07T05:00:00.000Z"),
   });
-  assert.equal(row, '"Customer","8801712345678","vip; new","Yes","2026-11-07T05:00:00.000Z"');
+  assert.equal(row, '"Customer","8801712345678","vip; new","Yes","website_form","Consent form #123","2026-11-06T05:00:00.000Z","","","2026-11-07T05:00:00.000Z"');
 });
