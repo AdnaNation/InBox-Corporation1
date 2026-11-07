@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { MongoClient, ObjectId } from "mongodb";
-import { findActiveContactSuppression, getActiveSuppressedPhones } from "../../src/lib/contact-suppression.mjs";
+import { ensureContactSuppressionIndex, findActiveContactSuppression, getActiveSuppressedPhones } from "../../src/lib/contact-suppression.mjs";
 
 const mongoUri = process.env.MONGODB_URI;
 if (!mongoUri) throw new Error("MONGODB_URI is required to run contact suppression integration tests.");
@@ -58,4 +58,18 @@ test("suppression lookups are isolated by workspace", async () => {
   assert.ok(await findActiveContactSuppression(db, workspaceId, "8801700000004"));
   assert.deepEqual(await getActiveSuppressedPhones(db, otherWorkspaceId), []);
   assert.deepEqual(await getActiveSuppressedPhones(db, workspaceId), ["8801700000004"]);
+});
+
+test("creates the suppression collection and lookup index on first use", async () => {
+  const isolatedClient = new MongoClient(mongoUri);
+  await isolatedClient.connect();
+  const isolatedDb = isolatedClient.db("wavo_suppression_index_" + new ObjectId().toString());
+  try {
+    await ensureContactSuppressionIndex(isolatedDb);
+    const indexes = await isolatedDb.collection("contactSuppressions").listIndexes().toArray();
+    assert.ok(indexes.some((index) => index.key?.workspaceId === 1 && index.key?.phone === 1));
+  } finally {
+    await isolatedDb.dropDatabase();
+    await isolatedClient.close();
+  }
 });
