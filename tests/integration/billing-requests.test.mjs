@@ -91,3 +91,27 @@ test("billing request index cache is shared across database handles on one conne
   await Promise.all([ensureBillingRequestIndexes(fakeDb), ensureBillingRequestIndexes(otherHandle)]);
   assert.equal(calls, 1);
 });
+
+test("billing request index setup retries after a transient failure", async () => {
+  let attempts = 0;
+  const connection = {};
+  const fakeDb = {
+    client: connection,
+    collection() {
+      return {
+        async createIndex() {
+          attempts += 1;
+          if (attempts === 1) throw new Error("temporary index failure");
+          return "one_pending_billing_request_per_workspace";
+        },
+      };
+    },
+  };
+
+  await assert.rejects(ensureBillingRequestIndexes(fakeDb), /temporary index failure/);
+  assert.equal(
+    await ensureBillingRequestIndexes(fakeDb),
+    "one_pending_billing_request_per_workspace",
+  );
+  assert.equal(attempts, 2);
+});

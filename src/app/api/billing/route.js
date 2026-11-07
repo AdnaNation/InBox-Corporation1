@@ -74,16 +74,16 @@ export async function POST(request) {
     const now = new Date();
     try {
       await db.collection("billingRequests").insertOne({
-      workspaceId,
-      workspaceName: session.workspace.name,
-      requestedBy: new ObjectId(session.user.id),
-      requesterName: session.user.name,
-      requesterEmail: session.user.email,
-      requestedPlan: plan,
-      billingCycle,
-      status: "pending",
-      createdAt: now,
-      updatedAt: now,
+        workspaceId,
+        workspaceName: session.workspace.name,
+        requestedBy: new ObjectId(session.user.id),
+        requesterName: session.user.name,
+        requesterEmail: session.user.email,
+        requestedPlan: plan,
+        billingCycle,
+        status: "pending",
+        createdAt: now,
+        updatedAt: now,
       });
     } catch (error) {
       if (error?.code === 11000) {
