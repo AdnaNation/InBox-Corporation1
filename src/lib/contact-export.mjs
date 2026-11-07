@@ -5,13 +5,20 @@ export function escapeCsvCell(value) {
 }
 
 export function serializeContactCsvRow(contact) {
+  const optIn = contact.optIn || {};
+  const formatDate = (value) => value instanceof Date
+    ? value.toISOString()
+    : value || "";
   return [
     contact.name,
     contact.phone,
     Array.isArray(contact.tags) ? contact.tags.join("; ") : "",
-    contact.optIn?.status === true ? "Yes" : "No",
-    contact.createdAt instanceof Date
-      ? contact.createdAt.toISOString()
-      : contact.createdAt || "",
+    optIn.status === true ? "Yes" : "No",
+    optIn.consentSource || optIn.source || "",
+    optIn.evidence || "",
+    formatDate(optIn.date),
+    formatDate(optIn.revokedAt),
+    optIn.revocationSource || "",
+    formatDate(contact.createdAt),
   ].map(escapeCsvCell).join(",");
 }
