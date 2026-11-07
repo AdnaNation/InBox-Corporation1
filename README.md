@@ -40,7 +40,13 @@ JavaScript-only Next.js App Router starter for a multi-tenant WhatsApp Business 
 
 ## Background worker
 
-Vercel Hobby does not provide the frequent schedule needed for campaigns and webhook retries. Run the standalone Node.js worker on an always-on background-worker host. See [background worker deployment](docs/background-worker.md). Start command: `npm run worker`.
+Vercel Hobby does not provide the frequent schedule needed for campaigns and webhook retries. Run the standalone Node.js worker on an always-on background-worker host. See [background worker deployment](docs/background-worker.md). Start command: `npm run worker`. The worker requires `WAVO_APP_URL` and the same 32+ character `CRON_SECRET` configured on the app. Keep one worker instance running and monitor its logs; queued campaigns and webhook deliveries do not progress while the worker is stopped.
+
+## Tests
+
+- `npm run lint` — ESLint checks.
+- `npm run test:unit` — isolated unit tests, including worker configuration and response handling.
+- `MONGODB_URI=... npm run test:integration` — MongoDB-backed integration tests for persistence, consent suppression and authentication rate limits.
 
 ## Public API
 
@@ -91,11 +97,11 @@ The current implementation supports the standard Cloud API signup path. It does 
 
 This is a runnable MVP foundation, not a finished, audited commercial SaaS. Before accepting real customers or sending campaigns, implement and test:
 
-- Email verification, password reset, login/registration rate limiting and bot protection
+- Email verification, password reset, bot protection and account recovery
 - CSRF/origin policy appropriate for custom domains and preview deployments
 - Admin provisioning and audited role management
 - Meta Tech Provider eligibility, App Review / Advanced Access, token-expiry handling and customer offboarding automation
-- Webhook signature verification using `META_APP_SECRET` (the included webhook endpoint verifies the challenge but deliberately does not trust unsigned POST events)
+- Automated token-expiry notifications, Meta account health checks and customer offboarding automation (the webhook endpoint verifies Meta's `X-Hub-Signature-256` POST signatures using `META_APP_SECRET`)
 - Production queue scheduling, configurable per-number pacing, lease recovery, operator review tools and monitoring for the campaign worker
 - Subscription billing, usage metering and payment webhook verification
 - Consent evidence, suppression lists, opt-out handling, template approval checks and policy enforcement
