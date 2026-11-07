@@ -114,6 +114,20 @@ export default function WebhookManager() {
     } catch (err) { setError(err.message); }
   }
 
+  async function retryDelivery(subscriptionId, deliveryId) {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const response = await fetch("/api/webhooks/" + encodeURIComponent(subscriptionId) + "/deliveries/" + encodeURIComponent(deliveryId) + "/retry", { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Could not retry webhook delivery.");
+      setNotice(data.message || "Webhook delivery queued for another attempt.");
+      const history = await fetch("/api/webhooks/" + encodeURIComponent(subscriptionId) + "/deliveries?limit=20", { cache: "no-store" });
+      const historyData = await history.json();
+      if (history.ok) setLogs((current) => ({ ...current, [subscriptionId]: historyData.data || [] }));
+    } catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  }
+
   async function copySecret() {
     try { await navigator.clipboard.writeText(secret); setNotice("Signing secret copied."); }
     catch { setError("Clipboard access failed. Select and copy the secret manually."); }
@@ -156,7 +170,7 @@ export default function WebhookManager() {
                 <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-medium text-slate-900">{item.description || "Webhook endpoint"}</p><span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${item.status === "active" ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-500"}`}>{item.status}</span></div><code className="mt-1 block break-all text-xs text-slate-500">{item.url}</code><p className="mt-1 text-xs text-slate-400">Events: {item.events.join(", ")}</p><p className="mt-1 text-xs text-slate-400">Last delivery: {item.lastDeliveryAt ? new Date(item.lastDeliveryAt).toLocaleString() : "Never"}</p></div>
                 <div className="flex shrink-0 flex-wrap gap-2">{item.status === "active" && <button type="button" disabled={busy} onClick={() => sendTest(item.id)} className="inline-flex items-center gap-2 rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-50"><Send size={14} /> Send test</button>}{item.status === "active" && <button type="button" disabled={busy} onClick={() => rotateSecret(item.id)} className="inline-flex items-center gap-2 rounded-lg border border-amber-200 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-50"><RotateCcw size={14} /> Rotate secret</button>}<button type="button" onClick={() => showDeliveries(item.id)} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Activity size={14} /> Deliveries</button>{item.status === "active" && <button type="button" disabled={busy} onClick={() => disable(item.id)} className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"><Trash2 size={14} /> Disable</button>}</div>
               </div>
-              {expanded === item.id && <div className="mt-3 rounded-xl bg-slate-50 p-3">{!logs[item.id] ? <p className="text-xs text-slate-500">Loading delivery history…</p> : logs[item.id].length === 0 ? <p className="text-xs text-slate-500">No deliveries yet.</p> : <div className="space-y-2">{logs[item.id].map((delivery) => <div key={delivery.id} className="flex flex-col gap-1 border-b border-slate-200 pb-2 last:border-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-semibold text-slate-800">{delivery.type} · {delivery.status}</p><p className="text-[11px] text-slate-500">{delivery.eventId} · {delivery.attempts} attempt(s)</p>{delivery.lastError && <p className="text-[11px] text-red-600">{delivery.lastError}</p>}</div><p className="text-[11px] text-slate-400">{delivery.deliveredAt ? new Date(delivery.deliveredAt).toLocaleString() : delivery.nextAttemptAt ? "Retry " + new Date(delivery.nextAttemptAt).toLocaleString() : new Date(delivery.createdAt).toLocaleString()}</p></div>)}</div>}</div>}
+              {expanded === item.id && <div className="mt-3 rounded-xl bg-slate-50 p-3">{!logs[item.id] ? <p className="text-xs text-slate-500">Loading delivery history…</p> : logs[item.id].length === 0 ? <p className="text-xs text-slate-500">No deliveries yet.</p> : <div className="space-y-2">{logs[item.id].map((delivery) => <div key={delivery.id} className="flex flex-col gap-1 border-b border-slate-200 pb-2 last:border-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-semibold text-slate-800">{delivery.type} · {delivery.status}</p><p className="text-[11px] text-slate-500">{delivery.eventId} · {delivery.attempts} attempt(s)</p>{delivery.lastError && <p className="text-[11px] text-red-600">{delivery.lastError}</p>}</div><div className="flex items-center gap-2"><p className="text-[11px] text-slate-400">{delivery.deliveredAt ? new Date(delivery.deliveredAt).toLocaleString() : delivery.nextAttemptAt ? "Retry " + new Date(delivery.nextAttemptAt).toLocaleString() : new Date(delivery.createdAt).toLocaleString()}</p>{delivery.status === "failed" && item.status === "active" && <button type="button" disabled={busy} onClick={() => retryDelivery(item.id, delivery.id)} className="inline-flex items-center gap-1 rounded-md border border-amber-200 px-2 py-1 text-[11px] font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-50"><RefreshCw size={12} /> Retry</button>}</div></div>)}</div>}</div>}
             </div>)}
           </div>
         )}
