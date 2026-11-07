@@ -7,6 +7,7 @@ import { getActiveWhatsAppAccount } from "@/lib/whatsapp-account";
 import { decryptSecret } from "@/lib/crypto";
 import { reserveWorkspaceMessageUsage, releaseWorkspaceMessageUsage } from "@/lib/plan-limits";
 import { applyPendingWhatsAppStatus } from "@/lib/whatsapp-status";
+import { findActiveContactSuppression } from "@/lib/contact-suppression.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -88,9 +89,7 @@ export async function POST(request) {
   });
   if (!contact) return errorResponse("An existing opted-in contact was not found in this workspace.", 404, { code: "OPTED_IN_CONTACT_NOT_FOUND" });
 
-  const suppression = await db.collection("contactSuppressions").findOne({
-    workspaceId, phone: contact.phone, active: { $ne: false },
-  }, { projection: { _id: 1 } });
+  const suppression = await findActiveContactSuppression(db, workspaceId, contact.phone);
   if (suppression) return errorResponse("This phone number is suppressed and cannot receive messages.", 409, { code: "CONTACT_SUPPRESSED" });
 
   const account = await getActiveWhatsAppAccount(db, workspaceId);
@@ -176,6 +175,13 @@ export async function POST(request) {
     return errorResponse(quota.reason, 429, {
       code: "PLAN_LIMIT_REACHED", plan: quota.plan, usage: quota.usage, limits: quota.limits,
     });
+  }
+
+  const latestSuppression = await findActiveContactSuppression(db, workspaceId, contact.phone);
+  if (latestSuppression) {
+    await releaseWorkspaceMessageUsage(db, workspaceId, 1);
+    await idempotencyCollection.deleteOne({ _id: idempotencyId });
+    return errorResponse("This phone number is suppressed and cannot receive messages.", 409, { code: "CONTACT_SUPPRESSED" });
   }
 
   // A network timeout is ambiguous: keep the reservation because Meta may have accepted the message.
