@@ -243,6 +243,10 @@ export async function POST(request) {
         { upsert: true },
       );
 
+    // A delivery-status webhook can arrive before this message is persisted.
+    // Apply any status event that was buffered during that race.
+    await applyPendingWhatsAppStatus(db, workspaceId, waMessageId);
+
     const savedMessage = await db.collection("messages").findOne({
       workspaceId,
       waMessageId,
