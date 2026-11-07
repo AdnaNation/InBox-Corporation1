@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { MongoClient, ObjectId } from "mongodb";
-import { consumeAuthRateLimits } from "../../src/lib/auth-rate-limit.js";
+import { consumeAuthRateLimits } from "../../src/lib/auth-rate-limit.mjs";
 
 const mongoUri = process.env.MONGODB_URI;
 if (!mongoUri) throw new Error("MONGODB_URI is required to run auth rate-limit integration tests.");
