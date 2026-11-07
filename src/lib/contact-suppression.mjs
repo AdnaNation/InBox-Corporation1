@@ -22,7 +22,7 @@ export async function ensureContactSuppressionIndex(db) {
       if (existing) return;
       await collection.createIndex(
         { workspaceId: 1, phone: 1 },
-        { name: "contact_suppression_workspace_phone" },
+        { unique: true },
       );
     })().catch((error) => {
       suppressionIndexByDb.delete(cacheKey);
