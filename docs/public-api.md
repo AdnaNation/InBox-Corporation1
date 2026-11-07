@@ -260,7 +260,7 @@ Use `pagination.nextCursor` as `after` to retrieve the next page. Only approved 
 
 ### List campaigns
 
-`GET /campaigns` requires `campaigns:read`. Optional parameters: `limit` (1–100, default 50) and `status` (`draft`, `queued`, `scheduled`, `sending`, `paused`, `cancelled`, `completed`, or `completed_with_issues`). The response includes campaign metadata and aggregate progress, but no recipient phone numbers.
+`GET /campaigns` requires `campaigns:read`. Optional parameters: `limit` (1–100, default 50), `status` (`draft`, `queued`, `scheduled`, `sending`, `paused`, `cancelled`, `completed`, or `completed_with_issues`), and `before` (the opaque `pagination.nextCursor` from the previous page). The response includes campaign metadata and aggregate progress, but no recipient phone numbers. Use `pagination.hasMore` and `pagination.nextCursor` to fetch the next page. Ordering uses `createdAt` and campaign ID as a stable tie-breaker, so campaigns with matching timestamps are not skipped. Treat cursors as opaque; invalid cursors return HTTP `400`.
 
 ### Get a campaign
 
