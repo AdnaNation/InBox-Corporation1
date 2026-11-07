@@ -69,3 +69,53 @@ test("webhook delivery history filter keeps workspace and subscription boundarie
   assert.equal(filter.$or[1].createdAt.getTime(), cursor.createdAt.getTime());
   assert.equal(filter.$or[1]._id.$lt.toString(), cursor.id);
 });
+
+
+test("webhook history index is cached per database connection", async () => {
+  const { ensureWebhookDeliveryHistoryIndex } = await import("../../src/lib/webhook-delivery-pagination.mjs");
+  function createDb() {
+    let calls = 0;
+    return {
+      getIndexCalls: () => calls,
+      collection(name) {
+        assert.equal(name, "webhookDeliveries");
+        return {
+          async createIndex(keys, options) {
+            calls += 1;
+            assert.deepEqual(keys, { workspaceId: 1, subscriptionId: 1, createdAt: -1, _id: -1 });
+            assert.equal(options.name, "public_api_webhook_delivery_history");
+            return options.name;
+          },
+        };
+      },
+    };
+  }
+  const firstDb = createDb();
+  const secondDb = createDb();
+  await Promise.all([
+    ensureWebhookDeliveryHistoryIndex(firstDb),
+    ensureWebhookDeliveryHistoryIndex(firstDb),
+    ensureWebhookDeliveryHistoryIndex(secondDb),
+  ]);
+  assert.equal(firstDb.getIndexCalls(), 1);
+  assert.equal(secondDb.getIndexCalls(), 1);
+});
+
+test("webhook history index setup retries after a failed attempt", async () => {
+  const { ensureWebhookDeliveryHistoryIndex } = await import("../../src/lib/webhook-delivery-pagination.mjs");
+  let attempts = 0;
+  const db = {
+    collection() {
+      return {
+        async createIndex() {
+          attempts += 1;
+          if (attempts === 1) throw new Error("temporary history index failure");
+          return "public_api_webhook_delivery_history";
+        },
+      };
+    },
+  };
+  await assert.rejects(ensureWebhookDeliveryHistoryIndex(db), /temporary history index failure/);
+  assert.equal(await ensureWebhookDeliveryHistoryIndex(db), "public_api_webhook_delivery_history");
+  assert.equal(attempts, 2);
+});
