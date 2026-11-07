@@ -140,3 +140,11 @@ test("keeps campaign read and write permissions separate", async () => {
   const writeCannotRead = await authenticateApiKeyWithDb(requestFor(writeKey.secret), "campaigns:read", async () => db);
   assert.equal(writeCannotRead.status, 403);
 });
+
+
+test("accepts a key that has not reached its configured expiration", async () => {
+  const key = await createKey({ expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) });
+  const result = await authenticateApiKeyWithDb(requestFor(key.secret), "contacts:read", async () => db);
+  assert.equal(result.error, undefined);
+  assert.equal(result.apiKey._id.toString(), key.id.toString());
+});

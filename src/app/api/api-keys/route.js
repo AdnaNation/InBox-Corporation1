@@ -21,13 +21,13 @@ export async function GET() {
   const keys = await db.collection("apiKeys").find({
     workspaceId: new ObjectId(session.workspace.id),
   }).sort({ createdAt: -1 }).project({
-    name: 1, prefix: 1, scopes: 1, status: 1, createdAt: 1, lastUsedAt: 1, revokedAt: 1,
+    name: 1, prefix: 1, scopes: 1, status: 1, createdAt: 1, lastUsedAt: 1, revokedAt: 1, expiresAt: 1,
   }).toArray();
   return NextResponse.json({ success: true, keys: keys.map((key) => ({
     id: key._id.toString(), name: key.name, prefix: key.prefix,
     scopes: key.scopes || [], status: key.status,
     createdAt: key.createdAt, lastUsedAt: key.lastUsedAt || null,
-    revokedAt: key.revokedAt || null,
+    revokedAt: key.revokedAt || null, expiresAt: key.expiresAt || null,
   })) });
 }
 
@@ -41,6 +41,10 @@ export async function POST(request) {
   try { body = await request.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request body." }, { status: 400 }); }
   const name = String(body.name || "").trim().slice(0, 60);
   const scopes = Array.isArray(body.scopes) ? [...new Set(body.scopes)] : [];
+  const expirationDays = body.expirationDays === undefined ? 90 : body.expirationDays;
+  if (![0, 30, 90, 365].includes(expirationDays)) {
+    return NextResponse.json({ success: false, message: "Choose an expiration of 30, 90, 365 days, or never." }, { status: 400 });
+  }
   if (!name) return NextResponse.json({ success: false, message: "Enter a name for this API key." }, { status: 400 });
   if (!scopes.length || scopes.some((scope) => !ALLOWED_SCOPES.includes(scope))) {
     return NextResponse.json({ success: false, message: "Select at least one supported permission." }, { status: 400 });
@@ -54,12 +58,13 @@ export async function POST(request) {
     workspaceId: new ObjectId(session.workspace.id),
     createdBy: new ObjectId(session.user.id),
     name, prefix,
+    ...(expirationDays > 0 ? { expiresAt: new Date(now.getTime() + expirationDays * 24 * 60 * 60 * 1000) } : {}),
     keyHash: createHash("sha256").update(secret).digest("hex"),
     scopes, status: "active", createdAt: now, updatedAt: now,
   });
   return NextResponse.json({
     success: true,
-    key: { secret, name, prefix, scopes, createdAt: now },
+    key: { secret, name, prefix, scopes, createdAt: now, expiresAt: expirationDays > 0 ? new Date(now.getTime() + expirationDays * 24 * 60 * 60 * 1000) : null },
     message: "Copy this key now. It will not be shown again.",
   }, { status: 201 });
 }
