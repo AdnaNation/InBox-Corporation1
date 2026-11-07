@@ -4,6 +4,7 @@ import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
 import { isPlatformAdmin } from "@/lib/platform-admin";
+import { canTransitionWorkspaceDataRequest } from "@/lib/workspace-data-requests.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -224,11 +225,7 @@ export async function POST(request) {
       const requestCollection = db.collection("workspaceDataRequests");
       const existing = await requestCollection.findOne({ _id: requestId });
       if (!existing) return NextResponse.json({ success: false, message: "Data request not found." }, { status: 404 });
-      const allowedTransitions = {
-        pending: ["in_review", "rejected"],
-        in_review: ["completed", "rejected"],
-      };
-      if (!allowedTransitions[existing.status]?.includes(body.status)) {
+      if (!canTransitionWorkspaceDataRequest(existing.status, body.status)) {
         return NextResponse.json({ success: false, message: "This request has already been reviewed or cannot move to that status." }, { status: 409 });
       }
       const update = {
