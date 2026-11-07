@@ -7,6 +7,7 @@ import { decryptSecret } from "@/lib/crypto";
 import { applyPendingWhatsAppStatus } from "@/lib/whatsapp-status";
 import { reserveWorkspaceMessageUsage, releaseWorkspaceMessageUsage } from "@/lib/plan-limits";
 import { findActiveContactSuppression } from "@/lib/contact-suppression.mjs";
+import { isAmbiguousMetaSendResponse } from "@/lib/campaign-delivery.mjs";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,7 @@ export async function POST(request) {
     );
   }
 
+  let acceptedMessageId = null;
   try {
     const session = await getSession();
 
@@ -147,7 +149,9 @@ export async function POST(request) {
       );
     }
 
-    const metaResponse = await fetch(url, {
+    let metaResponse;
+    try {
+      metaResponse = await fetch(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -164,11 +168,28 @@ export async function POST(request) {
         },
       }),
       cache: "no-store",
-    });
+      signal: AbortSignal.timeout(20000),
+      });
+    } catch (error) {
+      console.error("Meta text message outcome is unknown:", error.message);
+      return NextResponse.json({
+        success: false,
+        code: "MESSAGE_OUTCOME_UNKNOWN",
+        message: "Meta did not confirm whether this message was accepted. Check the conversation and delivery status before trying again; do not resend yet.",
+      }, { status: 502 });
+    }
 
-    const metaData = await metaResponse.json();
+    const metaData = await metaResponse.json().catch(() => null);
 
     if (!metaResponse.ok) {
+      if (isAmbiguousMetaSendResponse(metaResponse.status)) {
+        console.error("Meta text message outcome is unknown:", { status: metaResponse.status, error: metaData?.error?.message });
+        return NextResponse.json({
+          success: false,
+          code: "MESSAGE_OUTCOME_UNKNOWN",
+          message: "Meta returned an uncertain response. Check the conversation and delivery status before trying again; do not resend yet.",
+        }, { status: 502 });
+      }
       await releaseWorkspaceMessageUsage(db, workspaceId, 1);
       console.error("Meta send message error:", metaData);
 
@@ -188,13 +209,14 @@ export async function POST(request) {
 
     if (!waMessageId) {
       console.error("Meta response did not contain a message ID:", metaData);
-
-      return NextResponse.json(
-        { success: false, message: "Meta did not return a message ID." },
-        { status: 502 },
-      );
+      return NextResponse.json({
+        success: false,
+        code: "MESSAGE_OUTCOME_UNKNOWN",
+        message: "Meta returned no message ID, so delivery cannot be confirmed. Check the conversation and delivery status before trying again; do not resend yet.",
+      }, { status: 502 });
     }
 
+    acceptedMessageId = waMessageId;
     const now = new Date();
 
     const messageDocument = {
@@ -223,6 +245,10 @@ export async function POST(request) {
         { upsert: true },
       );
 
+    // A delivery-status webhook can arrive before this message is persisted.
+    // Apply any status event that was buffered during that race.
+    await applyPendingWhatsAppStatus(db, workspaceId, waMessageId);
+
     const savedMessage = await db.collection("messages").findOne({
       workspaceId,
       waMessageId,
@@ -244,6 +270,15 @@ export async function POST(request) {
       message: savedMessage || messageDocument,
     });
   } catch (error) {
+    if (acceptedMessageId) {
+      console.error("Meta accepted text message but Wavo could not finish saving it:", { waMessageId: acceptedMessageId, error: error.message });
+      return NextResponse.json({
+        success: false,
+        code: "MESSAGE_ACCEPTED_SAVE_FAILED",
+        waMessageId: acceptedMessageId,
+        message: "Meta accepted this message, but Wavo could not finish saving its history. Do not send it again. Refresh the inbox and check the delivery status.",
+      }, { status: 502 });
+    }
     console.error("Send WhatsApp message error:", error);
 
     return NextResponse.json(
