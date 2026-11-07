@@ -2,6 +2,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
+import { isSessionVersionValid } from "@/lib/session-version.mjs";
 
 const COOKIE_NAME = "wavo_session";
 const secret = process.env.JWT_SECRET;
@@ -87,9 +88,7 @@ export async function getSession() {
       return null;
     }
 
-    const tokenSessionVersion = Number.isSafeInteger(payload.sessionVersion) ? payload.sessionVersion : 0;
-    const currentSessionVersion = Number.isSafeInteger(user.sessionVersion) ? user.sessionVersion : 0;
-    if (tokenSessionVersion !== currentSessionVersion) return null;
+    if (!isSessionVersionValid(payload.sessionVersion, user.sessionVersion)) return null;
 
     return {
       user: {
