@@ -80,6 +80,12 @@ export async function getSession() {
       return null;
     }
 
+    // A password reset invalidates every JWT issued before the password change.
+    if (user.passwordChangedAt instanceof Date
+      && Number(payload.iat || 0) * 1000 < user.passwordChangedAt.getTime()) {
+      return null;
+    }
+
     return {
       user: {
         id: user._id.toString(),
