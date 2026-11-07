@@ -471,7 +471,7 @@ export default function ContactsClient({
               <h2 className="font-semibold">All contacts</h2>
 
               <p className="mt-1 text-xs text-slate-500">
-                {contacts.length} contacts loaded
+                {searching ? "Searching contacts..." : `${contacts.length} contacts loaded`}
               </p>
             </div>
 
