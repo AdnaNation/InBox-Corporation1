@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
+import { ensureMongoIndex } from "@/lib/mongo-indexes.mjs";
 import { authenticateApiKey } from "@/lib/api-key-auth";
 import { encryptSecret } from "@/lib/crypto";
 import { WEBHOOK_EVENT_TYPES, isValidWebhookTarget } from "@/lib/public-webhooks.mjs";
@@ -11,10 +12,10 @@ export const dynamic = "force-dynamic";
 
 async function ensureIndexes(db) {
   await Promise.all([
-    db.collection("webhookSubscriptions").createIndex({ workspaceId: 1, createdAt: -1 }),
-    db.collection("webhookDeliveries").createIndex({ subscriptionId: 1, eventId: 1 }, { unique: true }),
-    db.collection("webhookDeliveries").createIndex({ status: 1, nextAttemptAt: 1, leaseUntil: 1 }),
-    db.collection("webhookDeliveries").createIndex({ workspaceId: 1, createdAt: -1 }),
+    ensureMongoIndex(db, "webhookSubscriptions", { workspaceId: 1, createdAt: -1 }),
+    ensureMongoIndex(db, "webhookDeliveries", { subscriptionId: 1, eventId: 1 }, { unique: true }),
+    ensureMongoIndex(db, "webhookDeliveries", { status: 1, nextAttemptAt: 1, leaseUntil: 1 }),
+    ensureMongoIndex(db, "webhookDeliveries", { workspaceId: 1, createdAt: -1 }),
   ]);
 }
 
