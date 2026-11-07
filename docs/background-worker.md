@@ -31,8 +31,9 @@ Set these environment variables on the worker service:
 | `CRON_SECRET` | Exactly the same secret configured in Vercel |
 | `WORKER_INTERVAL_MS` | Optional; defaults to `5000` (5 seconds) |
 | `WORKER_REQUEST_TIMEOUT_MS` | Optional; defaults to `45000` (45 seconds) |
+| `WORKER_HEALTH_INTERVAL_MS` | Optional; defaults to `900000` (15 minutes); allowed range 1 minute–24 hours |
 
-The process invokes both `POST /api/cron/campaign-worker` and `POST /api/cron/webhook-delivery` every cycle. The campaign worker processes at most one recipient per invocation and enforces the per-WhatsApp-number database lease/cooldown. The webhook worker claims a bounded batch and retries failures with exponential backoff. The worker does not store Meta tokens or connect directly to MongoDB.
+The process invokes `POST /api/cron/campaign-worker` and `POST /api/cron/webhook-delivery` on every polling cycle. The campaign worker processes at most one recipient per invocation and enforces the per-WhatsApp-number database lease/cooldown. The webhook worker claims a bounded batch and retries failures with exponential backoff. Separately, the WhatsApp health monitor runs at `WORKER_HEALTH_INTERVAL_MS` (15 minutes by default), checks connected Meta phone-number tokens and queues owner email alerts for status changes. The worker does not store Meta tokens or connect directly to MongoDB.
 
 ## Operational notes
 
@@ -57,7 +58,7 @@ A minimal container definition is included for a VPS or any Docker-compatible al
    docker compose -f docker-compose.worker.yml up -d --build
    ```
 
-5. Inspect logs and confirm both campaign and webhook worker cycles return successful JSON summaries:
+5. Inspect logs and confirm campaign and webhook summaries appear every polling cycle, and a WhatsApp health summary appears at startup and then at the configured health interval:
 
    ```bash
    docker compose -f docker-compose.worker.yml logs -f

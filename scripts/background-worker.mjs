@@ -1,7 +1,7 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import { parseBackgroundWorkerConfig, summarizeWorkerResponse } from "../src/lib/background-worker-core.mjs";
 
-const { appUrl, cronSecret, intervalMs, requestTimeoutMs } = parseBackgroundWorkerConfig(process.env);
+const { appUrl, cronSecret, intervalMs, requestTimeoutMs, healthIntervalMs } = parseBackgroundWorkerConfig(process.env);
 
 const endpoints = [
   { name: "campaign", path: "/api/cron/campaign-worker" },
@@ -32,7 +32,11 @@ async function invoke(endpoint) {
 console.log("Wavo background worker started.");
 console.log("App:", appUrl);
 console.log("Polling interval:", intervalMs + "ms");
-console.log("Workers:", endpoints.map((item) => item.name).join(", "));
+console.log("WhatsApp health interval:", healthIntervalMs + "ms");
+console.log("Workers:", [...endpoints.map((item) => item.name), "whatsapp-health"].join(", "));
+
+const healthEndpoint = { name: "whatsapp-health", path: "/api/cron/whatsapp-health" };
+let nextHealthCheckAt = 0;
 
 while (!stopping) {
   const cycleStarted = Date.now();
@@ -48,6 +52,19 @@ while (!stopping) {
       console.error(new Date().toISOString(), endpoints[index].name + " worker:", error?.message || "request failed");
       if (error?.fatal) fatalError = error;
     }
+  }
+
+  // Run the Meta account health sweep at its own cadence, not every five-second
+  // message-processing cycle. Run once on startup, then at the configured interval.
+  if (!stopping && !fatalError && Date.now() >= nextHealthCheckAt) {
+    try {
+      const result = await invoke(healthEndpoint);
+      console.log(new Date().toISOString(), JSON.stringify(result));
+    } catch (error) {
+      console.error(new Date().toISOString(), healthEndpoint.name + " worker:", error?.message || "request failed");
+      if (error?.fatal) fatalError = error;
+    }
+    nextHealthCheckAt = Date.now() + healthIntervalMs;
   }
 
   if (fatalError) {

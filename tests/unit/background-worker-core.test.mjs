@@ -16,6 +16,7 @@ test("normalizes a valid app origin and applies safe polling defaults", () => {
     cronSecret: validEnv.CRON_SECRET,
     intervalMs: 5000,
     requestTimeoutMs: 45000,
+    healthIntervalMs: 900000,
   });
 });
 
@@ -49,6 +50,12 @@ test("enforces polling and request timeout bounds", () => {
     assert.throws(
       () => parseBackgroundWorkerConfig({ ...validEnv, WORKER_REQUEST_TIMEOUT_MS }),
       /WORKER_REQUEST_TIMEOUT_MS/,
+    );
+  }
+  for (const WORKER_HEALTH_INTERVAL_MS of ["59999", "86400001", "1.5", "invalid"]) {
+    assert.throws(
+      () => parseBackgroundWorkerConfig({ ...validEnv, WORKER_HEALTH_INTERVAL_MS }),
+      /WORKER_HEALTH_INTERVAL_MS/,
     );
   }
 });
@@ -105,4 +112,46 @@ test("defaults omitted worker counters to zero", () => {
     summarizeWorkerResponse("webhook", 200, { success: true }),
     { name: "webhook", httpStatus: 200, success: true, processed: 0, delivered: 0, retried: 0, failed: 0 },
   );
+});
+
+
+test("summarizes WhatsApp account health without exposing per-account details", () => {
+  assert.deepEqual(
+    summarizeWorkerResponse("whatsapp-health", 200, {
+      success: true,
+      checked: 4,
+      healthy: 2,
+      attention: 1,
+      unavailable: 1,
+      alertsSent: 1,
+      alertsPending: 0,
+      alertsFailed: 0,
+      failures: [{ phoneNumberId: "private-id", message: "private detail" }],
+    }),
+    {
+      name: "whatsapp-health",
+      httpStatus: 200,
+      success: true,
+      processed: 0,
+      delivered: 0,
+      retried: 0,
+      failed: 0,
+      checked: 4,
+      healthy: 2,
+      attention: 1,
+      unavailable: 1,
+      alertsSent: 1,
+      alertsPending: 0,
+      alertsFailed: 0,
+    },
+  );
+});
+
+test("rejects malformed WhatsApp health counters", () => {
+  for (const [key, value] of [["checked", -1], ["attention", 1.5], ["alertsFailed", "1"]]) {
+    assert.throws(
+      () => summarizeWorkerResponse("whatsapp-health", 200, { success: true, [key]: value }),
+      new RegExp("invalid " + key + " count"),
+    );
+  }
 });

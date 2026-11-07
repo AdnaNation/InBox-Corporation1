@@ -310,7 +310,7 @@ export default function WhatsAppPage() {
             </p>
           </div>
           <p className="mt-3 text-xs leading-5 text-slate-500">
-            Automatic checks run every 5 minutes using your existing cron job and its Authorization Bearer secret. No additional cron job is needed.
+            Scheduled checks are performed by the separately deployed Wavo background worker. The default interval is every 15 minutes. If the worker is not deployed and running, scheduled checks and email alerts will not be delivered.
           </p>
         </section>
       )}

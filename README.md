@@ -123,7 +123,7 @@ This is a runnable MVP foundation, not a finished, audited commercial SaaS. Befo
 - CSRF/origin policy appropriate for custom domains and preview deployments
 - Admin provisioning and audited role management
 - Meta Tech Provider eligibility, App Review / Advanced Access, token-expiry handling and customer offboarding automation
-- Automated token-expiry notifications, Meta account health checks and customer offboarding automation (the webhook endpoint verifies Meta's `X-Hub-Signature-256` POST signatures using `META_APP_SECRET`)
+- Meta Tech Provider eligibility, App Review / Advanced Access, and customer offboarding automation. Scheduled Meta account-health checks and owner email alerts are implemented, but only run after the always-on background worker is deployed and configured (the webhook endpoint verifies Meta's `X-Hub-Signature-256` POST signatures using `META_APP_SECRET`).
 - Production queue scheduling, configurable per-number pacing, lease recovery, operator review tools and monitoring for the campaign worker
 - Subscription billing, usage metering and payment webhook verification
 - Consent evidence, suppression lists, opt-out handling, template approval checks and policy enforcement

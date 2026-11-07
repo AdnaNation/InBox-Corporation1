@@ -29,7 +29,14 @@ export function parseBackgroundWorkerConfig(env = process.env) {
     throw new Error("WORKER_REQUEST_TIMEOUT_MS must be an integer between 5000 and 120000.");
   }
 
-  return { appUrl, cronSecret, intervalMs, requestTimeoutMs };
+  // Meta account health is a comparatively expensive external API check. Keep
+  // it independent from the fast campaign/webhook polling cadence.
+  const healthIntervalMs = Number(env.WORKER_HEALTH_INTERVAL_MS || 900000);
+  if (!Number.isInteger(healthIntervalMs) || healthIntervalMs < 60000 || healthIntervalMs > 86400000) {
+    throw new Error("WORKER_HEALTH_INTERVAL_MS must be an integer between 60000 and 86400000.");
+  }
+
+  return { appUrl, cronSecret, intervalMs, requestTimeoutMs, healthIntervalMs };
 }
 
 export function summarizeWorkerResponse(endpointName, status, body) {
@@ -65,10 +72,25 @@ export function summarizeWorkerResponse(endpointName, status, body) {
     counts[key] = value;
   }
 
-  return {
+  const summary = {
     name: endpointName,
     httpStatus: status,
     success: body.success,
     ...counts,
   };
+
+  // The account-health monitor uses domain-specific counters rather than
+  // campaign/webhook delivery counters. Validate and log only aggregate
+  // numbers; never emit its per-account failure details or provider payload.
+  if (endpointName === "whatsapp-health") {
+    for (const key of ["checked", "healthy", "attention", "unavailable", "alertsSent", "alertsPending", "alertsFailed"]) {
+      const value = body[key] ?? 0;
+      if (!Number.isSafeInteger(value) || value < 0) {
+        throw new Error(endpointName + " worker returned an invalid " + key + " count.");
+      }
+      summary[key] = value;
+    }
+  }
+
+  return summary;
 }
