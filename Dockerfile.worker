@@ -1,6 +1,6 @@
 FROM node:22-alpine
 
-ENV NODE_ENV=production
+ENV NODE_ENV=production npm_config_cache=/tmp/.npm
 WORKDIR /app
 
 # The polling worker uses only Node.js built-ins; it does not need the Next.js
