@@ -14,6 +14,11 @@ export default function LoginPage() {
 
   useEffect(() => {
     const status = new URLSearchParams(window.location.search).get("verification");
+    const passwordReset = new URLSearchParams(window.location.search).get("passwordReset");
+    if (passwordReset === "success") {
+      setVerificationNotice("Your password has been updated. Sign in with your new password.");
+      return;
+    }
     const messages = {
       success: "Your email address is verified. You can now sign in.",
       expired: "This verification link has expired. Sign in and request a new one from your dashboard.",
@@ -53,6 +58,7 @@ export default function LoginPage() {
         {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         <label className="block text-sm font-medium">Email address<input type="email" required value={form.email} onChange={e=>setForm({...form,email:e.target.value})} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100" placeholder="you@example.com"/></label>
         <label className="block text-sm font-medium">Password<input type="password" required value={form.password} onChange={e=>setForm({...form,password:e.target.value})} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100" placeholder="Your password"/></label>
+        <p className="-mt-3 text-right text-sm"><Link href="/forgot-password" className="font-semibold text-green-700 hover:text-green-800">Forgot password?</Link></p>
         <button disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3.5 font-semibold text-white hover:bg-green-700 disabled:opacity-60">{loading?<><Loader2 className="animate-spin" size={18}/>Signing in...</>:"Sign in"}</button>
         <p className="text-center text-sm text-slate-500">New here? <Link href="/register" className="font-semibold text-green-700">Create an account</Link></p>
       </form>
