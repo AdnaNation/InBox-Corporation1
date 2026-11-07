@@ -30,7 +30,6 @@ export async function sendVerificationEmail({ to, token, origin }) {
   });
 
   if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    throw new Error("Email provider rejected the verification message (HTTP " + response.status + "). " + detail.slice(0, 300));
+    throw new Error("Email provider rejected the verification message (HTTP " + response.status + ").");
   }
 }
