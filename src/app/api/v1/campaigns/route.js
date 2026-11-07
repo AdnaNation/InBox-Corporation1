@@ -171,7 +171,7 @@ export async function POST(request) {
     }
     const campaignQuota = await reserveWorkspaceCampaignUsage(db, workspaceId, 1);
     if (!campaignQuota.allowed) {
-      return NextResponse.json({ success: false, code: "PLAN_LIMIT_REACHED", message: campaignQuota.reason, plan: campaignQuota.plan, usage: campaignQuota.usage, limits: campaignQuota.limits, remainingMessages: messageQuota.remaining }, { status: 429 });
+      return NextResponse.json({ success: false, code: "PLAN_LIMIT_REACHED", message: campaignQuota.reason, plan: campaignQuota.plan, usage: campaignQuota.usage, limits: campaignQuota.limits, remainingMessages: messageQuota.remaining, remainingCampaigns: campaignQuota.remaining }, { status: 429 });
     }
     campaignUsageReserved = true;
 
