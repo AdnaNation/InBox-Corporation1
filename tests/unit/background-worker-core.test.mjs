@@ -106,3 +106,45 @@ test("defaults omitted worker counters to zero", () => {
     { name: "webhook", httpStatus: 200, success: true, processed: 0, delivered: 0, retried: 0, failed: 0 },
   );
 });
+
+
+test("summarizes WhatsApp account health without exposing per-account details", () => {
+  assert.deepEqual(
+    summarizeWorkerResponse("whatsapp-health", 200, {
+      success: true,
+      checked: 4,
+      healthy: 2,
+      attention: 1,
+      unavailable: 1,
+      alertsSent: 1,
+      alertsPending: 0,
+      alertsFailed: 0,
+      failures: [{ phoneNumberId: "private-id", message: "private detail" }],
+    }),
+    {
+      name: "whatsapp-health",
+      httpStatus: 200,
+      success: true,
+      processed: 0,
+      delivered: 0,
+      retried: 0,
+      failed: 0,
+      checked: 4,
+      healthy: 2,
+      attention: 1,
+      unavailable: 1,
+      alertsSent: 1,
+      alertsPending: 0,
+      alertsFailed: 0,
+    },
+  );
+});
+
+test("rejects malformed WhatsApp health counters", () => {
+  for (const [key, value] of [["checked", -1], ["attention", 1.5], ["alertsFailed", "1"]]) {
+    assert.throws(
+      () => summarizeWorkerResponse("whatsapp-health", 200, { success: true, [key]: value }),
+      new RegExp("invalid " + key + " count"),
+    );
+  }
+});
