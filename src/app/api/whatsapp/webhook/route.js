@@ -4,7 +4,7 @@ import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { enqueueWebhookEvent } from "@/lib/public-webhooks.mjs";
 import { isWhatsAppOptOutMessage } from "@/lib/whatsapp-opt-out.mjs";
-import { ensureContactSuppressionIndex } from "@/lib/contact-suppression.mjs";
+import { ensureWhatsAppWebhookIndexes } from "@/lib/whatsapp-webhook-indexes.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -65,43 +65,6 @@ function verifySignature(rawBody, signature) {
   );
 }
 
-// --------------------------------------------------
-// CREATE COLLECTION INDEXES
-// --------------------------------------------------
-
-let indexesPromise;
-
-async function ensureIndexes(db) {
-  if (!indexesPromise) {
-    indexesPromise = Promise.all([
-      db
-        .collection("whatsappContacts")
-        .createIndex({ workspaceId: 1, waId: 1 }, { unique: true }),
-
-      db
-        .collection("conversations")
-        .createIndex(
-          { workspaceId: 1, phoneNumberId: 1, waId: 1 },
-          { unique: true },
-        ),
-
-      db
-        .collection("messages")
-        .createIndex({ workspaceId: 1, waMessageId: 1 }, { unique: true }),
-
-      db
-        .collection("messages")
-        .createIndex({ workspaceId: 1, conversationId: 1, timestamp: -1 }),
-
-      ensureContactSuppressionIndex(db),
-    ]).catch((error) => {
-      indexesPromise = null;
-      throw error;
-    });
-  }
-
-  return indexesPromise;
-}
 
 // --------------------------------------------------
 // EXTRACT MESSAGE CONTENT
@@ -609,7 +572,7 @@ export async function POST(request) {
 
     const db = await getDatabase();
 
-    await ensureIndexes(db);
+    await ensureWhatsAppWebhookIndexes(db);
 
     for (const entry of body.entry || []) {
       console.log("Business Account ID:", entry.id);
