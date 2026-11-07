@@ -272,8 +272,10 @@ export async function POST(request) {
     });
   } catch (error) {
     if (contactReservation > 0 && reservationWorkspaceId) {
-      const insertedCount = Number(error?.result?.upsertedCount || 0);
-      await releaseWorkspaceContactUsage(await getDatabase(), reservationWorkspaceId, Math.max(0, contactReservation - insertedCount)).catch(() => {});
+      const insertedCount = error?.result?.upsertedCount;
+      if (Number.isInteger(insertedCount) && contactReservation > insertedCount) {
+        await releaseWorkspaceContactUsage(await getDatabase(), reservationWorkspaceId, contactReservation - insertedCount).catch(() => {});
+      }
     }
     console.error("CSV contact import error:", error);
 
