@@ -27,10 +27,6 @@ export async function ensureContactSuppressionIndex(db) {
         (index) => index.key?.workspaceId === 1 && index.key?.phone === 1,
       );
       if (existing) return;
-      const conflicting = indexes.some(
-        (index) => index.key?.workspaceId === 1 && index.key?.phone === 1,
-      );
-      if (conflicting) throw new Error("The workspace/phone suppression index must be unique.");
       try {
         await collection.createIndex(
           { workspaceId: 1, phone: 1 },
