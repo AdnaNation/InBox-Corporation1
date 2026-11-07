@@ -10,7 +10,7 @@ services:
       - .env.worker
     read_only: true
     tmpfs:
-      - /tmp
+      - /tmp:mode=1777
     security_opt:
       - no-new-privileges:true
     cap_drop:
