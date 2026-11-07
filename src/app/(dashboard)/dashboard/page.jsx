@@ -2,7 +2,7 @@ import { getSession } from "@/lib/auth";
 import { getDatabase } from "@/lib/db";
 import { getWorkspacePlanUsage } from "@/lib/plan-limits";
 import { ObjectId } from "mongodb";
-import { Users, Send, MessageCircle, TrendingUp, Plug, ArrowRight, CheckCircle2, Circle } from "lucide-react";
+import { Users, Send, MessageCircle, TrendingUp, Plug, ArrowRight, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 
 export const runtime = "nodejs";
