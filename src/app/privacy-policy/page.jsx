@@ -116,7 +116,7 @@ export default function PrivacyPolicyPage() {
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-5xl flex-col gap-2 px-5 py-7 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
           <span>© {new Date().getFullYear()} InBox Corporation. All rights reserved.</span>
-          <Link href="/" className="font-medium text-blue-700 hover:text-blue-900">Back to home</Link>
+          <div className="flex gap-4"><Link href="/terms" className="font-medium text-blue-700 hover:text-blue-900">Terms of Service</Link><Link href="/" className="font-medium text-blue-700 hover:text-blue-900">Back to home</Link></div>
         </div>
       </footer>
     </main>
