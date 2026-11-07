@@ -205,8 +205,10 @@ export async function POST(request) {
   } catch (error) {
     // unordered insertMany may insert valid records before reporting duplicates.
     if (error.code === 11000 || error.writeErrors) {
-      const insertedCount = Number(error?.result?.insertedCount || 0);
-      if (newNumbers.length > insertedCount) await releaseWorkspaceContactUsage(db, workspaceId, newNumbers.length - insertedCount);
+      const insertedCount = error?.result?.insertedCount;
+      if (Number.isInteger(insertedCount) && newNumbers.length > insertedCount) {
+        await releaseWorkspaceContactUsage(db, workspaceId, newNumbers.length - insertedCount);
+      }
       const saved = await collection
         .find({
           workspaceId,
@@ -225,14 +227,14 @@ export async function POST(request) {
           optedIn: contact.optIn?.status === true,
           createdAt: contact.createdAt?.toISOString(),
         })),
-        added: saved.length - existingNumbers.size,
-        duplicates: existingNumbers.size,
+        added: Number(error?.result?.insertedCount || 0),
+        duplicates: existingNumbers.size + newNumbers.length - Number(error?.result?.insertedCount || 0),
         suppressed: [...suppressedNumbers],
         invalid,
       });
     }
 
-    await releaseWorkspaceContactUsage(db, workspaceId, newNumbers.length).catch(() => {});
+    // Preserve reservations when the database write outcome is ambiguous.
     console.error("Contact creation error:", error);
 
     return NextResponse.json(
