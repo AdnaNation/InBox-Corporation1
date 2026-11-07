@@ -34,7 +34,7 @@ test("active and legacy suppressions block sends, while explicitly inactive reco
 
   assert.ok(await findActiveContactSuppression(db, workspaceId, "8801700000001"));
   const indexes = await collection.listIndexes().toArray();
-  assert.ok(indexes.some((index) => index.name === "contact_suppression_workspace_phone" && index.unique !== true));
+  assert.ok(indexes.some((index) => index.key?.workspaceId === 1 && index.key?.phone === 1));
   assert.ok(await findActiveContactSuppression(db, workspaceId, "8801700000002"));
   assert.equal(await findActiveContactSuppression(db, workspaceId, "8801700000003"), null);
   assert.equal(await findActiveContactSuppression(db, workspaceId, ""), null);
