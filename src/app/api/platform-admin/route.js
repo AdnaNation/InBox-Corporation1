@@ -233,6 +233,7 @@ export async function POST(request) {
       }
       const update = {
         status: body.status,
+        active: body.status === "in_review",
         updatedAt: now,
         reviewedAt: existing.reviewedAt || now,
         reviewedBy: actorId,
