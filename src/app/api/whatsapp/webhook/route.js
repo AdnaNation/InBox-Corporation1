@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { enqueueWebhookEvent } from "@/lib/public-webhooks.mjs";
+import { isWhatsAppOptOutMessage } from "@/lib/whatsapp-opt-out.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -170,12 +171,6 @@ function extractMessageContent(message) {
 // PROCESS INCOMING MESSAGE
 // --------------------------------------------------
 
-function isOptOutMessage(message) {
-  if (message?.type !== "text") return false;
-  const text = String(message.text?.body || "").trim().toLowerCase();
-  return /^(stop|stop all|unsubscribe|cancel|end|quit|remove|opt ?out)[.!\s]*$/.test(text);
-}
-
 async function processIncomingMessage(db, account, value, message) {
   const workspaceId = account.workspaceId;
   const phoneNumberId = value.metadata.phone_number_id;
@@ -271,7 +266,7 @@ async function processIncomingMessage(db, account, value, message) {
   // A clear opt-out keyword immediately revokes marketing consent.
   // Keep a durable workspace-level suppression record so deleting and
   // re-importing a contact cannot silently restore consent.
-  if (isOptOutMessage(message)) {
+  if (isWhatsAppOptOutMessage(message)) {
     const optOutAt = timestamp;
     await db.collection("contactSuppressions").updateOne(
       { workspaceId, phone: waId },
