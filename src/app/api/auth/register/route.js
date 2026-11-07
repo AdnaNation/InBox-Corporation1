@@ -8,6 +8,8 @@ import { initializeDatabase } from "@/lib/database";
 import { isSameOrigin } from "@/lib/security";
 import { consumeAuthRateLimits } from "@/lib/auth-rate-limit.mjs";
 import clientPromise from "@/lib/mongodb";
+import { createEmailVerificationToken } from "@/lib/email-verification.mjs";
+import { sendVerificationEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -66,7 +68,38 @@ export async function POST(request) {
     });
 
     await createSession(userId, workspaceId);
-    return NextResponse.json({ success:true, message:"Account created.", redirect:"/dashboard" }, { status:201 });
+
+    let verificationEmailSent = false;
+    try {
+      const verification = createEmailVerificationToken(now);
+      await db.collection("emailVerificationTokens").deleteMany({
+        userId,
+        usedAt: { $exists: false },
+      });
+      await db.collection("emailVerificationTokens").insertOne({
+        userId,
+        tokenHash: verification.tokenHash,
+        expiresAt: verification.expiresAt,
+        createdAt: now,
+      });
+      await sendVerificationEmail({
+        to: email,
+        token: verification.token,
+        origin: new URL(request.url).origin,
+      });
+      verificationEmailSent = true;
+    } catch (emailError) {
+      console.error("Registration verification email could not be sent:", emailError.message);
+    }
+
+    return NextResponse.json({
+      success:true,
+      message: verificationEmailSent
+        ? "Account created. Check your inbox for an email verification link."
+        : "Account created. You can request a verification email from your dashboard.",
+      verificationEmailSent,
+      redirect:"/dashboard",
+    }, { status:201 });
   } catch (error) {
     console.error("Registration error:", error);
     if (error.code === 11000) return NextResponse.json({success:false,message:"An account with this email already exists."},{status:409});
