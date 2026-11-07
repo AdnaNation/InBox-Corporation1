@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildContactQueryFilter, decodeContactCursor, encodeContactCursor } from "../../src/lib/contact-pagination.mjs";
+import { buildContactQueryFilter, decodeContactCursor, encodeContactCursor, escapeContactSearchQuery } from "../../src/lib/contact-pagination.mjs";
 import { ObjectId } from "mongodb";
 
 test("contact pagination cursor round-trips timestamp and ObjectId", () => {
@@ -22,6 +22,10 @@ test("contact pagination cursor encoder rejects missing IDs or timestamps", () =
   assert.throws(() => encodeContactCursor({ _id: "66a000000000000000000001", createdAt: "invalid" }), /ID and valid createdAt/);
 });
 
+
+test("contact search escaping handles every regex metacharacter literally", () => {
+  assert.equal(escapeContactSearchQuery(".*+?^${}()|[]\\\\\\\"), "\\\\.\\\\*\\\\+\\\\?\\\\^\\\\$\\\\{\\\\}\\\\(\\\\)\\\\|\\\\[\\\\]\\\\\\\\");
+});
 
 test("contact search escapes regex input and matches phone digits separately", () => {
   const workspaceId = new ObjectId("66a000000000000000000001");
