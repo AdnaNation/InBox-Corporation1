@@ -44,6 +44,7 @@ async function createFixture({ status = "failed" } = {}) {
     event: { id: "evt_" + deliveryId.toString(), type: "message.received" },
     status,
     attempts: 10,
+    manualRetries: 0,
     lastError: "Endpoint returned HTTP 500.",
     responseStatus: 500,
     failedAt: new Date(),
@@ -53,7 +54,7 @@ async function createFixture({ status = "failed" } = {}) {
   return { workspaceId, subscriptionId, deliveryId };
 }
 
-test("requeues a terminal failed delivery and clears terminal attempt state", async () => {
+test("requeues a terminal failed delivery, increments manual retries, and clears terminal attempt state", async () => {
   const fixture = await createFixture();
   const now = new Date();
   const result = await retryFailedWebhookDelivery(db, { ...fixture, now });
@@ -62,6 +63,7 @@ test("requeues a terminal failed delivery and clears terminal attempt state", as
   const delivery = await db.collection("webhookDeliveries").findOne({ _id: fixture.deliveryId });
   assert.equal(delivery.status, "pending");
   assert.equal(delivery.attempts, 0);
+  assert.equal(delivery.manualRetries, 1);
   assert.equal(delivery.nextAttemptAt.getTime(), now.getTime());
   assert.equal(delivery.manualRetryAt.getTime(), now.getTime());
   assert.equal(delivery.lastError, undefined);
@@ -75,6 +77,8 @@ test("does not retry a delivery more than once or retry a non-failed status", as
 
   assert.equal(first.retried, true);
   assert.deepEqual(second, { retried: false, reason: "delivery_not_retryable" });
+  const delivery = await db.collection("webhookDeliveries").findOne({ _id: fixture.deliveryId });
+  assert.equal(delivery.manualRetries, 1);
 });
 
 test("does not cross workspace boundaries or retry disabled subscriptions", async () => {
