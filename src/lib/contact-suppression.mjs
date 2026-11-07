@@ -1,7 +1,10 @@
 const suppressionIndexByDb = new WeakMap();
 
 async function ensureSuppressionIndex(db) {
-  let indexPromise = suppressionIndexByDb.get(db);
+  // Db instances can be recreated by client.db() for each request. Cache by
+  // the shared MongoClient so createIndex is not repeated on every send.
+  const cacheKey = db.client || db;
+  let indexPromise = suppressionIndexByDb.get(cacheKey);
   if (!indexPromise) {
     indexPromise = db.collection("contactSuppressions")
       .createIndex(
@@ -9,10 +12,10 @@ async function ensureSuppressionIndex(db) {
         { name: "contact_suppression_workspace_phone" },
       )
       .catch((error) => {
-        suppressionIndexByDb.delete(db);
+        suppressionIndexByDb.delete(cacheKey);
         throw error;
       });
-    suppressionIndexByDb.set(db, indexPromise);
+    suppressionIndexByDb.set(cacheKey, indexPromise);
   }
   await indexPromise;
 }
