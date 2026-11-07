@@ -6,7 +6,7 @@ import { createSession } from "@/lib/auth";
 import { registerSchema } from "@/lib/schemas";
 import { initializeDatabase } from "@/lib/database";
 import { isSameOrigin } from "@/lib/security";
-import { consumeAuthRateLimits } from "@/lib/auth-rate-limit";
+import { consumeAuthRateLimits } from "@/lib/auth-rate-limit.mjs";
 import clientPromise from "@/lib/mongodb";
 
 export const runtime = "nodejs";
