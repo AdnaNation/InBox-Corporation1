@@ -49,7 +49,7 @@ test("sends a verification link through the configured Resend account", async (t
   assert.equal(captured.options.headers.Authorization, "Bearer re_test_key");
   assert.equal(captured.body.from, "Wavo <no-reply@example.com>");
   assert.deepEqual(captured.body.to, ["person@example.com"]);
-  assert.match(captured.body.text, /https:\/\/wavo\.example\.com\/api\/auth\/verify-email\?token=/);
+  assert.match(captured.body.text, /https:\/\/wavo\.example\.com\/verify-email#token=/);
 });
 
 test("fails safely when email delivery is not configured", async (t) => {

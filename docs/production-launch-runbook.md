@@ -53,7 +53,8 @@ Use a dedicated test workspace, a phone number controlled by the business, and c
 ### Account and email
 
 - [ ] Register a new test account and verify the email message arrives.
-- [ ] Open the verification link once; confirm it succeeds and cannot be reused.
+- [ ] Open the verification link and confirm the page does not verify the account until the user presses the confirmation button (automated email-link scanners must not consume the token).
+- [ ] Press the confirmation button; confirm verification succeeds and the link cannot be reused.
 - [ ] Request a password reset; confirm the message arrives and the link expires after use/expiry.
 - [ ] Reset the password and confirm previously issued sessions are invalidated.
 - [ ] Confirm unknown and known email addresses receive the same password-reset request response.

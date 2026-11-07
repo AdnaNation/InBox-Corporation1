@@ -5,8 +5,8 @@ export async function sendVerificationEmail({ to, token, origin }) {
     throw new Error("Email delivery is not configured. Set RESEND_API_KEY and EMAIL_FROM.");
   }
 
-  const verifyUrl = new URL("/api/auth/verify-email", origin);
-  verifyUrl.searchParams.set("token", token);
+  const verifyUrl = new URL("/verify-email", origin);
+  verifyUrl.hash = "token=" + encodeURIComponent(token);
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
