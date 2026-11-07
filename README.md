@@ -52,6 +52,12 @@ NEXT_PUBLIC_APP_URL=https://your-production-domain.com
 
 The sender domain must be verified in Resend. Never expose `RESEND_API_KEY` through a `NEXT_PUBLIC_` variable.
 
+## Password reset
+
+Users can request a password reset from the sign-in page. Requests return the same confirmation for existing and unknown addresses, are rate-limited by email and IP, and send one-time links that expire after 1 hour. Only token hashes are stored. Resetting a password increments the account's session version, invalidating existing sessions across devices.
+
+Password reset uses the same server-side `RESEND_API_KEY` and `EMAIL_FROM` configuration described above.
+
 ## Background worker
 
 Vercel Hobby does not provide the frequent schedule needed for campaigns and webhook retries. Run the standalone Node.js worker on an always-on background-worker host. See [background worker deployment](docs/background-worker.md). Start command: `npm run worker`. The worker requires `WAVO_APP_URL` and the same 32+ character `CRON_SECRET` configured on the app. Keep one worker instance running and monitor its logs; queued campaigns and webhook deliveries do not progress while the worker is stopped.
@@ -112,7 +118,7 @@ The current implementation supports the standard Cloud API signup path. It does 
 
 This is a runnable MVP foundation, not a finished, audited commercial SaaS. Before accepting real customers or sending campaigns, implement and test:
 
-- Password reset, bot protection and account recovery
+- Bot protection, account recovery and support workflows
 - CSRF/origin policy appropriate for custom domains and preview deployments
 - Admin provisioning and audited role management
 - Meta Tech Provider eligibility, App Review / Advanced Access, token-expiry handling and customer offboarding automation
