@@ -4,4 +4,5 @@ out
 .vercel
 .env*
 !.env.example
+!.env.worker.example
 .DS_Store
