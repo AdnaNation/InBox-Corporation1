@@ -63,7 +63,7 @@ export async function POST(request) {
     await sendVerificationEmail({
       to: user.email,
       token: verification.token,
-      origin: new URL(request.url).origin,
+      origin: process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin,
     });
 
     return NextResponse.json({ success: true, message: "A new verification link has been sent to your email address." });
