@@ -23,6 +23,7 @@ export default function ContactsClient({
   initialContacts = [],
   initialPagination = { limit: 200, hasMore: false, nextCursor: null },
   initialTags = [],
+  canExport = false,
 }) {
   const [contacts, setContacts] = useState(initialContacts);
   const [pagination, setPagination] = useState(initialPagination);
@@ -520,16 +521,18 @@ export default function ContactsClient({
                 className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-green-500 sm:w-56"
               />
             </div>
-            <button
-              type="button"
-              onClick={exportContacts}
-              disabled={exporting}
-              className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {exporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
-              {exporting ? "Exporting..." : "Export CSV"}
-            </button>
-          </div>
+            {canExport && (
+              <button
+                type="button"
+                onClick={exportContacts}
+                disabled={exporting}
+                className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {exporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+                {exporting ? "Exporting..." : "Export CSV"}
+              </button>
+  
+            )}          </div>
 
           {/* Tag Filter */}
           <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 p-4">
