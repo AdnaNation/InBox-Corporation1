@@ -85,6 +85,33 @@ export default function PlatformAdminClient() {
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="border-b border-slate-100 p-5">
+          <h2 className="font-bold text-slate-900">Customer data requests</h2>
+          <p className="mt-1 text-sm text-slate-500">Review export and deletion requests. Completing a deletion request means the approved offboarding work has actually been completed; this console does not delete records automatically.</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[850px] text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3">Workspace / owner</th><th className="px-5 py-3">Request</th><th className="px-5 py-3">Submitted</th><th className="px-5 py-3">Status / action</th></tr></thead>
+            <tbody className="divide-y divide-slate-100">
+              {(data?.dataRequests || []).map((item) => <tr key={item.id}>
+                <td className="px-5 py-4"><p className="font-semibold text-slate-900">{item.workspaceName}</p><p className="mt-1 text-xs text-slate-500">{item.requesterName} · {item.requesterEmail}</p></td>
+                <td className="px-5 py-4"><span className="font-semibold">{item.type === "deletion" ? "Workspace deletion" : "Data export"}</span><p className="mt-1 text-xs text-slate-500">ID: {item.id.slice(-8)}</p></td>
+                <td className="px-5 py-4 text-slate-500">{date(item.createdAt)}</td>
+                <td className="px-5 py-4">
+                  {["pending", "in_review"].includes(item.status) ? <div className="flex flex-wrap gap-2">
+                    {item.status === "pending" && <button disabled={!!busy} onClick={() => act(item.id + ":review", { action: "review-data-request", requestId: item.id, status: "in_review" }, "Move this customer data request into review?")} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Start review</button>}
+                    {item.status === "in_review" && <button disabled={!!busy} onClick={() => act(item.id + ":complete", { action: "review-data-request", requestId: item.id, status: "completed" }, item.type === "deletion" ? "Confirm that identity, retention, legal checks and the approved deletion process have all been completed." : "Confirm that the export has been prepared and delivered securely to the verified workspace owner.")} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Mark completed</button>}
+                    <button disabled={!!busy} onClick={() => act(item.id + ":reject", { action: "review-data-request", requestId: item.id, status: "rejected" }, "Reject this data request? Record the reason through your approved support process.")} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 disabled:opacity-50">Reject</button>
+                  </div> : <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold capitalize text-slate-700">{String(item.status).replaceAll("_", " ")}</span>}
+                </td>
+              </tr>)}
+              {!data?.dataRequests?.length && <tr><td colSpan="4" className="px-5 py-10 text-center text-slate-500">No customer data requests yet.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <div className="border-b border-slate-100 p-5"><h2 className="font-bold text-slate-900">Customer workspaces</h2><p className="mt-1 text-sm text-slate-500">Change plans or suspend and reactivate customer workspaces.</p></div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[850px] text-left text-sm">
