@@ -39,7 +39,7 @@ export async function getWorkspacePlanUsage(db, workspaceId) {
   return {
     plan,
     workspaceStatus: workspace?.status || "active",
-    usage: { contacts, messages: Math.max(messages, counter?.messages || 0), campaigns },
+    usage: { contacts, messages: Math.max(messages, counter?.messages || 0), campaigns: Math.max(campaigns, counter?.campaigns || 0) },
     limits: PLAN_LIMITS[plan],
   };
 }
@@ -51,6 +51,41 @@ function getLimitReason(resource) {
       ? "Your workspace has reached its monthly campaign limit. Upgrade your plan to continue."
       : "Your workspace has reached its contact limit. Upgrade your plan to add more contacts.";
 }
+
+async function ensurePlanUsageCounter(counters, counterId, workspaceId, state, now) {
+  try {
+    await counters.updateOne(
+      { _id: counterId },
+      {
+        $setOnInsert: {
+          workspaceId,
+          periodStart: getMonthStart(now),
+          messages: state.usage.messages,
+          campaigns: state.usage.campaigns,
+          createdAt: now,
+        },
+        $set: { updatedAt: now },
+      },
+      { upsert: true },
+    );
+  } catch (error) {
+    // Concurrent first-time reservations may race to upsert the same _id.
+    // The winner creates the counter; the loser continues against that row.
+    if (error?.code !== 11000) throw error;
+  }
+
+  await counters.updateOne(
+    { _id: counterId },
+    {
+      $max: {
+        messages: state.usage.messages,
+        campaigns: state.usage.campaigns,
+      },
+      $set: { updatedAt: now },
+    },
+  );
+}
+
 
 export async function checkWorkspacePlanLimit(db, workspaceId, resource, requested = 1) {
   const state = await getWorkspacePlanUsage(db, workspaceId);
@@ -102,25 +137,7 @@ export async function reserveWorkspaceMessageUsage(db, workspaceId, requested = 
   const counterId = getUsagePeriodKey(workspaceId, now);
   const counters = db.collection("planUsageCounters");
 
-  await counters.updateOne(
-    { _id: counterId },
-    {
-      $setOnInsert: {
-        workspaceId,
-        periodStart: monthStart,
-        messages: state.usage.messages,
-        createdAt: now,
-      },
-      $set: { updatedAt: now },
-    },
-    { upsert: true },
-  );
-
-  // Bring a counter forward if messages were written by an older code path.
-  await counters.updateOne(
-    { _id: counterId },
-    { $max: { messages: state.usage.messages }, $set: { updatedAt: now } },
-  );
+  await ensurePlanUsageCounter(counters, counterId, workspaceId, state, now);
 
   const reservation = await counters.updateOne(
     { _id: counterId, messages: { $lte: limit - requested } },
@@ -139,5 +156,50 @@ export async function reserveWorkspaceMessageUsage(db, workspaceId, requested = 
     remaining: Math.max(0, limit - used),
     usage: { ...state.usage, messages: used },
     reason: reservation.modifiedCount === 1 ? null : getLimitReason("messages"),
+  };
+}
+
+export async function releaseWorkspaceCampaignUsage(db, workspaceId, requested = 1) {
+  if (!Number.isSafeInteger(requested) || requested < 1) return;
+  const counterId = getUsagePeriodKey(workspaceId);
+  await db.collection("planUsageCounters").updateOne(
+    { _id: counterId, campaigns: { $gte: requested } },
+    { $inc: { campaigns: -requested }, $set: { updatedAt: new Date() } },
+  );
+}
+
+// Atomically reserve monthly campaign capacity before a draft is persisted.
+export async function reserveWorkspaceCampaignUsage(db, workspaceId, requested = 1) {
+  const state = await getWorkspacePlanUsage(db, workspaceId);
+  const limit = state.limits.campaigns;
+  if (state.workspaceStatus !== "active") {
+    return { ...state, allowed: false, reason: "This workspace is suspended. Contact support to restore access." };
+  }
+  if (!Number.isSafeInteger(requested) || requested < 1) {
+    return { ...state, allowed: false, reason: "Invalid campaign reservation." };
+  }
+
+  const now = new Date();
+  const counterId = getUsagePeriodKey(workspaceId, now);
+  const counters = db.collection("planUsageCounters");
+  await ensurePlanUsageCounter(counters, counterId, workspaceId, state, now);
+
+  const reservation = await counters.updateOne(
+    { _id: counterId, campaigns: { $lte: limit - requested } },
+    { $inc: { campaigns: requested }, $set: { updatedAt: now } },
+  );
+  const counter = await counters.findOne({ _id: counterId });
+  const used = Math.max(state.usage.campaigns, counter?.campaigns || 0);
+
+  return {
+    ...state,
+    allowed: reservation.modifiedCount === 1,
+    resource: "campaigns",
+    used,
+    limit,
+    requested,
+    remaining: Math.max(0, limit - used),
+    usage: { ...state.usage, campaigns: used },
+    reason: reservation.modifiedCount === 1 ? null : getLimitReason("campaigns"),
   };
 }
