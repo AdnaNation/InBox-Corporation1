@@ -7,6 +7,14 @@ import { decryptSecret } from "@/lib/crypto";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function getAutomatedHealthFields(account) {
+  return {
+    lastAutomatedCheckAt: account.lastHealthCheckAt?.toISOString?.() || account.lastHealthCheckAt || null,
+    lastAutomatedStatus: account.lastHealthStatus || "not_checked",
+    lastAutomatedMessage: account.lastHealthMessage || "Scheduled monitoring has not run yet.",
+  };
+}
+
 export async function GET(request) {
   const session = await getSession();
 
@@ -63,6 +71,7 @@ export async function GET(request) {
           tokenStatus: "missing",
           connectionStatus: "attention",
           message: "No saved access token was found. Reconnect this WhatsApp account.",
+          ...getAutomatedHealthFields(account),
         },
       });
     }
@@ -127,6 +136,7 @@ export async function GET(request) {
               ? "Meta denied access to this phone number. Check token permissions and business access."
               : "Meta could not verify this number right now. Try again later.",
           metaErrorCode: errorCode || null,
+          ...getAutomatedHealthFields(account),
         },
       });
     }
@@ -155,9 +165,7 @@ export async function GET(request) {
         qualityRating: result.quality_rating || "UNKNOWN",
         codeVerificationStatus: result.code_verification_status || "UNKNOWN",
         platformType: result.platform_type || "UNKNOWN",
-        lastAutomatedCheckAt: account.lastHealthCheckAt?.toISOString?.() || account.lastHealthCheckAt || null,
-        lastAutomatedStatus: account.lastHealthStatus || "not_checked",
-        lastAutomatedMessage: account.lastHealthMessage || "Scheduled monitoring has not run yet.",
+        ...getAutomatedHealthFields(account),
       },
     });
   } catch (error) {
