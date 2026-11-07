@@ -6,6 +6,7 @@ import { contactSchema } from "@/lib/schemas";
 import { normalizePhoneNumbers } from "@/lib/contact-utils";
 import { isSameOrigin } from "@/lib/security";
 import { reserveWorkspaceContactUsage, releaseWorkspaceContactUsage } from "@/lib/plan-limits";
+import { buildContactHistoryFilter, decodeContactCursor, encodeContactCursor } from "@/lib/contact-pagination.mjs";
 
 export const runtime = "nodejs";
 
@@ -18,33 +19,54 @@ export async function GET(request) {
       { status: 401 },
     );
   }
+
   const { searchParams } = new URL(request.url);
   const requestedLimit = Number(searchParams.get("limit") || 200);
-  const limit = Math.min(
-    Math.max(Number.isFinite(requestedLimit) ? requestedLimit : 200, 1),
-    5000,
-  );
-  const db = await getDatabase();
+  const limit = Math.min(Math.max(Number.isFinite(requestedLimit) ? requestedLimit : 200, 1), 200);
+  const query = (searchParams.get("q") || "").trim().slice(0, 100);
+  const tag = (searchParams.get("tag") || "").trim().toLowerCase().slice(0, 30);
+  const cursorValue = searchParams.get("cursor");
+  const cursor = cursorValue ? decodeContactCursor(cursorValue) : null;
+  if (cursorValue && !cursor) {
+    return NextResponse.json({ success: false, message: "Invalid contact pagination cursor." }, { status: 400 });
+  }
 
-  const contacts = await db
-    .collection("contacts")
-    .find({
-      workspaceId: new ObjectId(session.workspace.id),
-    })
-    .sort({ createdAt: -1 })
-    .limit(limit)
-    .toArray();
+  const db = await getDatabase();
+  const workspaceId = new ObjectId(session.workspace.id);
+  const filter = { $and: [buildContactHistoryFilter(workspaceId, cursor)] };
+
+  if (query) {
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const phoneQuery = query.replace(/\\D/g, "");
+    const searchConditions = [{ name: { $regex: escapedQuery, $options: "i" } }];
+    if (phoneQuery) searchConditions.push({ phone: { $regex: phoneQuery } });
+    filter.$and.push({ $or: searchConditions });
+  }
+  if (tag) filter.$and.push({ tags: tag });
+
+  const [rows, availableTags] = await Promise.all([
+    db.collection("contacts")
+      .find(filter)
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(limit + 1)
+      .toArray(),
+    db.collection("contacts").distinct("tags", { workspaceId }),
+  ]);
+
+  const hasMore = rows.length > limit;
+  if (hasMore) rows.pop();
 
   const suppressedRows = await db.collection("contactSuppressions").find({
-    workspaceId: new ObjectId(session.workspace.id),
-    phone: { $in: contacts.map((contact) => contact.phone) },
+    workspaceId,
+    phone: { $in: rows.map((contact) => contact.phone) },
     active: { $ne: false },
   }).project({ phone: 1 }).toArray();
   const suppressedPhones = new Set(suppressedRows.map((item) => item.phone));
+  const lastContact = rows.at(-1);
 
   return NextResponse.json({
     success: true,
-    contacts: contacts.map((contact) => ({
+    contacts: rows.map((contact) => ({
       id: contact._id.toString(),
       name: contact.name,
       phone: contact.phone,
@@ -53,6 +75,12 @@ export async function GET(request) {
       tags: contact.tags || [],
       createdAt: contact.createdAt?.toISOString(),
     })),
+    availableTags: availableTags.filter((value) => typeof value === "string").sort(),
+    pagination: {
+      limit,
+      hasMore,
+      nextCursor: hasMore && lastContact ? encodeContactCursor(lastContact) : null,
+    },
   });
 }
 
