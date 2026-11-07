@@ -36,7 +36,7 @@ export async function GET(request) {
 
     const stream = new ReadableStream({
       start(controller) {
-        controller.enqueue(encoder.encode("\uFEFFname,phone,tags,opted_in,created_at\\r\\n"));
+        controller.enqueue(encoder.encode("\uFEFFname,phone,tags,opted_in,created_at\r\n"));
       },
       async pull(controller) {
         try {
@@ -46,7 +46,7 @@ export async function GET(request) {
             await closeCursor();
             return;
           }
-          controller.enqueue(encoder.encode(serializeContactCsvRow(value) + "\\r\\n"));
+          controller.enqueue(encoder.encode(serializeContactCsvRow(value) + "\r\n"));
         } catch (error) {
           await closeCursor();
           controller.error(error);
