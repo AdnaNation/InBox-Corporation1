@@ -6,9 +6,9 @@ The public API lets an external system manage contacts inside one Wavo workspace
 
 ## 1. Create an API key
 
-In Wavo, open **Dashboard → API Keys** and create a key with only the permissions your integration needs. Copy the secret when it is shown; store it in a server-side secret manager and never commit it or expose it in browser JavaScript.
+In Wavo, open **Dashboard → API Keys** and create a key with only the permissions your integration needs. Choose an expiration of 30 days, 90 days (the recommended default), one year, or never. Expired keys are rejected automatically. Copy the secret when it is shown; store it in a server-side secret manager and never commit it or expose it in browser JavaScript.
 
-API keys use the `ibx_live_` prefix. The API stores a hash, not the raw key. Revoke a key immediately if it is exposed.
+API keys use the `ibx_live_` prefix. The API stores a hash, not the raw key. The default lifetime is 90 days; keys set to never expire omit the expiry timestamp. Revoke a key immediately if it is exposed.
 
 ## 2. Authentication and permissions
 

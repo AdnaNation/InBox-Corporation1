@@ -21,6 +21,7 @@ export default function ApiKeysClient() {
   const [keys, setKeys] = useState([]);
   const [name, setName] = useState("");
   const [scopes, setScopes] = useState(["contacts:read"]);
+  const [expirationDays, setExpirationDays] = useState(90);
   const [secret, setSecret] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -63,13 +64,14 @@ export default function ApiKeysClient() {
       const response = await fetch("/api/api-keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, scopes }),
+        body: JSON.stringify({ name, scopes, expirationDays }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Could not create API key.");
       setSecret(data.key.secret);
       setName("");
       setScopes(["contacts:read"]);
+      setExpirationDays(90);
       setNotice(data.message);
       await loadKeys();
     } catch (err) {
@@ -135,6 +137,16 @@ curl -X PATCH "https://inbox-corporation-new.vercel.app/api/v1/contacts/CONTACT_
         <form onSubmit={createKey} className="mt-5 space-y-4">
           <input value={name} onChange={(event) => setName(event.target.value)} maxLength={60} required placeholder="e.g. Website integration" className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-green-600" />
           <div>
+            <label htmlFor="api-key-expiration" className="mb-2 block text-sm font-semibold text-slate-800">Key expiration</label>
+            <select id="api-key-expiration" value={expirationDays} onChange={(event) => setExpirationDays(Number(event.target.value))} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-green-600">
+              <option value={30}>30 days</option>
+              <option value={90}>90 days (recommended)</option>
+              <option value={365}>1 year</option>
+              <option value={0}>Never expires</option>
+            </select>
+            <p className="mt-1 text-xs text-slate-500">Expired keys stop authenticating automatically. Rotate integrations before the expiry date.</p>
+          </div>
+          <div>
             <p className="mb-2 text-sm font-semibold text-slate-800">Permissions</p>
             <div className="grid gap-3 sm:grid-cols-2">
               {scopeOptions.map((scope) => (
@@ -186,10 +198,10 @@ curl -X PATCH "https://inbox-corporation-new.vercel.app/api/v1/contacts/CONTACT_
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-medium text-slate-900">{key.name}</p>
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${key.status === "active" ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-500"}`}>{key.status}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${key.status === "active" && (!key.expiresAt || new Date(key.expiresAt) > new Date()) ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-500"}`}>{key.status === "active" && key.expiresAt && new Date(key.expiresAt) <= new Date() ? "expired" : key.status}</span>
                   </div>
                   <code className="mt-1 block text-xs text-slate-500">{key.prefix}••••••••</code>
-                  <p className="mt-1 text-xs text-slate-400">Created {new Date(key.createdAt).toLocaleString()} · Last used {key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleString() : "Never"}</p>
+                  <p className="mt-1 text-xs text-slate-400">Created {new Date(key.createdAt).toLocaleString()} · Last used {key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleString() : "Never"} · Expires {key.expiresAt ? new Date(key.expiresAt).toLocaleDateString() : "Never"}</p>
                   <p className="mt-1 text-xs text-slate-500">{key.scopes.join(", ")}</p>
                 </div>
                 {key.status === "active" && <button type="button" disabled={busy} onClick={() => revokeKey(key.id)} className="inline-flex items-center gap-2 self-start rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"><Trash2 size={14} /> Revoke</button>}
