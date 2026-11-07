@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MessageCircle, Loader2 } from "lucide-react";
@@ -10,6 +10,18 @@ export default function LoginPage() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [verificationNotice, setVerificationNotice] = useState("");
+
+  useEffect(() => {
+    const status = new URLSearchParams(window.location.search).get("verification");
+    const messages = {
+      success: "Your email address is verified. You can now sign in.",
+      expired: "This verification link has expired. Sign in and request a new one from your dashboard.",
+      invalid: "This verification link is invalid.",
+      failed: "We could not verify your email right now. Please try again.",
+    };
+    setVerificationNotice(messages[status] || "");
+  }, []);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -37,6 +49,7 @@ export default function LoginPage() {
     <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
       <h1 className="text-2xl font-bold">Welcome back</h1><p className="mb-7 mt-2 text-sm text-slate-500">Sign in to your business workspace.</p>
       <form onSubmit={handleSubmit} className="space-y-5">
+        {verificationNotice && <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{verificationNotice}</p>}
         {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         <label className="block text-sm font-medium">Email address<input type="email" required value={form.email} onChange={e=>setForm({...form,email:e.target.value})} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100" placeholder="you@example.com"/></label>
         <label className="block text-sm font-medium">Password<input type="password" required value={form.password} onChange={e=>setForm({...form,password:e.target.value})} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100" placeholder="Your password"/></label>
