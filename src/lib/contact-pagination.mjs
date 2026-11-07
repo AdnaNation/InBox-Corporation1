@@ -37,6 +37,13 @@ export function encodeContactCursor(contact) {
 }
 
 
+export function escapeContactSearchQuery(value) {
+  const specialCharacters = new Set(["\\\\", "^", "$", ".", "*", "+", "?", "(", ")", "[", "]", "{", "}", "|"]);
+  return Array.from(String(value ?? ""), (character) =>
+    specialCharacters.has(character) ? `\\\\${character}` : character
+  ).join("");
+}
+
 export function buildContactQueryFilter(workspaceId, { cursor = null, query = "", tag = "" } = {}) {
   const clauses = [buildContactHistoryFilter(workspaceId, cursor)];
   const normalizedQuery = typeof query === "string" ? query.trim().slice(0, 100) : "";
