@@ -16,13 +16,13 @@ before(async () => {
 
 after(async () => {
   if (db && userIds.length) {
-    await db.collection("passwordResetTokens").deleteMany({ userId: { $in: userIds } });
+    await db.collection("passwordResetTokens_index_test").deleteMany({ userId: { $in: userIds } });
   }
   await client.close();
 });
 
 test("allows only one pending password reset token per user", async () => {
-  const collection = db.collection("passwordResetTokens");
+  const collection = db.collection("passwordResetTokens_index_test");
   await collection.createIndex(
     { userId: 1 },
     { unique: true, partialFilterExpression: { status: "pending" }, name: "test_one_pending_password_reset_per_user" },
