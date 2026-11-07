@@ -402,6 +402,15 @@ Wavo retries non-2xx responses and transport failures with exponential backoff, 
 
 - `GET /webhooks` lists subscriptions.
 - `DELETE /webhooks/{subscriptionId}` disables a subscription and cancels pending deliveries.
+- `POST /webhooks/{subscriptionId}/test` queues a signed `webhook.test` event for that active subscription. It requires `webhooks:write`, does not require the subscription to include a particular event filter, and does not represent a real customer message or campaign event. The response is `202` with a delivery ID; inspect delivery history for the result.
+
+Example:
+
+```bash
+curl -X POST "https://YOUR_WAVO_DOMAIN/api/v1/webhooks/SUBSCRIPTION_ID/test" \
+  -H "Authorization: Bearer $WAVO_API_KEY"
+```
+
 - `POST /webhooks/{subscriptionId}/rotate-secret` rotates the signing secret for an active subscription. Requires `webhooks:write`. The new `whsec_` secret is returned exactly once; the previous secret becomes invalid immediately. Update your receiver's secret before relying on subsequent deliveries.
 
 Example:
