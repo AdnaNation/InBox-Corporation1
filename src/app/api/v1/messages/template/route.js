@@ -177,7 +177,15 @@ export async function POST(request) {
     });
   }
 
-  const latestSuppression = await findActiveContactSuppression(db, workspaceId, contact.phone);
+  let latestSuppression;
+  try {
+    latestSuppression = await findActiveContactSuppression(db, workspaceId, contact.phone);
+  } catch (error) {
+    console.error("Public API suppression check failed:", error);
+    await releaseWorkspaceMessageUsage(db, workspaceId, 1);
+    await idempotencyCollection.deleteOne({ _id: idempotencyId });
+    return errorResponse("Could not verify recipient opt-out status. Retry with the same Idempotency-Key.", 503, { code: "SUPPRESSION_CHECK_FAILED" });
+  }
   if (latestSuppression) {
     await releaseWorkspaceMessageUsage(db, workspaceId, 1);
     await idempotencyCollection.deleteOne({ _id: idempotencyId });
