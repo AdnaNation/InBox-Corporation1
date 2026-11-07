@@ -1,20 +1,11 @@
 export const API_RATE_LIMIT = 120;
 export const API_RATE_WINDOW_MS = 60_000;
 
-const rateLimitIndexByDb = new WeakMap();
-
 export function ensureApiRateLimitIndex(db) {
-  let indexPromise = rateLimitIndexByDb.get(db);
-  if (!indexPromise) {
-    indexPromise = db.collection("apiRateLimits")
-      .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: "api_rate_limits_ttl" })
-      .catch((error) => {
-        rateLimitIndexByDb.delete(db);
-        throw error;
-      });
-    rateLimitIndexByDb.set(db, indexPromise);
-  }
-  return indexPromise;
+  return ensureMongoIndex(db, "apiRateLimits", { expiresAt: 1 }, {
+    expireAfterSeconds: 0,
+    name: "api_rate_limits_ttl",
+  });
 }
 
 export async function consumeApiRateLimit(db, apiKeyId) {
