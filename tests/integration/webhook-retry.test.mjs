@@ -1,6 +1,5 @@
-import test from "node:test";
 import assert from "node:assert/strict";
-import { after, before } from "node:test";
+import { after, before, test } from "node:test";
 import { MongoClient, ObjectId } from "mongodb";
 import { retryFailedWebhookDelivery } from "../../src/lib/webhook-retry.mjs";
 
