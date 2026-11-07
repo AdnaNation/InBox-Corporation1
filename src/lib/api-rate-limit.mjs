@@ -1,3 +1,5 @@
+import { ensureMongoIndex } from "./mongo-indexes.mjs";
+
 export const API_RATE_LIMIT = 120;
 export const API_RATE_WINDOW_MS = 60_000;
 
