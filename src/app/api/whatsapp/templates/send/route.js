@@ -96,6 +96,19 @@ export async function POST(request) {
       );
     }
 
+    // Template messages can initiate a business conversation, so require
+    // explicit recorded consent rather than relying on an inbound chat alone.
+    const optedInContact = await db.collection("contacts").findOne(
+      { workspaceId, phone: { $in: [conversation.waId, "+" + conversation.waId] }, "optIn.status": true },
+      { projection: { _id: 1 } },
+    );
+    if (!optedInContact) {
+      return NextResponse.json(
+        { success: false, code: "OPTED_IN_CONTACT_REQUIRED", message: "Record this contact's consent before sending an approved template." },
+        { status: 403 },
+      );
+    }
+
     const account = await db.collection("whatsappAccounts").findOne({
       workspaceId,
       phoneNumberId: conversation.phoneNumberId,
