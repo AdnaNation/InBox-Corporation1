@@ -13,7 +13,7 @@ export default function VerifyEmailClient() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const value = new URLSearchParams(window.location.search).get("token") || "";
+    const value = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("token") || "";
     setToken(value);
     setReady(true);
     // Remove the bearer-like token from the visible URL and browser history
