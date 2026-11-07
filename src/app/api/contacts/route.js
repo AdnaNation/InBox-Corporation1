@@ -37,7 +37,7 @@ export async function GET(request) {
 
   if (query) {
     const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const phoneQuery = query.replace(/\\D/g, "");
+    const phoneQuery = query.replace(/\D/g, "");
     const searchConditions = [{ name: { $regex: escapedQuery, $options: "i" } }];
     if (phoneQuery) searchConditions.push({ phone: { $regex: phoneQuery } });
     filter.$and.push({ $or: searchConditions });
