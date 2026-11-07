@@ -724,7 +724,7 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
           <h2 className="font-semibold">Recent campaigns</h2>
 
           <p className="mt-1 text-xs text-slate-500">
-            Campaign history will appear here as campaign scheduling is added.
+            Your recent campaigns and delivery progress will appear here.
           </p>
 
           {campaigns.length ? (
