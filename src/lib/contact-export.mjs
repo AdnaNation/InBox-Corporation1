@@ -1,6 +1,6 @@
 export function escapeCsvCell(value) {
   const text = String(value ?? "");
-  const safeText = /^[\\s]*[=+\\-@]/.test(text) ? `'${text}` : text;
+  const safeText = /^\s*[=+@-]/.test(text) ? "'" + text : text;
   return `"${safeText.replace(/"/g, '""')}"`;
 }
 
