@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { getWorkspacePlanUsage } from "@/lib/plan-limits";
+import { ensureBillingRequestIndexes } from "@/lib/billing-requests.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -65,12 +66,14 @@ export async function POST(request) {
     }
     const db = await getDatabase();
     const workspaceId = new ObjectId(session.workspace.id);
+    await ensureBillingRequestIndexes(db);
     const existing = await db.collection("billingRequests").findOne({ workspaceId, status: "pending" }, { projection: { _id: 1 } });
     if (existing) {
       return NextResponse.json({ success: false, message: "You already have a pending plan request. Our team will contact you." }, { status: 409 });
     }
     const now = new Date();
-    await db.collection("billingRequests").insertOne({
+    try {
+      await db.collection("billingRequests").insertOne({
       workspaceId,
       workspaceName: session.workspace.name,
       requestedBy: new ObjectId(session.user.id),
@@ -81,7 +84,13 @@ export async function POST(request) {
       status: "pending",
       createdAt: now,
       updatedAt: now,
-    });
+      });
+    } catch (error) {
+      if (error?.code === 11000) {
+        return NextResponse.json({ success: false, message: "You already have a pending plan request. Our team will contact you." }, { status: 409 });
+      }
+      throw error;
+    }
     return NextResponse.json({ success: true, message: "Your request was received. Our team will contact you about plan activation and payment." }, { status: 201 });
   } catch (error) {
     console.error("Plan request error:", error);
