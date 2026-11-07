@@ -41,8 +41,8 @@ export async function POST(request) {
     await session.withTransaction(async () => {
       const now = new Date();
       const claim = await db.collection("passwordResetTokens").findOneAndUpdate(
-        { tokenHash, usedAt: { $exists: false }, expiresAt: { $gt: now } },
-        { $set: { usedAt: now } },
+        { tokenHash, status: "pending", expiresAt: { $gt: now } },
+        { $set: { status: "used", usedAt: now } },
         { session, returnDocument: "before", includeResultMetadata: false },
       );
       const tokenRecord = claim?.value ?? claim;
