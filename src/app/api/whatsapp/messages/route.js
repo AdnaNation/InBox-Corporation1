@@ -215,9 +215,10 @@ export async function POST(request) {
       }, { status: 502 });
     }
 
-    const now = new Date();
+    try {
+      const now = new Date();
 
-    const messageDocument = {
+      const messageDocument = {
       workspaceId,
       conversationId: conversation._id,
       contactId: conversation.contactId,
@@ -263,10 +264,19 @@ export async function POST(request) {
       },
     );
 
-    return NextResponse.json({
-      success: true,
-      message: savedMessage || messageDocument,
-    });
+      return NextResponse.json({
+        success: true,
+        message: savedMessage || messageDocument,
+      });
+    } catch (error) {
+      console.error("Meta accepted text message but Wavo could not finish saving it:", { waMessageId, error: error.message });
+      return NextResponse.json({
+        success: false,
+        code: "MESSAGE_ACCEPTED_SAVE_FAILED",
+        waMessageId,
+        message: "Meta accepted this message, but Wavo could not finish saving its history. Do not send it again. Refresh the inbox and check the delivery status.",
+      }, { status: 502 });
+    }
   } catch (error) {
     console.error("Send WhatsApp message error:", error);
 
