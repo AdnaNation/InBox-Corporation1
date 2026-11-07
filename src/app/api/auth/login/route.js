@@ -4,7 +4,7 @@ import { getDatabase } from "@/lib/db";
 import { createSession } from "@/lib/auth";
 import { loginSchema } from "@/lib/schemas";
 import { isSameOrigin } from "@/lib/security";
-import { consumeAuthRateLimits } from "@/lib/auth-rate-limit";
+import { consumeAuthRateLimits } from "@/lib/auth-rate-limit.mjs";
 
 export const runtime = "nodejs";
 
