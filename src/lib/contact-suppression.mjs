@@ -1,10 +1,17 @@
-const suppressionIndexByDb = new WeakMap();
+const suppressionIndexesByClient = new WeakMap();
 
 export async function ensureContactSuppressionIndex(db) {
   // Db instances can be recreated by client.db() for each request. Cache by
-  // the shared MongoClient so index inspection is not repeated on every send.
+  // client and database name so multiple databases on one client stay isolated.
   const cacheKey = db.client || db;
-  let indexPromise = suppressionIndexByDb.get(cacheKey);
+  const databaseName = db.databaseName || "";
+  let indexesByDatabase = suppressionIndexesByClient.get(cacheKey);
+  if (!indexesByDatabase) {
+    indexesByDatabase = new Map();
+    suppressionIndexesByClient.set(cacheKey, indexesByDatabase);
+  }
+
+  let indexPromise = indexesByDatabase.get(databaseName);
   if (!indexPromise) {
     indexPromise = (async () => {
       const collection = db.collection("contactSuppressions");
@@ -17,18 +24,23 @@ export async function ensureContactSuppressionIndex(db) {
         if (error?.code !== 26 && error?.codeName !== "NamespaceNotFound") throw error;
       }
       const existing = indexes.some(
-        (index) => index.key?.workspaceId === 1 && index.key?.phone === 1,
+        (index) => index.key?.workspaceId === 1 && index.key?.phone === 1 && index.unique === true,
       );
       if (existing) return;
+      const conflicting = indexes.some(
+        (index) => index.key?.workspaceId === 1 && index.key?.phone === 1,
+      );
+      if (conflicting) throw new Error("The workspace/phone suppression index must be unique.");
       await collection.createIndex(
         { workspaceId: 1, phone: 1 },
         { unique: true },
       );
     })().catch((error) => {
-      suppressionIndexByDb.delete(cacheKey);
+      indexesByDatabase.delete(databaseName);
+      if (!indexesByDatabase.size) suppressionIndexesByClient.delete(cacheKey);
       throw error;
     });
-    suppressionIndexByDb.set(cacheKey, indexPromise);
+    indexesByDatabase.set(databaseName, indexPromise);
   }
   await indexPromise;
 }
