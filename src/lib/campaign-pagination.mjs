@@ -1,3 +1,17 @@
+import { ObjectId } from "mongodb";
+
+export function buildCampaignHistoryFilter(workspaceId, cursor = null, status = null) {
+  const filter = { workspaceId };
+  if (status) filter.status = status;
+  if (cursor) {
+    filter.$or = [
+      { createdAt: { $lt: cursor.createdAt } },
+      { createdAt: cursor.createdAt, _id: { $lt: new ObjectId(cursor.id) } },
+    ];
+  }
+  return filter;
+}
+
 export function decodeCampaignCursor(value) {
   if (typeof value !== "string" || !value || value.length > 512) return null;
   try {

@@ -5,7 +5,7 @@ import { authenticateApiKey } from "@/lib/api-key-auth";
 import { getActiveWhatsAppAccount } from "@/lib/whatsapp-account";
 import { checkWorkspacePlanLimit } from "@/lib/plan-limits";
 import { enqueueWebhookEvent } from "@/lib/public-webhooks.mjs";
-import { decodeCampaignCursor, encodeCampaignCursor } from "@/lib/campaign-pagination.mjs";
+import { buildCampaignHistoryFilter, decodeCampaignCursor, encodeCampaignCursor } from "@/lib/campaign-pagination.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -60,14 +60,7 @@ export async function GET(request) {
     console.error("Public API campaign history index unavailable:", error);
     return NextResponse.json({ success: false, message: "Campaign history is temporarily unavailable." }, { status: 503 });
   }
-  const filter = { workspaceId: new ObjectId(auth.apiKey.workspaceId) };
-  if (status) filter.status = status;
-  if (cursor) {
-    filter.$or = [
-      { createdAt: { $lt: cursor.createdAt } },
-      { createdAt: cursor.createdAt, _id: { $lt: new ObjectId(cursor.id) } },
-    ];
-  }
+  const filter = buildCampaignHistoryFilter(new ObjectId(auth.apiKey.workspaceId), cursor, status);
   const records = await db.collection("campaigns").find(filter)
     .sort({ createdAt: -1, _id: -1 }).limit(limitValue + 1)
     .project({ name: 1, audience: 1, template: 1, targetCount: 1, recipientCount: 1, status: 1, progress: 1, scheduledAt: 1, createdAt: 1, updatedAt: 1, completedAt: 1, cancelledAt: 1, cancelReason: 1, pauseReason: 1 })
