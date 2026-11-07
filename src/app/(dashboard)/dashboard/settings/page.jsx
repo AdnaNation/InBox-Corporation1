@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
+import WebhookManager from "@/components/webhook-manager";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,12 @@ export default async function SettingsPage() {
           </div>
         </dl>
       </div>
+
+      {["owner", "admin"].includes(session.membership.role) && (
+        <div className="mt-6">
+          <WebhookManager />
+        </div>
+      )}
     </div>
   );
 }
