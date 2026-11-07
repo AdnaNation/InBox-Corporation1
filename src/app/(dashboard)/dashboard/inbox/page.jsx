@@ -255,6 +255,16 @@ export default function InboxPage() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
+        if (["MESSAGE_OUTCOME_UNKNOWN", "MESSAGE_ACCEPTED_SAVE_FAILED"].includes(data.code)) {
+          // Clear the composer so an uncertain send cannot be accidentally
+          // repeated by pressing Send again. The user can recompose after
+          // checking the conversation and Meta delivery status.
+          setMessageText("");
+          await loadMessages(selectedId);
+          await loadConversations();
+          setError(data.message || "Message outcome is uncertain. Check delivery status before sending again.");
+          return;
+        }
         throw new Error(data.message || "Message could not be sent.");
       }
 
@@ -369,6 +379,19 @@ export default function InboxPage() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
+        if (["MESSAGE_OUTCOME_UNKNOWN", "MESSAGE_ACCEPTED_SAVE_FAILED"].includes(data.code)) {
+          // Close the composer to prevent an accidental duplicate send while
+          // the customer or operator checks the uncertain delivery outcome.
+          setTemplateModalOpen(false);
+          setSelectedTemplate(null);
+          setTemplateParameters([]);
+          setTemplateCouponCode("");
+          setTemplateOfferExpiresAt("");
+          await loadMessages(selectedId);
+          await loadConversations();
+          setError(data.message || "Template outcome is uncertain. Check delivery status before sending again.");
+          return;
+        }
         throw new Error(data.message || "Template could not be sent.");
       }
 
