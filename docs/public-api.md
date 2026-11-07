@@ -363,12 +363,12 @@ Known error codes include:
 
 ## Current scope
 
-The current public v1 API includes contact listing, individual contact lookup, creation, limited updates, single-recipient approved template sending, message status lookup, paginated message history, WhatsApp template catalog retrieval, campaign draft creation, campaign listing, campaign queueing/scheduling, and campaign pause/resume/cancellation. It does not currently expose contact deletion, bulk import, or free-form message sending.
+The current public v1 API includes webhook event discovery, contact listing, individual contact lookup, creation, limited updates, single-recipient approved template sending, message status lookup, paginated message history, WhatsApp template catalog retrieval, campaign draft creation, campaign listing, campaign queueing/scheduling, and campaign pause/resume/cancellation. It does not currently expose contact deletion, bulk import, or free-form message sending.
 
 
 ## 15. Webhook subscriptions
 
-Create a webhook subscription with `POST /webhooks` and the `webhooks:write` permission. Provide an HTTPS endpoint and one or more event types:
+Create a webhook subscription with `POST /webhooks` and the `webhooks:write` permission. Provide an HTTPS endpoint and one or more event types. To discover the current catalog programmatically, call `GET /webhooks/events` with `webhooks:read`; it returns each event name, description, and whether it is a test-only event.
 
 - `message.received`: a new inbound WhatsApp message has been saved.
 - `message.status_updated`: an outbound message status has been updated by Meta.
@@ -378,6 +378,8 @@ Create a webhook subscription with `POST /webhooks` and the `webhooks:write` per
 - `campaign.resumed`: a paused campaign has been manually returned to the queue.
 - `campaign.cancelled`: a campaign has been cancelled through the public API.
 - `campaign.completed`: campaign processing has finished, including campaigns completed with issues.
+
+The catalog also includes `webhook.test`, which is generated only by the explicit test-delivery endpoint. It cannot be selected as a subscription filter and does not represent a real customer event.
 
 Example:
 

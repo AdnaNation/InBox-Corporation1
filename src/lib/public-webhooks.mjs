@@ -1,5 +1,17 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+export const WEBHOOK_EVENT_CATALOG = [
+  { type: "message.received", description: "A new inbound WhatsApp message has been saved to the workspace.", testable: false },
+  { type: "message.status_updated", description: "Meta reported a status change for an outbound WhatsApp message.", testable: false },
+  { type: "campaign.created", description: "A campaign draft and its recipient snapshot were created.", testable: false },
+  { type: "campaign.queued", description: "A campaign was queued for immediate delivery or scheduled for later.", testable: false },
+  { type: "campaign.paused", description: "A queued or sending campaign was paused.", testable: false },
+  { type: "campaign.resumed", description: "A paused campaign was returned to the delivery queue.", testable: false },
+  { type: "campaign.cancelled", description: "A campaign was cancelled before processing completed.", testable: false },
+  { type: "campaign.completed", description: "Campaign processing finished, including campaigns completed with issues.", testable: false },
+  { type: "webhook.test", description: "A manually requested test delivery used to verify an endpoint and its signing secret. It is not a customer event.", testable: true },
+];
+
 export const WEBHOOK_EVENT_TYPES = [
   "message.received", "message.status_updated",
   "campaign.created", "campaign.queued", "campaign.paused",
