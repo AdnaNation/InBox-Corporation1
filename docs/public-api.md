@@ -54,6 +54,9 @@ If the rate-limit store cannot be checked, the API fails closed with HTTP `503 S
 Optional query parameter:
 
 - `limit`: number of records to return, default `100`, maximum `500`, minimum `1`.
+- `before`: the opaque `pagination.nextCursor` returned by the previous page.
+
+The response includes `pagination.hasMore` and `pagination.nextCursor`. Pass the cursor as `before` to fetch the next page. Ordering uses `createdAt` and contact ID as a stable tie-breaker, so contacts sharing a timestamp are not skipped. Cursors are opaque; do not construct or edit them. Invalid cursors and limits return HTTP `400`.
 
 Example:
 
