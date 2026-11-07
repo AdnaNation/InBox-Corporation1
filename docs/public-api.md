@@ -476,4 +476,4 @@ curl -X POST "https://YOUR_WAVO_DOMAIN/api/v1/webhooks/SUBSCRIPTION_ID/deliverie
 ```
 
 
-A delivery-history response includes event type and ID, status, automatic attempt count, manual retry count (`manualRetries`), response status, last error, and retry/delivery timestamps. It does not include the signing secret. The delivery worker is `GET /api/cron/webhook-delivery`; configure a scheduler to call it periodically with `Authorization: Bearer $CRON_SECRET`. Each run processes up to 20 due deliveries. The worker is not automatically scheduled by this API change.
+A delivery-history response includes event type and ID, status, attempt count, response status, last error, and retry/delivery timestamps. It does not include the signing secret. The delivery worker is `GET /api/cron/webhook-delivery`; configure a scheduler to call it periodically with `Authorization: Bearer $CRON_SECRET`. Each run processes up to 20 due deliveries. The worker is not automatically scheduled by this API change.
