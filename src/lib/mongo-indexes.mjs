@@ -9,21 +9,28 @@ const indexesByClient = new WeakMap();
 export async function ensureMongoIndex(db, collectionName, keys, options = {}) {
   const cacheKey = db.client || db;
   const databaseName = db.databaseName || "";
-  let indexesByDatabase = indexesByClient.get(cacheKey);
-  if (!indexesByDatabase) {
-    indexesByDatabase = new Map();
-    indexesByClient.set(cacheKey, indexesByDatabase);
+  let databases = indexesByClient.get(cacheKey);
+  if (!databases) {
+    databases = new Map();
+    indexesByClient.set(cacheKey, databases);
+  }
+
+  let indexesByDefinition = databases.get(databaseName);
+  if (!indexesByDefinition) {
+    indexesByDefinition = new Map();
+    databases.set(databaseName, indexesByDefinition);
   }
 
   const indexKey = JSON.stringify([collectionName, keys, options]);
-  let indexPromise = indexesByDatabase.get(indexKey);
+  let indexPromise = indexesByDefinition.get(indexKey);
   if (!indexPromise) {
     indexPromise = db.collection(collectionName).createIndex(keys, options).catch((error) => {
-      indexesByDatabase.delete(indexKey);
-      if (!indexesByDatabase.size) indexesByClient.delete(cacheKey);
+      indexesByDefinition.delete(indexKey);
+      if (!indexesByDefinition.size) databases.delete(databaseName);
+      if (!databases.size) indexesByClient.delete(cacheKey);
       throw error;
     });
-    indexesByDatabase.set(indexKey, indexPromise);
+    indexesByDefinition.set(indexKey, indexPromise);
   }
 
   return indexPromise;
