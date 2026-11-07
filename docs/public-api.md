@@ -422,7 +422,7 @@ curl -X POST "https://YOUR_WAVO_DOMAIN/api/v1/webhooks/SUBSCRIPTION_ID/rotate-se
   -H "Authorization: Bearer $WAVO_API_KEY"
 ```
 
-- `GET /webhooks/{subscriptionId}/deliveries?limit=50` returns recent delivery attempts (maximum 100).
+- `GET /webhooks/{subscriptionId}/deliveries?limit=50` returns recent delivery attempts (maximum 100). Use `before` with the opaque `pagination.nextCursor` to fetch the next page. Pages use stable `createdAt` and delivery ID ordering, so records with matching timestamps are not skipped. Invalid limits or cursors return `400`.
 - `POST /webhooks/{subscriptionId}/deliveries/{deliveryId}/retry` manually requeues a terminally failed delivery. Requires `webhooks:write` and an active subscription. Only a delivery in `failed` state can be retried; pending, processing, retrying, delivered, or cancelled deliveries are not reset. The retry starts a fresh automatic attempt budget while preserving a `manualRetries` counter. Repeated or concurrent retry requests are safe: only one can transition the failed delivery.
 
 Example:
