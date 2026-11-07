@@ -56,13 +56,19 @@ export function summarizeWorkerResponse(endpointName, status, body) {
     throw new Error(endpointName + " worker returned an unexpected HTTP 202 response.");
   }
 
+  const counts = {};
+  for (const key of ["processed", "delivered", "retried", "failed"]) {
+    const value = body[key] ?? 0;
+    if (!Number.isSafeInteger(value) || value < 0) {
+      throw new Error(endpointName + " worker returned an invalid " + key + " count.");
+    }
+    counts[key] = value;
+  }
+
   return {
     name: endpointName,
     httpStatus: status,
     success: body.success,
-    processed: Number(body.processed || 0),
-    delivered: Number(body.delivered || 0),
-    retried: Number(body.retried || 0),
-    failed: Number(body.failed || 0),
+    ...counts,
   };
 }

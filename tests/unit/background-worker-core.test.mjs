@@ -83,3 +83,26 @@ test("rejects server errors and malformed worker responses", () => {
   assert.throws(() => summarizeWorkerResponse("campaign", 200, null), /invalid JSON response/);
   assert.throws(() => summarizeWorkerResponse("campaign", 200, []), /invalid JSON response/);
 });
+
+
+test("rejects malformed worker counters instead of logging misleading metrics", () => {
+  for (const [key, value] of [
+    ["processed", -1],
+    ["delivered", 1.5],
+    ["retried", "2"],
+    ["failed", Number.NaN],
+    ["processed", Number.MAX_SAFE_INTEGER + 1],
+  ]) {
+    assert.throws(
+      () => summarizeWorkerResponse("campaign", 200, { success: true, [key]: value }),
+      new RegExp("invalid " + key + " count"),
+    );
+  }
+});
+
+test("defaults omitted worker counters to zero", () => {
+  assert.deepEqual(
+    summarizeWorkerResponse("webhook", 200, { success: true }),
+    { name: "webhook", httpStatus: 200, success: true, processed: 0, delivered: 0, retried: 0, failed: 0 },
+  );
+});
