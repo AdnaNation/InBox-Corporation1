@@ -131,6 +131,18 @@ export async function POST(request) {
       return NextResponse.json({ success: false, code: "PLAN_LIMIT_REACHED", message: quota.reason, plan: quota.plan, usage: quota.usage, limits: quota.limits }, { status: 429 });
     }
 
+    const suppression = await db.collection("contactSuppressions").findOne(
+      { workspaceId, phone: conversation.waId, active: { $ne: false } },
+      { projection: { _id: 1 } },
+    );
+    if (suppression) {
+      await releaseWorkspaceMessageUsage(db, workspaceId, 1);
+      return NextResponse.json(
+        { success: false, code: "CONTACT_SUPPRESSED", message: "This contact has opted out and cannot receive WhatsApp messages." },
+        { status: 403 },
+      );
+    }
+
     const metaResponse = await fetch(url, {
       method: "POST",
       headers: {
