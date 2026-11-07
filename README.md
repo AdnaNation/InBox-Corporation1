@@ -65,7 +65,7 @@ Vercel Hobby does not provide the frequent schedule needed for campaigns and web
 ## Tests
 
 - `npm run lint` — ESLint checks.
-- `npm run test:unit` — isolated unit tests, including worker configuration, response handling, and email verification tokens.
+- `npm run test:unit` — isolated unit tests, including worker configuration, email verification, password reset tokens, and session invalidation.
 - `MONGODB_URI=... npm run test:integration` — MongoDB-backed integration tests for persistence, consent suppression and authentication rate limits.
 
 ## Public API
