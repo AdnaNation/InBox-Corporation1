@@ -43,7 +43,7 @@ export async function findActiveContactSuppression(db, workspaceId, phone) {
  * Return active workspace-level suppressions for audience filtering.
  */
 export async function getActiveSuppressedPhones(db, workspaceId) {
-  await ensureSuppressionIndex(db);
+  await ensureContactSuppressionIndex(db);
   const records = await db.collection("contactSuppressions")
     .find({ workspaceId, active: { $ne: false } })
     .project({ phone: 1 })
