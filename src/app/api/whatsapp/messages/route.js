@@ -219,7 +219,7 @@ export async function POST(request) {
     acceptedMessageId = waMessageId;
     const now = new Date();
 
-      const messageDocument = {
+    const messageDocument = {
       workspaceId,
       conversationId: conversation._id,
       contactId: conversation.contactId,
