@@ -13,6 +13,7 @@ test("worker configuration normalizes the app origin and applies safe defaults",
     cronSecret: validEnv.CRON_SECRET,
     intervalMs: 5000,
     requestTimeoutMs: 45000,
+    healthIntervalMs: 900000,
   });
 });
 
@@ -34,6 +35,8 @@ test("worker configuration validates the shared secret and polling bounds", () =
   assert.throws(() => parseBackgroundWorkerConfig({ ...validEnv, WORKER_INTERVAL_MS: "60001" }), /WORKER_INTERVAL_MS/);
   assert.throws(() => parseBackgroundWorkerConfig({ ...validEnv, WORKER_REQUEST_TIMEOUT_MS: "2000" }), /WORKER_REQUEST_TIMEOUT_MS/);
   assert.throws(() => parseBackgroundWorkerConfig({ ...validEnv, WORKER_REQUEST_TIMEOUT_MS: "120001" }), /WORKER_REQUEST_TIMEOUT_MS/);
+  assert.throws(() => parseBackgroundWorkerConfig({ ...validEnv, WORKER_HEALTH_INTERVAL_MS: "59999" }), /WORKER_HEALTH_INTERVAL_MS/);
+  assert.throws(() => parseBackgroundWorkerConfig({ ...validEnv, WORKER_HEALTH_INTERVAL_MS: "86400001" }), /WORKER_HEALTH_INTERVAL_MS/);
 });
 
 test("worker response summaries accept successful and explicitly handled busy/limit responses", () => {
