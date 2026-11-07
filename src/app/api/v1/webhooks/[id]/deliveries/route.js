@@ -2,29 +2,10 @@ import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { authenticateApiKey } from "@/lib/api-key-auth";
-import { decodeWebhookDeliveryCursor, encodeWebhookDeliveryCursor } from "@/lib/webhook-delivery-pagination.mjs";
+import { buildWebhookDeliveryHistoryFilter, decodeWebhookDeliveryCursor, encodeWebhookDeliveryCursor, ensureWebhookDeliveryHistoryIndex } from "@/lib/webhook-delivery-pagination.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const historyIndexByDb = new WeakMap();
-
-async function ensureHistoryIndex(db) {
-  let indexPromise = historyIndexByDb.get(db);
-  if (!indexPromise) {
-    indexPromise = db.collection("webhookDeliveries")
-      .createIndex(
-        { workspaceId: 1, subscriptionId: 1, createdAt: -1, _id: -1 },
-        { name: "public_api_webhook_delivery_history" },
-      )
-      .catch((error) => {
-        historyIndexByDb.delete(db);
-        throw error;
-      });
-    historyIndexByDb.set(db, indexPromise);
-  }
-  await indexPromise;
-}
 
 export async function GET(request, { params }) {
   const auth = await authenticateApiKey(request, "webhooks:read");
@@ -63,19 +44,13 @@ export async function GET(request, { params }) {
   }
 
   try {
-    await ensureHistoryIndex(db);
+    await ensureWebhookDeliveryHistoryIndex(db);
   } catch (error) {
     console.error("Public API webhook delivery history index unavailable:", error);
     return NextResponse.json({ success: false, message: "Webhook delivery history is temporarily unavailable." }, { status: 503 });
   }
 
-  const filter = { subscriptionId, workspaceId };
-  if (cursor) {
-    filter.$or = [
-      { createdAt: { $lt: cursor.createdAt } },
-      { createdAt: cursor.createdAt, _id: { $lt: new ObjectId(cursor.id) } },
-    ];
-  }
+  const filter = buildWebhookDeliveryHistoryFilter(subscriptionId, workspaceId, cursor);
   const records = await db.collection("webhookDeliveries")
     .find(filter)
     .sort({ createdAt: -1, _id: -1 })

@@ -55,3 +55,17 @@ test("webhook delivery history cursors preserve timestamp and ID ordering", () =
     id: "not-an-object-id", createdAt: "2026-11-07T06:00:00.000Z",
   })).toString("base64url")), null);
 });
+
+
+test("webhook delivery history filter keeps workspace and subscription boundaries across cursor pages", async () => {
+  const { buildWebhookDeliveryHistoryFilter } = await import("../../src/lib/webhook-delivery-pagination.mjs");
+  const subscriptionId = "66a000000000000000000001";
+  const workspaceId = "66a000000000000000000002";
+  const cursor = { id: "66a000000000000000000003", createdAt: new Date("2026-11-07T06:00:00.000Z") };
+  const filter = buildWebhookDeliveryHistoryFilter(new (await import("mongodb")).ObjectId(subscriptionId), new (await import("mongodb")).ObjectId(workspaceId), cursor);
+  assert.equal(filter.subscriptionId.toString(), subscriptionId);
+  assert.equal(filter.workspaceId.toString(), workspaceId);
+  assert.equal(filter.$or[0].createdAt.$lt.toISOString(), cursor.createdAt.toISOString());
+  assert.equal(filter.$or[1].createdAt.getTime(), cursor.createdAt.getTime());
+  assert.equal(filter.$or[1]._id.$lt.toString(), cursor.id);
+});
