@@ -31,6 +31,9 @@ export default function ContactsClient({
   const [search, setSearch] = useState("");
   const [tagFilter, setTagFilter] = useState("all");
   const skipInitialSearch = useRef(true);
+  const searchRequestId = useRef(0);
+  const activeFilterRef = useRef("");
+  activeFilterRef.current = `${search.trim()}\u0000${tagFilter}`;
 
   const [form, setForm] = useState({
     name: "",
@@ -55,6 +58,7 @@ export default function ContactsClient({
 
   // Refresh the first page after imports, search changes, or tag filters.
   const refreshContacts = useCallback(async () => {
+    const requestId = ++searchRequestId.current;
     setSearching(true);
     try {
       const params = new URLSearchParams({ limit: "200" });
@@ -64,6 +68,7 @@ export default function ContactsClient({
         cache: "no-store",
       });
       const data = await response.json();
+      if (requestId !== searchRequestId.current) return;
       if (!response.ok || !data.success) {
         throw new Error(data.message || "Could not load contacts.");
       }
@@ -71,9 +76,11 @@ export default function ContactsClient({
       setPagination(data.pagination || { limit: 200, hasMore: false, nextCursor: null });
       setAvailableTags(data.availableTags || []);
     } catch (error) {
-      setError(error.message || "Could not load contacts.");
+      if (requestId === searchRequestId.current) {
+        setError(error.message || "Could not load contacts.");
+      }
     } finally {
-      setSearching(false);
+      if (requestId === searchRequestId.current) setSearching(false);
     }
   }, [search, tagFilter]);
 
@@ -90,6 +97,7 @@ export default function ContactsClient({
 
   async function loadMoreContacts() {
     if (!pagination.nextCursor || loadingMore) return;
+    const requestedFilter = `${search.trim()}\u0000${tagFilter}`;
     setLoadingMore(true);
     try {
       const params = new URLSearchParams({
@@ -102,6 +110,7 @@ export default function ContactsClient({
         cache: "no-store",
       });
       const data = await response.json();
+      if (requestedFilter !== activeFilterRef.current) return;
       if (!response.ok || !data.success) {
         throw new Error(data.message || "Could not load more contacts.");
       }
@@ -109,7 +118,9 @@ export default function ContactsClient({
       setPagination(data.pagination || { limit: 200, hasMore: false, nextCursor: null });
       setAvailableTags(data.availableTags || []);
     } catch (error) {
-      setError(error.message || "Could not load more contacts.");
+      if (requestedFilter === activeFilterRef.current) {
+        setError(error.message || "Could not load more contacts.");
+      }
     } finally {
       setLoadingMore(false);
     }
