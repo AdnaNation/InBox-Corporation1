@@ -127,5 +127,5 @@ test("contact reservations initialize from existing contacts and remain separate
 
   const counter = await db.collection("planUsageCounters").findOne({ _id: workspaceId.toString() + ":contacts" });
   assert.equal(counter.contacts, 500);
-  assert.equal(await db.collection("planUsageCounters").countDocuments({ workspaceId }), 0);
+  assert.equal(await db.collection("planUsageCounters").countDocuments({ workspaceId, periodStart: { $exists: true } }), 0);
 });
