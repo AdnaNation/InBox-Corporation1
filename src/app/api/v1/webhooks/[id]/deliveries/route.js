@@ -57,7 +57,7 @@ export async function GET(request, { params }) {
     .limit(requestedLimit + 1)
     .project({
       eventId: 1, event: 1, status: 1, attempts: 1, responseStatus: 1,
-      lastError: 1, createdAt: 1, deliveredAt: 1, nextAttemptAt: 1,
+      lastError: 1, createdAt: 1, deliveredAt: 1, nextAttemptAt: 1, manualRetries: 1,
     })
     .toArray();
 
@@ -69,7 +69,7 @@ export async function GET(request, { params }) {
     success: true,
     data: page.map((item) => ({
       id: item._id.toString(), eventId: item.eventId, type: item.event?.type || "unknown",
-      status: item.status, attempts: item.attempts || 0, responseStatus: item.responseStatus || null,
+      status: item.status, attempts: item.attempts || 0, manualRetries: item.manualRetries || 0, responseStatus: item.responseStatus || null,
       lastError: item.lastError || null, createdAt: item.createdAt,
       deliveredAt: item.deliveredAt || null, nextAttemptAt: item.nextAttemptAt || null,
     })),

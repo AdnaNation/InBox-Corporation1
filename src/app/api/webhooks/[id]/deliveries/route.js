@@ -37,7 +37,7 @@ export async function GET(request, { params }) {
   }
   const deliveries = await db.collection("webhookDeliveries").find(
     buildWebhookDeliveryHistoryFilter(subscriptionId, workspaceId, cursor),
-    { projection: { eventId: 1, event: 1, status: 1, attempts: 1, responseStatus: 1, lastError: 1, createdAt: 1, deliveredAt: 1, nextAttemptAt: 1 } },
+    { projection: { eventId: 1, event: 1, status: 1, attempts: 1, responseStatus: 1, lastError: 1, createdAt: 1, deliveredAt: 1, nextAttemptAt: 1, manualRetries: 1 } },
   ).sort({ createdAt: -1, _id: -1 }).limit(requestedLimit + 1).toArray();
   const hasMore = deliveries.length > requestedLimit;
   const page = deliveries.slice(0, requestedLimit);
@@ -46,7 +46,7 @@ export async function GET(request, { params }) {
     success: true,
     data: page.map((item) => ({
       id: item._id.toString(), eventId: item.eventId, type: item.event?.type || "unknown",
-      status: item.status, attempts: item.attempts || 0, responseStatus: item.responseStatus || null,
+      status: item.status, attempts: item.attempts || 0, manualRetries: item.manualRetries || 0, responseStatus: item.responseStatus || null,
       lastError: item.lastError || null, createdAt: item.createdAt,
       deliveredAt: item.deliveredAt || null, nextAttemptAt: item.nextAttemptAt || null,
     })),
