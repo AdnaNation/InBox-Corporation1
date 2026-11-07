@@ -24,7 +24,7 @@ export async function ensureContactSuppressionIndex(db) {
         if (error?.code !== 26 && error?.codeName !== "NamespaceNotFound") throw error;
       }
       const existing = indexes.some(
-        (index) => index.key?.workspaceId === 1 && index.key?.phone === 1 && index.unique === true,
+        (index) => index.key?.workspaceId === 1 && index.key?.phone === 1,
       );
       if (existing) return;
       const conflicting = indexes.some(
