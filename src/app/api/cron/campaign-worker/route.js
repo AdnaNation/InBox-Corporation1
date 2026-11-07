@@ -7,6 +7,7 @@ import { applyPendingWhatsAppStatus } from "@/lib/whatsapp-status";
 import { checkWorkspacePlanLimit, reserveWorkspaceMessageUsage, releaseWorkspaceMessageUsage } from "@/lib/plan-limits";
 import { enqueueWebhookEvent } from "@/lib/public-webhooks.mjs";
 import { findActiveContactSuppression } from "@/lib/contact-suppression.mjs";
+import { isAmbiguousMetaSendResponse } from "@/lib/campaign-delivery.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -325,6 +326,22 @@ export async function POST(request) {
               pausedAt: new Date(),
               updatedAt: new Date(),
             },
+          },
+        );
+      } else if (meta && isAmbiguousMetaSendResponse(meta.status)) {
+        // A gateway timeout or provider 5xx does not prove that Meta rejected
+        // the request. Keep the usage reservation and require manual review
+        // rather than allowing a retry that could deliver a duplicate.
+        await db.collection("campaignRecipients").updateOne(
+          { _id: recipient._id, status: "processing" },
+          {
+            $set: {
+              status: "unknown",
+              error: data?.error?.message || "Meta returned an ambiguous server response. Manual review required; the message may have been accepted.",
+              metaErrorCode: data?.error?.code || null,
+              updatedAt: new Date(),
+            },
+            $unset: { processingStartedAt: "" },
           },
         );
       } else if (meta && !meta.ok) {
