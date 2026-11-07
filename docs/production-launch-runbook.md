@@ -115,20 +115,21 @@ Before onboarding real customer data:
 - Keep an auditable record of deletion requests and completion without retaining unnecessary personal data in that record.
 - Review who can access production data and why; remove access when no longer needed.
 
-### Data request handling until self-service workflows exist
+### Workspace data request workflow
 
-Until export/deletion automation is implemented and tested, handle requests through a controlled operator process:
+Workspace owners can submit export or deletion-review requests from **Dashboard → Settings → Your workspace data**. Requests are stored in the `workspaceDataRequests` collection and appear in the platform-admin console. Only the workspace owner can submit/view requests; duplicate active requests of the same type are blocked. Status changes are recorded in both platform and workspace audit logs.
 
-1. Verify the requester controls the account/workspace using an existing authenticated account channel. Do not accept an unverified email-only request to delete another workspace.
-2. Record the request ID, workspace ID, requester account ID, request type, date, verification result, and assigned operator in a restricted internal log.
-3. For an export, define the scope and format, generate it in a restricted environment, check that it contains only the requester's workspace data, and transfer it through an access-controlled channel.
-4. For deletion, identify all workspace-owned records and external connections first. Check pending campaigns, webhook deliveries, invoices/financial records, abuse/security holds, and applicable legal retention obligations before acting.
-5. Revoke API keys, disable integrations, stop queued campaigns, and disconnect/revoke the customer's Meta connection as appropriate. Do not delete another customer's shared platform configuration.
-6. Delete or anonymize only the records covered by the approved request and applicable retention policy. Confirm database queries are workspace-scoped and review the affected record counts before destructive actions.
-7. Verify the workspace can no longer authenticate or access deleted data, and document any retained records, reason, and scheduled expiry.
-8. Send a concise completion response to the verified requester. Escalate uncertain legal, billing, security, or cross-workspace cases rather than guessing.
+The request queue is an intake and review workflow only. It does **not** generate or deliver exports, delete workspace records, revoke integrations, or notify customers automatically. Operators must complete those actions manually and only after verifying the requester and applicable obligations:
 
-This is an interim operator procedure, not a claim that automated export/deletion features already exist.
+1. Open the request in Platform administration and move it to **In review**. Verify the requester controls the workspace using the authenticated account and a trusted support channel. Do not accept an unverified email-only request to delete another workspace.
+2. For an export, define the scope and format, generate it in a restricted environment, check that it contains only the requester's workspace data, and transfer it through an access-controlled channel. Mark it **Completed** only after secure delivery.
+3. For deletion, identify all workspace-owned records and external connections first. Check pending campaigns, webhook deliveries, invoices/financial records, abuse/security holds, and applicable legal retention obligations before acting.
+4. Revoke API keys, disable integrations, stop queued campaigns, and disconnect/revoke the customer's Meta connection as appropriate. Do not delete another customer's shared platform configuration.
+5. Delete or anonymize only the records covered by the approved request and applicable retention policy. Confirm database queries are workspace-scoped and review the affected record counts before destructive actions.
+6. Verify the workspace can no longer authenticate or access deleted data, and document any retained records, reason, and scheduled expiry.
+7. Mark the request **Completed** only after the approved work is finished. Reject requests that cannot be fulfilled and communicate the reason through the verified support channel. Escalate uncertain legal, billing, security, or cross-workspace cases rather than guessing.
+
+Do not promise immediate deletion from backups unless the backup retention policy supports it. The queue's **Completed** status is an operator attestation, not proof of automatic erasure.
 
 ## 6. Incident response
 
