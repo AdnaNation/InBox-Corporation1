@@ -115,3 +115,39 @@ test("billing request index setup retries after a transient failure", async () =
   );
   assert.equal(attempts, 2);
 });
+
+test("concurrent billing reviews allow only one admin decision to claim a pending request", async () => {
+  await ensureBillingRequestIndexes(db);
+  const workspaceId = new ObjectId();
+  workspaceIds.push(workspaceId);
+  const collection = db.collection("billingRequests");
+  const requestId = new ObjectId();
+  await collection.insertOne({
+    _id: requestId,
+    workspaceId,
+    requestedPlan: "growth",
+    billingCycle: "monthly",
+    status: "pending",
+    createdAt: new Date(),
+  });
+
+  const reviewedAt = new Date();
+  const [approval, rejection] = await Promise.all([
+    collection.findOneAndUpdate(
+      { _id: requestId, status: "pending" },
+      { $set: { status: "approved", reviewedAt, reviewedBy: new ObjectId() } },
+      { returnDocument: "before" },
+    ),
+    collection.findOneAndUpdate(
+      { _id: requestId, status: "pending" },
+      { $set: { status: "rejected", reviewedAt, reviewedBy: new ObjectId() } },
+      { returnDocument: "before" },
+    ),
+  ]);
+
+  const claimed = [approval?.value || approval, rejection?.value || rejection].filter(Boolean);
+  assert.equal(claimed.length, 1);
+  const finalRequest = await collection.findOne({ _id: requestId });
+  assert.ok(["approved", "rejected"].includes(finalRequest.status));
+  assert.equal(finalRequest.reviewedAt.getTime(), reviewedAt.getTime());
+});
