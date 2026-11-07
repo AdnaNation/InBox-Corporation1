@@ -19,6 +19,13 @@ export async function initializeDatabase() {
         db.collection("emailVerificationTokens").createIndex({ tokenHash: 1 }, { unique: true }),
         db.collection("emailVerificationTokens").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
         db.collection("emailVerificationTokens").createIndex({ userId: 1, createdAt: -1 }),
+        db.collection("passwordResetTokens").createIndex({ tokenHash: 1 }, { unique: true }),
+        db.collection("passwordResetTokens").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
+        db.collection("passwordResetTokens").createIndex({ userId: 1, createdAt: -1 }),
+        db.collection("passwordResetTokens").createIndex(
+          { userId: 1 },
+          { unique: true, partialFilterExpression: { status: "pending" }, name: "one_pending_password_reset_per_user" },
+        ),
         db.collection("workspaces").createIndex({ slug: 1 }, { unique: true }),
         db.collection("memberships").createIndex({ workspaceId: 1, userId: 1 }, { unique: true }),
         db.collection("contacts").createIndex({ workspaceId: 1, phone: 1 }, { unique: true }),

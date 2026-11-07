@@ -2,6 +2,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
+import { isSessionVersionValid } from "@/lib/session-version.mjs";
 
 const COOKIE_NAME = "wavo_session";
 const secret = process.env.JWT_SECRET;
@@ -11,7 +12,14 @@ if (!secret || secret.length < 32) {
 const key = new TextEncoder().encode(secret);
 
 export async function createSession(userId, workspaceId) {
-  const token = await new SignJWT({ workspaceId: workspaceId.toString() })
+  const db = await getDatabase();
+  const user = await db.collection("users").findOne(
+    { _id: new ObjectId(userId), status: "active" },
+    { projection: { sessionVersion: 1 } },
+  );
+  if (!user) throw new Error("Cannot create a session for an inactive account.");
+  const sessionVersion = Number.isSafeInteger(user.sessionVersion) ? user.sessionVersion : 0;
+  const token = await new SignJWT({ workspaceId: workspaceId.toString(), sessionVersion })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(userId.toString())
     .setIssuedAt()
@@ -79,6 +87,8 @@ export async function getSession() {
     if (!user || !workspace || !membership) {
       return null;
     }
+
+    if (!isSessionVersionValid(payload.sessionVersion, user.sessionVersion)) return null;
 
     return {
       user: {
