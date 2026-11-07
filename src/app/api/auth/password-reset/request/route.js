@@ -48,14 +48,23 @@ export async function POST(request) {
       const reset = createPasswordResetToken(now);
       await db.collection("passwordResetTokens").deleteMany({
         userId: user._id,
-        usedAt: { $exists: false },
+        status: "pending",
       });
-      await db.collection("passwordResetTokens").insertOne({
-        userId: user._id,
-        tokenHash: reset.tokenHash,
-        expiresAt: reset.expiresAt,
-        createdAt: now,
-      });
+      try {
+        await db.collection("passwordResetTokens").insertOne({
+          userId: user._id,
+          tokenHash: reset.tokenHash,
+          expiresAt: reset.expiresAt,
+          status: "pending",
+          createdAt: now,
+        });
+      } catch (insertError) {
+        if (insertError?.code !== 11000) throw insertError;
+        return NextResponse.json({
+          success: true,
+          message: "If an active account uses that email address, a password reset link will be sent.",
+        });
+      }
       try {
         await sendPasswordResetEmail({
           to: user.email,
