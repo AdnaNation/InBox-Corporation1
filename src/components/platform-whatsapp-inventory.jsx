@@ -109,7 +109,7 @@ export default function PlatformWhatsAppInventory({ accounts = [] }) {
             </div>
             <button type="button" onClick={() => setSelected(null)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600">Close</button>
           </div>
-          {loadingTemplates ? (
+          {loadingTemplates && !templates.length ? (
             <p className="mt-4 text-sm text-slate-500">Loading templates from Meta…</p>
           ) : templateError ? (
             <p role="alert" className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{templateError}</p>
