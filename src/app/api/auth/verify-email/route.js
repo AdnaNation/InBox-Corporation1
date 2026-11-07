@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getDatabase } from "@/lib/db";
 import clientPromise from "@/lib/mongodb";
 import { hashEmailVerificationToken } from "@/lib/email-verification.mjs";
+import { getSession } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,8 +39,12 @@ export async function GET(request) {
       verified = true;
     });
 
+    if (!verified) {
+      return NextResponse.redirect(new URL("/login?verification=expired", request.url));
+    }
+    const currentSession = await getSession();
     return NextResponse.redirect(new URL(
-      verified ? "/dashboard?emailVerified=1" : "/login?verification=expired",
+      currentSession ? "/dashboard?emailVerified=1" : "/login?verification=success",
       request.url,
     ));
   } catch (error) {
