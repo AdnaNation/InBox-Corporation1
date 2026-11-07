@@ -9,26 +9,29 @@ export default function PlatformWhatsAppInventory({ accounts = [] }) {
   const [templates, setTemplates] = useState([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [templateError, setTemplateError] = useState("");
-  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState(null);
 
-  async function loadTemplates(account) {
-    setSelected(account);
-    setTemplates([]);
-    setTemplateError("");
-    setHasMore(false);
+  async function loadTemplates(account, after = null, append = false) {
+    if (!append) {
+      setSelected(account);
+      setTemplates([]);
+      setTemplateError("");
+      setNextCursor(null);
+    }
     setLoadingTemplates(true);
     try {
       const query = new URLSearchParams({
         workspaceId: account.workspaceId,
         phoneNumberId: account.phoneNumberId,
       });
+      if (after) query.set("after", after);
       const response = await fetch(`/api/platform-admin/templates?${query.toString()}`, { cache: "no-store" });
       const result = await response.json();
       if (!response.ok || !result.success) {
         throw new Error(result.message || "Could not load templates.");
       }
-      setTemplates(result.templates || []);
-      setHasMore(Boolean(result.hasMore));
+      setTemplates((current) => append ? [...current, ...(result.templates || [])] : result.templates || []);
+      setNextCursor(result.nextCursor || null);
     } catch (error) {
       setTemplateError(error.message || "Could not load templates.");
     } finally {
@@ -135,7 +138,7 @@ export default function PlatformWhatsAppInventory({ accounts = [] }) {
           ) : (
             <p className="mt-4 rounded-lg bg-white p-4 text-sm text-slate-500">No templates were returned for this WhatsApp Business Account.</p>
           )}
-          {hasMore && <p className="mt-3 text-xs text-slate-500">Meta has more than 100 templates. This view currently shows the first 100.</p>}
+          {nextCursor && <div className="mt-3 flex items-center justify-between gap-3"><p className="text-xs text-slate-500">More templates are available from Meta.</p><button type="button" disabled={loadingTemplates} onClick={() => loadTemplates(selected, nextCursor, true)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-50">{loadingTemplates ? "Loading…" : "Load more templates"}</button></div>}
         </div>
       )}
       <p className="border-t border-slate-100 px-5 py-3 text-xs text-slate-400">
