@@ -13,7 +13,9 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setToken(new URLSearchParams(window.location.search).get("token") || "");
+    const value = new URLSearchParams(window.location.search).get("token") || "";
+    setToken(value);
+    if (!value) setError("This password reset link is invalid or expired.");
   }, []);
 
   async function handleSubmit(event) {
