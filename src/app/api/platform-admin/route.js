@@ -142,25 +142,49 @@ export async function POST(request) {
         return NextResponse.json({ success: false, message: "Invalid billing request action." }, { status: 400 });
       }
       const requestId = new ObjectId(body.requestId);
-      const billingRequest = await db.collection("billingRequests").findOne({ _id: requestId, status: "pending" });
-      if (!billingRequest) return NextResponse.json({ success: false, message: "This request is no longer pending." }, { status: 409 });
+      const billingRequests = db.collection("billingRequests");
+      // Claim the pending request before changing workspace state. This makes
+      // approve/reject mutually exclusive even when two admins act concurrently.
+      const claim = await billingRequests.findOneAndUpdate(
+        { _id: requestId, status: "pending" },
+        { $set: { status: body.decision, reviewedAt: now, reviewedBy: actorId, updatedAt: now } },
+        { returnDocument: "before" },
+      );
+      const billingRequest = claim?.value || claim;
+      if (!billingRequest) {
+        return NextResponse.json({ success: false, message: "This request is no longer pending." }, { status: 409 });
+      }
 
       if (body.decision === "approved") {
         const plan = String(billingRequest.requestedPlan || "").toLowerCase();
         if (!["starter", "growth", "business"].includes(plan)) {
+          await billingRequests.updateOne(
+            { _id: requestId, status: "approved", reviewedBy: actorId, reviewedAt: now },
+            { $set: { status: "pending", updatedAt: new Date() }, $unset: { reviewedAt: "", reviewedBy: "" } },
+          );
           return NextResponse.json({ success: false, message: "The requested plan is invalid." }, { status: 400 });
         }
-        const workspaceUpdate = await db.collection("workspaces").updateOne(
-          { _id: billingRequest.workspaceId },
-          { $set: { "subscription.plan": plan, "subscription.status": "active", "subscription.billingCycle": billingRequest.billingCycle, "subscription.updatedAt": now, updatedAt: now } },
-        );
-        if (!workspaceUpdate.matchedCount) return NextResponse.json({ success: false, message: "Workspace not found." }, { status: 404 });
+        let workspaceUpdate;
+        try {
+          workspaceUpdate = await db.collection("workspaces").updateOne(
+            { _id: billingRequest.workspaceId },
+            { $set: { "subscription.plan": plan, "subscription.status": "active", "subscription.billingCycle": billingRequest.billingCycle, "subscription.updatedAt": now, updatedAt: now } },
+          );
+        } catch (error) {
+          await billingRequests.updateOne(
+            { _id: requestId, status: "approved", reviewedBy: actorId, reviewedAt: now },
+            { $set: { status: "pending", updatedAt: new Date() }, $unset: { reviewedAt: "", reviewedBy: "" } },
+          );
+          throw error;
+        }
+        if (!workspaceUpdate.matchedCount) {
+          await billingRequests.updateOne(
+            { _id: requestId, status: "approved", reviewedBy: actorId, reviewedAt: now },
+            { $set: { status: "pending", updatedAt: new Date() }, $unset: { reviewedAt: "", reviewedBy: "" } },
+          );
+          return NextResponse.json({ success: false, message: "Workspace not found." }, { status: 404 });
+        }
       }
-
-      await db.collection("billingRequests").updateOne(
-        { _id: requestId, status: "pending" },
-        { $set: { status: body.decision, reviewedAt: now, reviewedBy: actorId, updatedAt: now } },
-      );
       await db.collection("platformAdminAuditLogs").insertOne({
         action: body.decision === "approved" ? "billing_request_approved" : "billing_request_rejected",
         actorId,
