@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
+import { getActiveSuppressedPhones } from "@/lib/contact-suppression.mjs";
 
 export const runtime = "nodejs";
 
@@ -81,6 +82,9 @@ export async function POST(request) {
         $options: "i",
       };
     }
+
+    const suppressedPhones = await getActiveSuppressedPhones(db, workspaceId);
+    if (suppressedPhones.length) filter.phone = { $nin: suppressedPhones };
 
     const contactsCollection = db.collection("contacts");
 

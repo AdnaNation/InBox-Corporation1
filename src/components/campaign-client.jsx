@@ -441,7 +441,7 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
             </p>
 
             <p className="mt-1 text-xs text-green-700">
-              Only contacts with recorded WhatsApp opt-in are included.
+              Only opted-in contacts without an active opt-out are included.
             </p>
 
             {audiencePreview.preview.length > 0 ? (

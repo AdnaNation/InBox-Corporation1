@@ -5,6 +5,8 @@ import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
 import { decryptSecret } from "@/lib/crypto";
 import { applyPendingWhatsAppStatus } from "@/lib/whatsapp-status";
+import { reserveWorkspaceMessageUsage, releaseWorkspaceMessageUsage } from "@/lib/plan-limits";
+import { findActiveContactSuppression } from "@/lib/contact-suppression.mjs";
 
 export const runtime = "nodejs";
 
@@ -91,6 +93,19 @@ export async function POST(request) {
       return NextResponse.json(
         { success: false, message: "Conversation not found." },
         { status: 404 },
+      );
+    }
+
+    // Template messages can initiate a business conversation, so require
+    // explicit recorded consent rather than relying on an inbound chat alone.
+    const optedInContact = await db.collection("contacts").findOne(
+      { workspaceId, phone: { $in: [conversation.waId, "+" + conversation.waId] }, "optIn.status": true },
+      { projection: { _id: 1 } },
+    );
+    if (!optedInContact) {
+      return NextResponse.json(
+        { success: false, code: "OPTED_IN_CONTACT_REQUIRED", message: "Record this contact's consent before sending an approved template." },
+        { status: 403 },
       );
     }
 
@@ -266,6 +281,29 @@ export async function POST(request) {
       });
     }
 
+    const quota = await reserveWorkspaceMessageUsage(db, workspaceId, 1);
+    if (!quota.allowed) {
+      return NextResponse.json(
+        { success: false, code: "PLAN_LIMIT_REACHED", message: quota.reason, plan: quota.plan, usage: quota.usage, limits: quota.limits },
+        { status: 429 },
+      );
+    }
+
+    let suppression;
+    try {
+      suppression = await findActiveContactSuppression(db, workspaceId, conversation.waId);
+    } catch (error) {
+      await releaseWorkspaceMessageUsage(db, workspaceId, 1);
+      throw error;
+    }
+    if (suppression) {
+      await releaseWorkspaceMessageUsage(db, workspaceId, 1);
+      return NextResponse.json(
+        { success: false, code: "CONTACT_SUPPRESSED", message: "This contact has opted out and cannot receive WhatsApp messages." },
+        { status: 403 },
+      );
+    }
+
     const metaResponse = await fetch(
       `https://graph.facebook.com/${apiVersion}/${account.phoneNumberId}/messages`,
       {
@@ -294,6 +332,7 @@ export async function POST(request) {
     const metaData = await metaResponse.json();
 
     if (!metaResponse.ok) {
+      await releaseWorkspaceMessageUsage(db, workspaceId, 1);
       console.error("Meta template send error:", metaData);
 
       return NextResponse.json(

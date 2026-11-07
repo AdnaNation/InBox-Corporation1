@@ -6,6 +6,7 @@ import { getActiveWhatsAppAccount } from "@/lib/whatsapp-account";
 import { checkWorkspacePlanLimit } from "@/lib/plan-limits";
 import { enqueueWebhookEvent } from "@/lib/public-webhooks.mjs";
 import { buildCampaignHistoryFilter, decodeCampaignCursor, encodeCampaignCursor } from "@/lib/campaign-pagination.mjs";
+import { getActiveSuppressedPhones } from "@/lib/contact-suppression.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -153,9 +154,8 @@ export async function POST(request) {
       savedAudience = { type: "tag", tag };
     }
 
-    const suppressions = await db.collection("contactSuppressions")
-      .find({ workspaceId, active: { $ne: false } }).project({ phone: 1 }).toArray();
-    if (suppressions.length) contactFilter.phone = { $nin: suppressions.map((item) => item.phone).filter(Boolean) };
+    const suppressedPhones = await getActiveSuppressedPhones(db, workspaceId);
+    if (suppressedPhones.length) contactFilter.phone = { $nin: suppressedPhones };
 
     const contacts = db.collection("contacts");
     const targetCount = await contacts.countDocuments(contactFilter);

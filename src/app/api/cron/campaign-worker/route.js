@@ -6,6 +6,7 @@ import { decryptSecret } from "@/lib/crypto";
 import { applyPendingWhatsAppStatus } from "@/lib/whatsapp-status";
 import { checkWorkspacePlanLimit, reserveWorkspaceMessageUsage, releaseWorkspaceMessageUsage } from "@/lib/plan-limits";
 import { enqueueWebhookEvent } from "@/lib/public-webhooks.mjs";
+import { findActiveContactSuppression } from "@/lib/contact-suppression.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -187,11 +188,7 @@ export async function POST(request) {
           })
         : null;
       const suppression = liveContact?.phone
-        ? await db.collection("contactSuppressions").findOne({
-            workspaceId: campaign.workspaceId,
-            phone: liveContact.phone,
-            active: { $ne: false },
-          }, { projection: { _id: 1 } })
+        ? await findActiveContactSuppression(db, campaign.workspaceId, liveContact.phone)
         : null;
 
       if (!liveContact || !liveContact.phone || suppression) {
