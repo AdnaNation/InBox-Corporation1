@@ -39,7 +39,7 @@ export async function GET(request) {
 
     const stream = new ReadableStream({
       start(controller) {
-        controller.enqueue(encoder.encode("\uFEFFname,phone,tags,opted_in,created_at\r\n"));
+        controller.enqueue(encoder.encode("\uFEFFname,phone,tags,opted_in,consent_source,consent_evidence,consent_date,revoked_at,revocation_source,created_at\r\n"));
       },
       async pull(controller) {
         try {
