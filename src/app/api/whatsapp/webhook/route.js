@@ -4,6 +4,7 @@ import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { enqueueWebhookEvent } from "@/lib/public-webhooks.mjs";
 import { isWhatsAppOptOutMessage } from "@/lib/whatsapp-opt-out.mjs";
+import { ensureContactSuppressionIndex } from "@/lib/contact-suppression.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -92,9 +93,7 @@ async function ensureIndexes(db) {
         .collection("messages")
         .createIndex({ workspaceId: 1, conversationId: 1, timestamp: -1 }),
 
-      db
-        .collection("contactSuppressions")
-        .createIndex({ workspaceId: 1, phone: 1 }, { unique: true }),
+      ensureContactSuppressionIndex(db),
     ]).catch((error) => {
       indexesPromise = null;
       throw error;
