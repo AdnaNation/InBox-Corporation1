@@ -9,6 +9,25 @@ import { decodeContactCursor, encodeContactCursor } from "@/lib/contact-paginati
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const contactHistoryIndexByDb = new WeakMap();
+
+async function ensureContactHistoryIndex(db) {
+  let indexPromise = contactHistoryIndexByDb.get(db);
+  if (!indexPromise) {
+    indexPromise = db.collection("contacts")
+      .createIndex(
+        { workspaceId: 1, createdAt: -1, _id: -1 },
+        { name: "public_api_contact_history" },
+      )
+      .catch((error) => {
+        contactHistoryIndexByDb.delete(db);
+        throw error;
+      });
+    contactHistoryIndexByDb.set(db, indexPromise);
+  }
+  await indexPromise;
+}
+
 const CONSENT_SOURCES = new Set([
   "website_form",
   "paper_form",
@@ -45,7 +64,12 @@ export async function GET(request) {
     ];
   }
   const db = await getDatabase();
-  await db.collection("contacts").createIndex({ workspaceId: 1, createdAt: -1, _id: -1 });
+  try {
+    await ensureContactHistoryIndex(db);
+  } catch (error) {
+    console.error("Public API contact history index unavailable:", error);
+    return NextResponse.json({ success: false, message: "Contact history is temporarily unavailable." }, { status: 503 });
+  }
   const rows = await db.collection("contacts").find(filter).sort({ createdAt: -1, _id: -1 }).limit(limit + 1).project({
     name: 1, phone: 1, tags: 1, createdAt: 1, optIn: 1,
   }).toArray();
