@@ -16,6 +16,7 @@ test("normalizes a valid app origin and applies safe polling defaults", () => {
     cronSecret: validEnv.CRON_SECRET,
     intervalMs: 5000,
     requestTimeoutMs: 45000,
+    healthIntervalMs: 900000,
   });
 });
 
@@ -49,6 +50,12 @@ test("enforces polling and request timeout bounds", () => {
     assert.throws(
       () => parseBackgroundWorkerConfig({ ...validEnv, WORKER_REQUEST_TIMEOUT_MS }),
       /WORKER_REQUEST_TIMEOUT_MS/,
+    );
+  }
+  for (const WORKER_HEALTH_INTERVAL_MS of ["59999", "86400001", "1.5", "invalid"]) {
+    assert.throws(
+      () => parseBackgroundWorkerConfig({ ...validEnv, WORKER_HEALTH_INTERVAL_MS }),
+      /WORKER_HEALTH_INTERVAL_MS/,
     );
   }
 });
