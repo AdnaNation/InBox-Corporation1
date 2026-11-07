@@ -21,6 +21,7 @@ after(async () => {
   if (db && testKeys.length) {
     const ids = testKeys.map((key) => key.id);
     await db.collection("apiKeys").deleteMany({ _id: { $in: ids } });
+    await db.collection("workspaces").deleteMany({ _id: { $in: testKeys.map((key) => key.workspaceId) } });
     await db.collection("apiRateLimits").deleteMany({
       _id: { $regex: `^(?:${ids.map((id) => id.toString()).join("|")}):` },
     });
@@ -28,12 +29,14 @@ after(async () => {
   await client.close();
 });
 
-async function createKey({ scopes = ["contacts:read"], status = "active", revokedAt, expiresAt } = {}) {
+async function createKey({ scopes = ["contacts:read"], status = "active", revokedAt, expiresAt, workspaceStatus = "active" } = {}) {
   const id = new ObjectId();
   const secret = `ibx_live_${id.toString()}_integration_test`;
+  const workspaceId = new ObjectId();
+  await db.collection("workspaces").insertOne({ _id: workspaceId, status: workspaceStatus, createdAt: new Date() });
   const document = {
     _id: id,
-    workspaceId: new ObjectId(),
+    workspaceId,
     keyHash: hashApiKey(secret),
     name: "Integration test key",
     scopes,
@@ -43,7 +46,7 @@ async function createKey({ scopes = ["contacts:read"], status = "active", revoke
     ...(expiresAt ? { expiresAt } : {}),
   };
   await db.collection("apiKeys").insertOne(document);
-  testKeys.push({ id, secret });
+  testKeys.push({ id, secret, workspaceId });
   return { id, secret };
 }
 
@@ -147,4 +150,19 @@ test("accepts a key that has not reached its configured expiration", async () =>
   const result = await authenticateApiKeyWithDb(requestFor(key.secret), "contacts:read", async () => db);
   assert.equal(result.error, undefined);
   assert.equal(result.apiKey._id.toString(), key.id.toString());
+});
+
+
+test("rejects otherwise valid API keys for suspended workspaces before rate limiting", async () => {
+  const key = await createKey({ workspaceStatus: "suspended" });
+  const result = await authenticateApiKeyWithDb(requestFor(key.secret), "contacts:read", async () => db);
+
+  assert.equal(result.status, 403);
+  assert.match(result.error, /inactive or suspended/);
+  const counter = await db.collection("apiRateLimits").findOne({
+    _id: { $regex: `^${key.id.toString()}:` },
+  });
+  assert.equal(counter, null);
+  const storedKey = await db.collection("apiKeys").findOne({ _id: key.id });
+  assert.equal(storedKey.lastUsedAt, undefined);
 });
