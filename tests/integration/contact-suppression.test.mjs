@@ -73,3 +73,24 @@ test("creates the suppression collection and lookup index on first use", async (
     await isolatedClient.close();
   }
 });
+
+test("falls back to a non-unique lookup index when legacy duplicate rows exist", async () => {
+  const isolatedClient = new MongoClient(mongoUri);
+  await isolatedClient.connect();
+  const isolatedDb = isolatedClient.db("wavo_suppression_duplicates_" + new ObjectId().toString());
+  try {
+    const workspaceId = new ObjectId();
+    await isolatedDb.collection("contactSuppressions").insertMany([
+      { workspaceId, phone: "8801700000099", active: true },
+      { workspaceId, phone: "8801700000099", active: true, reason: "legacy_duplicate" },
+    ]);
+    await ensureContactSuppressionIndex(isolatedDb);
+    const indexes = await isolatedDb.collection("contactSuppressions").listIndexes().toArray();
+    const lookupIndex = indexes.find((index) => index.key?.workspaceId === 1 && index.key?.phone === 1);
+    assert.ok(lookupIndex);
+    assert.notEqual(lookupIndex.unique, true);
+  } finally {
+    await isolatedDb.dropDatabase();
+    await isolatedClient.close();
+  }
+});
