@@ -22,7 +22,7 @@ export async function GET(request) {
 
   const { searchParams } = new URL(request.url);
   const requestedLimit = Number(searchParams.get("limit") || 200);
-  const limit = Math.min(Math.max(Number.isFinite(requestedLimit) ? requestedLimit : 200, 1), 200);
+  const limit = Math.min(Math.max(Number.isSafeInteger(requestedLimit) ? requestedLimit : 200, 1), 200);
   const query = (searchParams.get("q") || "").trim().slice(0, 100);
   const tag = (searchParams.get("tag") || "").trim().toLowerCase().slice(0, 30);
   const cursorValue = searchParams.get("cursor");
