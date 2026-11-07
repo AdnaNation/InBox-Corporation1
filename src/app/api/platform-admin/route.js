@@ -41,6 +41,10 @@ export async function GET() {
       ).sort({ updatedAt: -1, createdAt: -1 }).limit(200).toArray(),
     ]);
 
+    const dataRequests = await db.collection("workspaceDataRequests")
+      .find({}, { projection: { workspaceId: 1, workspaceName: 1, type: 1, status: 1, requesterName: 1, requesterEmail: 1, createdAt: 1, reviewedAt: 1, completedAt: 1, operatorNote: 1 } })
+      .sort({ createdAt: -1 }).limit(100).toArray();
+
     const auditLogs = await db.collection("platformAdminAuditLogs")
       .find({}, { projection: { action: 1, actorId: 1, targetWorkspaceId: 1, targetId: 1, details: 1, createdAt: 1 } })
       .sort({ createdAt: -1 }).limit(50).toArray();
@@ -114,6 +118,19 @@ export async function GET() {
         status: request.status,
         activationStatus: request.activationStatus || null,
         createdAt: request.createdAt || null,
+      })),
+      dataRequests: dataRequests.map((item) => ({
+        id: item._id.toString(),
+        workspaceId: item.workspaceId?.toString() || "",
+        workspaceName: item.workspaceName || "Workspace",
+        type: item.type,
+        status: item.status,
+        requesterName: item.requesterName || "",
+        requesterEmail: item.requesterEmail || "",
+        createdAt: item.createdAt || null,
+        reviewedAt: item.reviewedAt || null,
+        completedAt: item.completedAt || null,
+        operatorNote: item.operatorNote || "",
       })),
       admin: { email: session.user.email },
     });
@@ -197,6 +214,52 @@ export async function POST(request) {
         createdAt: now,
       });
       return NextResponse.json({ success: true, message: body.decision === "approved" ? "Plan approved and activated." : "Billing request rejected." });
+    }
+
+    if (action === "review-data-request") {
+      if (!ObjectId.isValid(body.requestId) || !["in_review", "completed", "rejected"].includes(body.status)) {
+        return NextResponse.json({ success: false, message: "Choose a valid data request and review status." }, { status: 400 });
+      }
+      const requestId = new ObjectId(body.requestId);
+      const requestCollection = db.collection("workspaceDataRequests");
+      const existing = await requestCollection.findOne({ _id: requestId });
+      if (!existing) return NextResponse.json({ success: false, message: "Data request not found." }, { status: 404 });
+      const allowedTransitions = {
+        pending: ["in_review", "rejected"],
+        in_review: ["completed", "rejected"],
+      };
+      if (!allowedTransitions[existing.status]?.includes(body.status)) {
+        return NextResponse.json({ success: false, message: "This request has already been reviewed or cannot move to that status." }, { status: 409 });
+      }
+      const update = {
+        status: body.status,
+        updatedAt: now,
+        reviewedAt: existing.reviewedAt || now,
+        reviewedBy: actorId,
+      };
+      if (body.status === "completed") update.completedAt = now;
+      const changed = await requestCollection.updateOne(
+        { _id: requestId, status: existing.status },
+        { $set: update },
+      );
+      if (!changed.modifiedCount) return NextResponse.json({ success: false, message: "This request changed while you were reviewing it. Refresh and try again." }, { status: 409 });
+      await db.collection("platformAdminAuditLogs").insertOne({
+        action: "workspace_data_request_" + body.status,
+        actorId,
+        targetWorkspaceId: existing.workspaceId,
+        targetId: requestId,
+        details: { type: existing.type, from: existing.status, to: body.status },
+        createdAt: now,
+      });
+      await db.collection("workspaceAuditLogs").insertOne({
+        workspaceId: existing.workspaceId,
+        action: "workspace_data_request_status_changed",
+        actorId,
+        targetId: requestId,
+        details: { type: existing.type, status: body.status },
+        createdAt: now,
+      });
+      return NextResponse.json({ success: true, message: "Data request status updated." });
     }
 
     if (action === "set-workspace-status" || action === "set-workspace-plan") {
