@@ -224,10 +224,12 @@ async function ensureContactUsageCounter(db, workspaceId, state, now) {
   } catch (error) {
     if (error?.code !== 11000) throw error;
   }
-  await counters.updateOne(
-    { _id: counterId },
-    { $max: { contacts: state.usage.contacts }, $set: { updatedAt: now } },
-  );
+}
+
+export async function ensureWorkspaceContactUsageCounter(db, workspaceId) {
+  const state = await getWorkspacePlanUsage(db, workspaceId);
+  await ensureContactUsageCounter(db, workspaceId, state, new Date());
+  return state;
 }
 
 export async function reserveWorkspaceContactUsage(db, workspaceId, requested = 1) {
