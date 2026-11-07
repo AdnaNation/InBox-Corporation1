@@ -171,10 +171,13 @@ export async function POST(request) {
             { $set: { "subscription.plan": plan, "subscription.status": "active", "subscription.billingCycle": billingRequest.billingCycle, "subscription.updatedAt": now, updatedAt: now } },
           );
         } catch (error) {
+          // A database/network error can happen after MongoDB has applied the
+          // workspace update. Keep the request claimed rather than reopening
+          // it and allowing a conflicting second decision.
           await billingRequests.updateOne(
             { _id: requestId, status: "approved", reviewedBy: actorId, reviewedAt: now },
-            { $set: { status: "pending", updatedAt: new Date() }, $unset: { reviewedAt: "", reviewedBy: "" } },
-          );
+            { $set: { activationStatus: "needs_attention", updatedAt: new Date() } },
+          ).catch((trackingError) => console.error("Billing activation recovery marker failed:", trackingError));
           throw error;
         }
         if (!workspaceUpdate.matchedCount) {
