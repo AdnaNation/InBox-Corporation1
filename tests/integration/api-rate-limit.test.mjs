@@ -64,21 +64,24 @@ test("rate limits are isolated between API keys", async () => {
 
 test("creates the rate-limit TTL index once per database connection", async () => {
   const { ensureApiRateLimitIndex } = await import("../../src/lib/api-rate-limit.mjs");
-  const counts = new Map();
-  const createDb = () => ({
-    collection(name) {
-      assert.equal(name, "apiRateLimits");
-      return {
-        async createIndex(keys, options) {
-          assert.deepEqual(keys, { expiresAt: 1 });
-          assert.equal(options.expireAfterSeconds, 0);
-          assert.equal(options.name, "api_rate_limits_ttl");
-          counts.set(this, (counts.get(this) || 0) + 1);
-          return options.name;
-        },
-      };
-    },
-  });
+  function createDb() {
+    let calls = 0;
+    return {
+      getIndexCalls: () => calls,
+      collection(name) {
+        assert.equal(name, "apiRateLimits");
+        return {
+          async createIndex(keys, options) {
+            calls += 1;
+            assert.deepEqual(keys, { expiresAt: 1 });
+            assert.equal(options.expireAfterSeconds, 0);
+            assert.equal(options.name, "api_rate_limits_ttl");
+            return options.name;
+          },
+        };
+      },
+    };
+  }
   const firstDb = createDb();
   const secondDb = createDb();
   await Promise.all([
@@ -86,7 +89,8 @@ test("creates the rate-limit TTL index once per database connection", async () =
     ensureApiRateLimitIndex(firstDb),
     ensureApiRateLimitIndex(secondDb),
   ]);
-  assert.equal(counts.get(firstDb.collection("apiRateLimits")), undefined);
+  assert.equal(firstDb.getIndexCalls(), 1);
+  assert.equal(secondDb.getIndexCalls(), 1);
 });
 
 test("retries rate-limit index creation after a failed attempt", async () => {
