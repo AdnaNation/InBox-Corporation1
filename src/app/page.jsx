@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   ArrowRight, BarChart3, CheckCircle2, ChevronRight, Code2, MessageCircle,
-  MessagesSquare, ShieldCheck, Users, Workflow, Zap,
+  MessagesSquare, ShieldCheck, Users, Workflow,
 } from "lucide-react";
 import { getSession } from "@/lib/auth";
 
