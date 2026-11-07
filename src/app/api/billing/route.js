@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { isSameOrigin } from "@/lib/security";
 import { getWorkspacePlanUsage } from "@/lib/plan-limits";
 import { ensureBillingRequestIndexes } from "@/lib/billing-requests.mjs";
 
@@ -49,14 +50,15 @@ export async function GET() {
 
 export async function POST(request) {
   try {
-    const origin = request.headers.get("origin");
-    const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
-    if (!origin || new URL(origin).host !== host) {
+    if (!isSameOrigin(request)) {
       return NextResponse.json({ success: false, message: "Invalid request origin." }, { status: 403 });
     }
     const session = await getSession();
     if (!session?.workspace?.id || !session?.user?.id) {
       return NextResponse.json({ success: false, message: "Unauthorized." }, { status: 401 });
+    }
+    if (!["owner", "admin"].includes(session.membership?.role)) {
+      return NextResponse.json({ success: false, message: "Only workspace owners and admins can request a plan change." }, { status: 403 });
     }
     const body = await request.json();
     const plan = String(body.plan || "").toLowerCase();
