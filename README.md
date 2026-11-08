@@ -184,7 +184,7 @@ PADDLE_PRICE_BUSINESS_MONTHLY=pri_your_business_monthly_price_id
 PADDLE_PRICE_BUSINESS_YEARLY=pri_your_business_yearly_price_id
 ```
 
-Set `PADDLE_ENVIRONMENT=production` only when all six IDs, the client-side token, and webhook secret are from your live Paddle account. Checkout is enabled only when all six valid price IDs, a client-side token, and a webhook secret are present. The client-side token is designed for browser use; the webhook secret must remain server-side.
+Set `PADDLE_ENVIRONMENT=production` only when all six IDs, the client-side token, and webhook secret are from your live Paddle account. Checkout is enabled only when all six valid price IDs, a client-side token, a webhook secret, and a server API key with `customer_portal_session.write` permission are present. The client-side token is designed for browser use; the webhook secret must remain server-side.
 
 Create a Paddle notification destination pointing to `https://YOUR_DOMAIN/api/webhooks/paddle` and subscribe to `transaction.completed`, `subscription.created`, `subscription.updated`, and `subscription.canceled`. The webhook verifies the raw request body with Paddle's HMAC signature before changing subscription access. A completed recurring transaction activates the matching plan; past-due subscriptions receive a seven-day grace period; paused or canceled subscriptions fall back to Free. Duplicate notifications are recorded and do not reapply changes.
 
