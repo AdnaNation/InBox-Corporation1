@@ -79,7 +79,7 @@ export async function GET() {
       const account = group.accounts[0];
       try {
         const accessToken = decryptSecret(account.accessTokenEncrypted);
-        const phoneNumbers = [...new Set(group.accounts.map((item) => String(item.displayPhoneNumber || "").replace(/\\D/g, "")).filter(Boolean))];
+        const phoneNumbers = [...new Set(group.accounts.map((item) => String(item.displayPhoneNumber || "").replace(/\D/g, "")).filter(Boolean))];
         const phoneFilter = phoneNumbers.length ? `.phone_numbers(${JSON.stringify(phoneNumbers)})` : "";
         const fields = `pricing_analytics.start(${startTimestamp}).end(${endTimestamp}).granularity(MONTHLY)${phoneFilter}.metric_types(["COST","VOLUME"]).dimensions(["PHONE","PRICING_CATEGORY","PRICING_TYPE","COUNTRY"])`;
         const analyticsUrl = new URL(`https://graph.facebook.com/${apiVersion}/${group.wabaId}`);
