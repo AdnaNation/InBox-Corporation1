@@ -36,6 +36,9 @@ export default function BillingClient() {
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState("");
   const [notice, setNotice] = useState("");
+  const [metaUsage, setMetaUsage] = useState(null);
+  const [metaUsageLoading, setMetaUsageLoading] = useState(true);
+  const [metaUsageError, setMetaUsageError] = useState("");
 
   async function loadBilling() {
     setLoading(true);
@@ -51,7 +54,25 @@ export default function BillingClient() {
     }
   }
 
-  useEffect(() => { loadBilling(); }, []);
+  async function loadMetaUsage() {
+    setMetaUsageLoading(true);
+    setMetaUsageError("");
+    try {
+      const response = await fetch("/api/billing/meta-usage", { cache: "no-store" });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || "Could not load Meta usage.");
+      setMetaUsage(result);
+    } catch (error) {
+      setMetaUsageError(error.message || "Meta usage is temporarily unavailable.");
+    } finally {
+      setMetaUsageLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadBilling();
+    loadMetaUsage();
+  }, []);
 
   async function requestPlan(plan) {
     setRequesting(plan);
@@ -170,22 +191,101 @@ export default function BillingClient() {
         )}
       </section>
 
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Meta WhatsApp usage</p>
+            <h2 className="mt-1 text-xl font-bold text-slate-900">Message charges this month</h2>
+            <p className="mt-1 text-sm text-slate-500">Usage and approximate cost reported directly by Meta for your connected WhatsApp Business Account(s).</p>
+          </div>
+          <button type="button" onClick={loadMetaUsage} disabled={metaUsageLoading} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+            {metaUsageLoading ? "Refreshing…" : "Refresh usage"}
+          </button>
+        </div>
+        {metaUsageError ? (
+          <p role="alert" className="mt-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">{metaUsageError}</p>
+        ) : (
+          <>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl bg-slate-50 p-4">
+                <p className="text-xs font-medium text-slate-500">Meta-reported estimated charges</p>
+                <p className="mt-2 text-3xl font-bold tabular-nums text-slate-950">
+                  {metaUsageLoading && !metaUsage ? "Loading…" : metaUsage?.costAvailable === false ? "Unavailable" : formatMetaMoney(metaUsage?.currentMonth?.cost || 0, metaUsage?.currency)}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">{metaUsage?.currency || "Meta account currency"} · {metaUsage?.currentMonth?.month || new Date().toISOString().slice(0, 7)}</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-4">
+                <p className="text-xs font-medium text-slate-500">Delivered message volume</p>
+                <p className="mt-2 text-3xl font-bold tabular-nums text-slate-950">{number(metaUsage?.currentMonth?.volume || 0)}</p>
+                <p className="mt-1 text-xs text-slate-500">Across connected WhatsApp numbers</p>
+              </div>
+            </div>
+            {metaUsage?.message && <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm leading-6 text-amber-800">{metaUsage.message}</p>}
+            {metaUsage?.currencyMismatch && <p className="mt-3 text-sm text-amber-700">Wavo cannot safely combine these accounts because their billing currencies differ or could not all be confirmed. Review each account separately below.</p>}
+            {metaUsage?.byCategory?.length > 0 && (
+              <div className="mt-5">
+                <h3 className="text-sm font-semibold text-slate-800">Cost by message category</h3>
+                <div className="mt-2 overflow-x-auto">
+                  <table className="w-full min-w-[360px] text-left text-sm">
+                    <thead className="border-b border-slate-200 text-xs uppercase text-slate-500"><tr><th className="py-2 pr-3">Category</th><th className="py-2 pr-3">Delivered</th><th className="py-2 text-right">Reported cost</th></tr></thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {metaUsage.byCategory.map((item) => <tr key={item.category}><td className="py-3 pr-3 font-medium capitalize text-slate-800">{item.category.replaceAll("_", " ")}</td><td className="py-3 pr-3 text-slate-600">{number(item.volume)}</td><td className="py-3 text-right font-semibold tabular-nums text-slate-900">{formatMetaMoney(item.cost, metaUsage.currency)}</td></tr>)}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            {metaUsage?.byPhone?.length > 1 && (
+              <div className="mt-5">
+                <h3 className="text-sm font-semibold text-slate-800">Usage by WhatsApp number</h3>
+                <div className="mt-2 overflow-x-auto">
+                  <table className="w-full min-w-[360px] text-left text-sm">
+                    <thead className="border-b border-slate-200 text-xs uppercase text-slate-500"><tr><th className="py-2 pr-3">Phone number</th><th className="py-2 pr-3">Delivered</th><th className="py-2 text-right">Reported cost</th></tr></thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {metaUsage.byPhone.map((item) => <tr key={item.phoneNumber}><td className="py-3 pr-3 font-medium text-slate-800">{item.phoneNumber}</td><td className="py-3 pr-3 text-slate-600">{number(item.volume)}</td><td className="py-3 text-right font-semibold tabular-nums text-slate-900">{metaUsage.costAvailable ? formatMetaMoney(item.cost, metaUsage.currency) : "Unavailable"}</td></tr>)}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            {metaUsage?.accounts?.length > 1 && (
+              <div className="mt-5 space-y-3">
+                <h3 className="text-sm font-semibold text-slate-800">Connected WhatsApp accounts</h3>
+                {metaUsage.accounts.map((account) => <div key={account.wabaId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 text-sm">
+                  <div><p className="font-semibold text-slate-800">{account.businessName}</p><p className="text-xs text-slate-500">{account.connectedPhoneNumbers?.join(", ")}</p></div>
+                  <div className="text-right"><p className="font-semibold text-slate-900">{account.success ? (account.costAvailable ? formatMetaMoney(account.currentMonth.cost, account.currency) : "Cost unavailable") : "Sync unavailable"}</p><p className="text-xs text-slate-500">{account.success ? number(account.currentMonth.volume) + " delivered" : account.message}</p></div>
+                </div>)}
+              </div>
+            )}
+            <p className="mt-4 text-xs leading-5 text-slate-500">Last synced: {metaUsage?.fetchedAt ? formatDate(metaUsage.fetchedAt) : "—"}. Meta pricing analytics are approximate and may be delayed. This is not your final invoice or payment balance; check your Meta Business billing account for the official amount payable. If Meta does not expose cost data for an account (including some Solution Partner credit-line setups), Wavo will not estimate or invent it.</p>
+          </>
+        )}
+      </section>
+
       <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
-        <h2 className="font-semibold text-blue-950">WhatsApp message charges are separate</h2>
+        <h2 className="font-semibold text-blue-950">Meta charges are separate from your Wavo subscription</h2>
         <p className="mt-2 text-sm leading-6 text-blue-900">
-          Your Wavo subscription pays for access to the platform. It does not include Meta WhatsApp message fees. Meta bills your connected WhatsApp Business Account for delivered messages according to the recipient's country and message category. Review Meta's official pricing before choosing or changing your plan.
+          Meta bills your connected WhatsApp Business Account for eligible delivered messages. Wavo displays Meta's reported usage analytics; Meta continues to manage the actual invoice and payment.
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
           <a href="https://whatsappbusiness.com/products/platform-pricing/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-lg bg-white px-3 py-2 text-sm font-semibold text-blue-900 ring-1 ring-blue-200 transition hover:bg-blue-100">Official WhatsApp platform pricing <span aria-hidden="true" className="ml-2">↗</span></a>
           <a href="https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing" target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-lg bg-white px-3 py-2 text-sm font-semibold text-blue-900 ring-1 ring-blue-200 transition hover:bg-blue-100">Meta pricing documentation <span aria-hidden="true" className="ml-2">↗</span></a>
         </div>
-        <p className="mt-3 text-xs leading-5 text-blue-800">
-          These are WhatsApp Business Platform charges, not traditional SMS charges. Wavo does not currently collect or pay these Meta fees on your behalf.
-        </p>
       </section>
       <p className="text-xs leading-5 text-slate-500">Payments, invoices, and automatic renewals are not enabled yet. Submitting a request does not charge your account or change your plan. Usage shows your current totals against the included limits for your selected plan.</p>
     </div>
   );
+}
+
+function formatMetaMoney(value, currency) {
+  const amount = Number(value || 0);
+  if (!Number.isFinite(amount)) return "—";
+  if (currency && /^[A-Z]{3}$/.test(currency)) {
+    try {
+      return new Intl.NumberFormat(undefined, { style: "currency", currency, minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(amount);
+    } catch {}
+  }
+  return amount.toFixed(4);
 }
 
 function Usage({ label, value, limit }) {
