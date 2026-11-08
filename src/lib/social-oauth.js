@@ -145,8 +145,27 @@ async function exchangeCode(provider, code, verifier, request) {
     signal: AbortSignal.timeout(10000),
     cache: "no-store",
   });
-  const tokens = await response.json();
-  if (!response.ok || !tokens.access_token) throw new Error("oauth_token_exchange_failed");
+  const responseText = await response.text();
+  let tokens;
+  try {
+    tokens = responseText ? JSON.parse(responseText) : {};
+  } catch {
+    tokens = {};
+  }
+  if (!response.ok || !tokens.access_token) {
+    // Provider error codes/descriptions are safe to log; never log tokens or credentials.
+    const providerError = typeof tokens.error === "string" ? tokens.error.slice(0, 80) : "unknown_error";
+    const providerDescription = typeof tokens.error_description === "string"
+      ? tokens.error_description.replace(/[\r\n\t]+/g, " ").slice(0, 240)
+      : "no_description";
+    console.error(
+      `[${provider.toUpperCase()} OAUTH] Token exchange rejected:`,
+      `http=${response.status}`,
+      `error=${providerError}`,
+      `description=${providerDescription}`,
+    );
+    throw new Error(`oauth_token_exchange_failed:${providerError}`);
+  }
   return tokens;
 }
 
