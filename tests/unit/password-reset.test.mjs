@@ -24,7 +24,7 @@ test("sends a password reset link through the configured Resend account", async 
   const previousKey = process.env.RESEND_API_KEY;
   const previousFrom = process.env.EMAIL_FROM;
   process.env.RESEND_API_KEY = "re_test_key";
-  process.env.EMAIL_FROM = "Wavo <no-reply@example.com>";
+  process.env.EMAIL_FROM = "InBox Corporation <noreply@example.com>";
   t.after(() => {
     if (previousKey === undefined) delete process.env.RESEND_API_KEY;
     else process.env.RESEND_API_KEY = previousKey;
@@ -41,15 +41,19 @@ test("sends a password reset link through the configured Resend account", async 
   await sendPasswordResetEmail({
     to: "person@example.com",
     token: "B".repeat(43),
-    origin: "https://wavo.example.com",
+    origin: "https://inbox-corporation.example.com",
   });
 
   assert.equal(captured.url, "https://api.resend.com/emails");
   assert.equal(captured.options.method, "POST");
   assert.equal(captured.options.headers.Authorization, "Bearer re_test_key");
-  assert.equal(captured.body.subject, "Reset your Wavo password");
+  assert.equal(captured.body.from, "InBox Corporation <noreply@example.com>");
+  assert.equal(captured.body.subject, "Reset your InBox Corporation password");
   assert.deepEqual(captured.body.to, ["person@example.com"]);
-  assert.match(captured.body.text, /https:\/\/wavo\.example\.com\/reset-password\?token=/);
+  assert.match(captured.body.html, /InBox Corporation account/);
+  assert.doesNotMatch(captured.body.html, /Wavo/);
+  assert.match(captured.body.text, /InBox Corporation/);
+  assert.match(captured.body.text, /https:\/\/inbox-corporation\.example\.com\/reset-password\?token=/);
 });
 
 test("fails safely when password reset email delivery is not configured", async (t) => {
@@ -65,7 +69,7 @@ test("fails safely when password reset email delivery is not configured", async 
     else process.env.EMAIL_FROM = previousFrom;
   });
   await assert.rejects(
-    sendPasswordResetEmail({ to: "person@example.com", token: "B".repeat(43), origin: "https://wavo.example.com" }),
+    sendPasswordResetEmail({ to: "person@example.com", token: "B".repeat(43), origin: "https://inbox-corporation.example.com" }),
     /Email delivery is not configured/,
   );
 });
