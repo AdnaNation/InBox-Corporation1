@@ -79,8 +79,9 @@ export async function GET() {
       const account = group.accounts[0];
       try {
         const accessToken = decryptSecret(account.accessTokenEncrypted);
-        const phoneNumbers = [...new Set(group.accounts.map((item) => String(item.phoneNumberId)))];
-        const fields = `pricing_analytics.start(${startTimestamp}).end(${endTimestamp}).granularity(MONTHLY).phone_numbers(${JSON.stringify(phoneNumbers)}).metric_types(["COST","VOLUME"]).dimensions(["PHONE","PRICING_CATEGORY","PRICING_TYPE","COUNTRY"])`;
+        const phoneNumbers = [...new Set(group.accounts.map((item) => String(item.displayPhoneNumber || "").replace(/\\D/g, "")).filter(Boolean))];
+        const phoneFilter = phoneNumbers.length ? `.phone_numbers(${JSON.stringify(phoneNumbers)})` : "";
+        const fields = `pricing_analytics.start(${startTimestamp}).end(${endTimestamp}).granularity(MONTHLY)${phoneFilter}.metric_types(["COST","VOLUME"]).dimensions(["PHONE","PRICING_CATEGORY","PRICING_TYPE","COUNTRY"])`;
         const analyticsUrl = new URL(`https://graph.facebook.com/${apiVersion}/${group.wabaId}`);
         analyticsUrl.searchParams.set("fields", fields);
         const businessUrl = new URL(`https://graph.facebook.com/${apiVersion}/${group.wabaId}`);
@@ -122,7 +123,7 @@ export async function GET() {
     const costAvailable = successful.length === results.length && successful.length > 0 && allCurrencySame && successful.every((item) => item.costAvailable);
     const categoryMap = new Map();
     for (const item of successful) {
-      for (const row of (allCurrencySame ? item.byCategory : [])) {
+      for (const row of (costAvailable ? item.byCategory : [])) {
         const key = row.category;
         const current = categoryMap.get(key) || { category: key, cost: 0, volume: 0 };
         current.cost += row.cost;
