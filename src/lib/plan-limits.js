@@ -56,7 +56,8 @@ export async function getWorkspacePlanUsage(db, workspaceId) {
   ]);
   return {
     plan,
-    workspaceStatus: workspace?.status || "active",\n    subscriptionStatus: workspace?.subscription?.status || "active",
+    workspaceStatus: workspace?.status || "active",
+    subscriptionStatus: workspace?.subscription?.status || "active",
     usage: { contacts: Math.max(contactCount, contactCounter?.contacts || 0), messages: Math.max(messages, counter?.messages || 0), campaigns: Math.max(campaigns, counter?.campaigns || 0) },
     limits: PLAN_LIMITS[plan],
   };
