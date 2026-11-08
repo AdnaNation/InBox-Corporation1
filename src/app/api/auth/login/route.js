@@ -47,7 +47,7 @@ export async function POST(request) {
       status: "active",
     });
 
-    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    if (!user || typeof user.passwordHash !== "string" || !(await bcrypt.compare(password, user.passwordHash))) {
       return NextResponse.json(
         { success: false, message: "Invalid email or password." },
         { status: 401 },
