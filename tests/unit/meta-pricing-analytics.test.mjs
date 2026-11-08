@@ -38,7 +38,8 @@ test("supports Meta's alternate nested analytics data response shape", () => {
   const points = [{ volume: 1, cost: 0.01 }];
   assert.deepEqual(getMetaPricingDataPoints({ data: [{ data_points: points }] }), points);
   assert.deepEqual(getMetaPricingDataPoints({ data_points: points }), points);
-  assert.deepEqual(getMetaPricingDataPoints({}), []);
+  assert.deepEqual(getMetaPricingDataPoints({ data: [] }), []);
+  assert.equal(getMetaPricingDataPoints({}), null);
 });
 
 test("treats explicitly free Meta pricing rows as zero cost", () => {
