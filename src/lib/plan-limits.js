@@ -19,12 +19,25 @@ function getUsagePeriodKey(workspaceId, date = new Date()) {
   return `${workspaceId.toString()}:${year}-${month}`;
 }
 
+export function getEffectiveWorkspacePlan(subscription, now = new Date()) {
+  const configuredPlan = PLAN_LIMITS[subscription?.plan] ? subscription.plan : "free";
+  if (configuredPlan === "free") return "free";
+
+  const status = subscription?.status || "active";
+  if (status === "active") return configuredPlan;
+  if (status === "past_due" && subscription?.graceUntil) {
+    const graceUntil = new Date(subscription.graceUntil);
+    if (!Number.isNaN(graceUntil.getTime()) && graceUntil > now) return configuredPlan;
+  }
+  return "free";
+}
+
 export async function getWorkspacePlanUsage(db, workspaceId) {
   const workspace = await db.collection("workspaces").findOne(
     { _id: workspaceId },
     { projection: { subscription: 1, status: 1 } },
   );
-  const plan = PLAN_LIMITS[workspace?.subscription?.plan] ? workspace.subscription.plan : "free";
+  const plan = getEffectiveWorkspacePlan(workspace?.subscription);
   const monthStart = getMonthStart();
   const [contactCount, messages, campaigns, counter, contactCounter] = await Promise.all([
     db.collection("contacts").countDocuments({ workspaceId }),
@@ -43,7 +56,7 @@ export async function getWorkspacePlanUsage(db, workspaceId) {
   ]);
   return {
     plan,
-    workspaceStatus: workspace?.status || "active",
+    workspaceStatus: workspace?.status || "active",\n    subscriptionStatus: workspace?.subscription?.status || "active",
     usage: { contacts: Math.max(contactCount, contactCounter?.contacts || 0), messages: Math.max(messages, counter?.messages || 0), campaigns: Math.max(campaigns, counter?.campaigns || 0) },
     limits: PLAN_LIMITS[plan],
   };
