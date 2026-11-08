@@ -138,7 +138,7 @@ export default function PlatformAdminClient() {
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <div className="border-b border-slate-100 p-5">
           <h2 className="font-bold text-slate-900">Platform audit history</h2>
-          <p className="mt-1 text-sm text-slate-500">Latest 50 administrative actions, including plan approvals and workspace changes.</p>
+          <p className="mt-1 text-sm text-slate-500">Latest 50 administrative actions, including pricing changes, plan approvals, and workspace changes.</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[680px] text-left text-sm">
