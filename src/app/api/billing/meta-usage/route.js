@@ -8,6 +8,23 @@ import { aggregateMetaPricingPoints, getMetaPricingDataPoints } from "@/lib/meta
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+async function metaGet(url, accessToken) {
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+    signal: AbortSignal.timeout(15000),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || body.error) {
+    const error = new Error(body?.error?.message || "Meta analytics request failed.");
+    error.status = response.status;
+    error.code = body?.error?.code || null;
+    error.subcode = body?.error?.error_subcode || null;
+    throw error;
+  }
+  return body;
+}
+
 function monthStartOffset(date, offset) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + offset, 1));
 }
@@ -80,6 +97,8 @@ export async function GET() {
           success: true,
           wabaId: group.wabaId,
           businessName: businessResponse.name || account.businessName || "WhatsApp Business",
+          currency: businessResponse.currency || null,
+          connectedPhoneNumbers: group.accounts.map((item) => item.displayPhoneNumber || item.phoneNumberId),
           ...result,
         };
       } catch (error) {
@@ -100,7 +119,7 @@ export async function GET() {
       cost: sum.cost + (item.costAvailable && allCurrencySame ? item.currentMonth.cost : 0),
       volume: sum.volume + item.currentMonth.volume,
     }), { cost: 0, volume: 0 });
-    const costAvailable = successful.length > 0 && allCurrencySame && successful.every((item) => item.costAvailable);
+    const costAvailable = successful.length === results.length && successful.length > 0 && allCurrencySame && successful.every((item) => item.costAvailable);
     const categoryMap = new Map();
     for (const item of successful) {
       for (const row of (allCurrencySame ? item.byCategory : [])) {
@@ -130,7 +149,13 @@ export async function GET() {
       period: { start: start.toISOString(), end: now.toISOString() },
       message: costAvailable
         ? null
-        : "Meta returned message volume without cost data for at least one account. This can happen when a WABA shares a Solution Partner credit line; check the Meta invoice for the payable amount.",
+        : successful.length !== results.length
+          ? "Meta usage could not be synchronized for every connected WhatsApp account. Review each account status below and try refreshing."
+          : successful.length === 0
+            ? (results[0]?.message || "Meta pricing analytics is unavailable for these accounts.")
+            : currencies.length > 1
+              ? "Connected Meta accounts use different billing currencies. Their costs are shown separately below."
+              : "Meta returned message volume without cost data. This can happen when a WABA shares a Solution Partner credit line; check the Meta invoice for the payable amount.",
     });
   } catch (error) {
     console.error("Meta WhatsApp usage overview error:", error);
