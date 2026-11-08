@@ -33,7 +33,7 @@ const env = {
 };
 
 test("Paddle checkout is enabled only when token, webhook secret and all six prices exist", () => {
-  assert.equal(getPaddleCheckoutConfiguration(env).enabled, true);
+  assert.equal(getPaddleCheckoutConfiguration(env).enabled, true);\n  assert.equal(getPaddleCheckoutConfiguration({ ...env, PADDLE_ENVIRONMENT: "" }).environment, "sandbox");
   assert.equal(getPaddleCheckoutConfiguration(env).environment, "sandbox");
   assert.equal(getPaddleCheckoutConfiguration({ ...env, PADDLE_WEBHOOK_SECRET: "" }).enabled, false);
   assert.equal(getPaddleCheckoutConfiguration({ ...env, PADDLE_PRICE_GROWTH_YEARLY: "" }).enabled, false);
