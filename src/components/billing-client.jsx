@@ -173,9 +173,13 @@ export default function BillingClient() {
       <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
         <h2 className="font-semibold text-blue-950">WhatsApp message charges are separate</h2>
         <p className="mt-2 text-sm leading-6 text-blue-900">
-          Your Wavo subscription pays for access to the platform. It does not include Meta WhatsApp message fees. Meta bills your connected WhatsApp Business Account for delivered messages according to the recipient's country and message category. Review the estimated Bangladesh rates on the Campaigns page before sending.
+          Your Wavo subscription pays for access to the platform. It does not include Meta WhatsApp message fees. Meta bills your connected WhatsApp Business Account for delivered messages according to the recipient's country and message category. Review Meta's official pricing before choosing or changing your plan.
         </p>
-        <p className="mt-2 text-xs leading-5 text-blue-800">
+        <div className="mt-4 flex flex-wrap gap-3">
+          <a href="https://whatsappbusiness.com/products/platform-pricing/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-lg bg-white px-3 py-2 text-sm font-semibold text-blue-900 ring-1 ring-blue-200 transition hover:bg-blue-100">Official WhatsApp platform pricing <span aria-hidden="true" className="ml-2">↗</span></a>
+          <a href="https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing" target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-lg bg-white px-3 py-2 text-sm font-semibold text-blue-900 ring-1 ring-blue-200 transition hover:bg-blue-100">Meta pricing documentation <span aria-hidden="true" className="ml-2">↗</span></a>
+        </div>
+        <p className="mt-3 text-xs leading-5 text-blue-800">
           These are WhatsApp Business Platform charges, not traditional SMS charges. Wavo does not currently collect or pay these Meta fees on your behalf.
         </p>
       </section>
