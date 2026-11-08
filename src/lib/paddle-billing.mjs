@@ -75,7 +75,7 @@ export function getPaddleSignatureParts(header) {
   return parts;
 }
 
-export function verifyPaddleSignature(rawBody, signatureHeader, secret, nowMs = Date.now(), toleranceSeconds = 300) {
+export function verifyPaddleSignature(rawBody, signatureHeader, secret, nowMs = Date.now(), toleranceSeconds = 5) {
   if (typeof rawBody !== "string" || !secret) return false;
   const parts = getPaddleSignatureParts(signatureHeader);
   if (!parts) return false;
