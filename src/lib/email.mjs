@@ -17,14 +17,14 @@ export async function sendVerificationEmail({ to, token, origin }) {
     body: JSON.stringify({
       from,
       to: [to],
-      subject: "Verify your Wavo email address",
+      subject: "Verify your InBox Corporation email address",
       html: "<div style=\"font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#0f172a\">"
         + "<h1 style=\"font-size:24px\">Verify your email</h1>"
-        + "<p>Confirm this email address to help secure your Wavo account and make account recovery easier.</p>"
+        + "<p>Confirm this email address to help secure your InBox Corporation account and make account recovery easier.</p>"
         + "<p><a href=\"" + verifyUrl.toString() + "\" style=\"display:inline-block;background:#16a34a;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none\">Verify email address</a></p>"
         + "<p>This link expires in 24 hours. If you did not create this account, you can ignore this email.</p>"
         + "</div>",
-      text: "Verify your Wavo email address: " + verifyUrl.toString()
+      text: "Verify your InBox Corporation email address: " + verifyUrl.toString()
         + "\nThis link expires in 24 hours. If you did not create this account, you can ignore this email.",
     }),
   });
@@ -54,14 +54,14 @@ export async function sendPasswordResetEmail({ to, token, origin }) {
     body: JSON.stringify({
       from,
       to: [to],
-      subject: "Reset your Wavo password",
+      subject: "Reset your InBox Corporation password",
       html: '<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#0f172a">'
         + '<h1 style="font-size:24px">Reset your password</h1>'
-        + '<p>We received a request to reset the password for your Wavo account.</p>'
+        + '<p>We received a request to reset the password for your InBox Corporation account.</p>'
         + '<p><a href="' + resetUrl.toString() + '" style="display:inline-block;background:#16a34a;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none">Choose a new password</a></p>'
         + '<p>This link expires in 1 hour and can be used only once. If you did not request a reset, you can ignore this email.</p>'
         + '</div>',
-      text: "Reset your Wavo password: " + resetUrl.toString()
+      text: "Reset your InBox Corporation password: " + resetUrl.toString()
         + "\nThis link expires in 1 hour and can be used only once. If you did not request a reset, you can ignore this email.",
     }),
   });

@@ -18,13 +18,12 @@ test("rejects malformed verification tokens before hashing", () => {
   }
 });
 
-
-test("sends a verification link through the configured Resend account", async (t) => {
+test("sends a branded verification link through the configured Resend account", async (t) => {
   const { sendVerificationEmail } = await import("../../src/lib/email.mjs");
   const previousKey = process.env.RESEND_API_KEY;
   const previousFrom = process.env.EMAIL_FROM;
   process.env.RESEND_API_KEY = "re_test_key";
-  process.env.EMAIL_FROM = "Wavo <no-reply@example.com>";
+  process.env.EMAIL_FROM = "InBox Corporation <noreply@example.com>";
   t.after(() => {
     if (previousKey === undefined) delete process.env.RESEND_API_KEY;
     else process.env.RESEND_API_KEY = previousKey;
@@ -41,15 +40,19 @@ test("sends a verification link through the configured Resend account", async (t
   await sendVerificationEmail({
     to: "person@example.com",
     token: "A".repeat(43),
-    origin: "https://wavo.example.com",
+    origin: "https://inbox-corporation.example.com",
   });
 
   assert.equal(captured.url, "https://api.resend.com/emails");
   assert.equal(captured.options.method, "POST");
   assert.equal(captured.options.headers.Authorization, "Bearer re_test_key");
-  assert.equal(captured.body.from, "Wavo <no-reply@example.com>");
+  assert.equal(captured.body.from, "InBox Corporation <noreply@example.com>");
   assert.deepEqual(captured.body.to, ["person@example.com"]);
-  assert.match(captured.body.text, /https:\/\/wavo\.example\.com\/verify-email#token=/);
+  assert.equal(captured.body.subject, "Verify your InBox Corporation email address");
+  assert.match(captured.body.html, /InBox Corporation account/);
+  assert.doesNotMatch(captured.body.html, /Wavo/);
+  assert.match(captured.body.text, /InBox Corporation/);
+  assert.match(captured.body.text, /https:\/\/inbox-corporation\.example\.com\/verify-email#token=/);
 });
 
 test("fails safely when email delivery is not configured", async (t) => {
@@ -65,7 +68,7 @@ test("fails safely when email delivery is not configured", async (t) => {
     else process.env.EMAIL_FROM = previousFrom;
   });
   await assert.rejects(
-    sendVerificationEmail({ to: "person@example.com", token: "A".repeat(43), origin: "https://wavo.example.com" }),
+    sendVerificationEmail({ to: "person@example.com", token: "A".repeat(43), origin: "https://inbox-corporation.example.com" }),
     /Email delivery is not configured/,
   );
 });
