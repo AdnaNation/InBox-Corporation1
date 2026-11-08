@@ -141,12 +141,72 @@ export async function GET(request) {
       });
     }
 
+    // A valid phone-number token does not prove that this app is subscribed
+    // to receive webhook events for the selected WhatsApp Business Account.
+    let webhookSubscription = {
+      status: "unknown",
+      message: "Meta's WABA app subscription could not be verified.",
+      checkedAt: new Date().toISOString(),
+    };
+    if (account.wabaId) {
+      try {
+        const subscriptionUrl = new URL(
+          `https://graph.facebook.com/${apiVersion}/${encodeURIComponent(account.wabaId)}/subscribed_apps`,
+        );
+        const subscriptionResponse = await fetch(subscriptionUrl, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          cache: "no-store",
+        });
+        const subscriptionResult = await subscriptionResponse.json();
+        if (subscriptionResponse.ok && Array.isArray(subscriptionResult.data)) {
+          const subscribedApps = subscriptionResult.data;
+          const configuredAppId = process.env.META_APP_ID;
+          const matchingApp = configuredAppId
+            ? subscribedApps.find((item) =>
+                String(item.whatsapp_business_api_data?.id || item.id || "") === String(configuredAppId),
+              )
+            : null;
+          webhookSubscription = {
+            status: configuredAppId
+              ? matchingApp ? "subscribed" : "not_subscribed"
+              : subscribedApps.length ? "subscription_present_app_unverified" : "not_subscribed",
+            appName: matchingApp?.whatsapp_business_api_data?.name || "",
+            subscribedAppCount: subscribedApps.length,
+            message: configuredAppId
+              ? matchingApp
+                ? "Wavo is subscribed to receive WhatsApp webhook events for this business account."
+                : "Meta does not list this Wavo app as subscribed to this WhatsApp Business Account."
+              : subscribedApps.length
+                ? "Meta reports an app subscription, but META_APP_ID is not configured so Wavo cannot confirm it is the correct app."
+                : "Meta reports no subscribed app for this WhatsApp Business Account.",
+            checkedAt: new Date().toISOString(),
+          };
+        } else {
+          webhookSubscription = {
+            status: "unknown",
+            metaErrorCode: subscriptionResult?.error?.code || null,
+            message: "Meta did not allow Wavo to verify the business account's webhook subscription. Check whatsapp_business_management permission.",
+            checkedAt: new Date().toISOString(),
+          };
+        }
+      } catch {
+        webhookSubscription = {
+          status: "unknown",
+          message: "Could not reach Meta to verify the webhook subscription. Try again later.",
+          checkedAt: new Date().toISOString(),
+        };
+      }
+    } else {
+      webhookSubscription.message = "This connection has no saved WhatsApp Business Account ID. Reconnect it through Meta Embedded Signup.";
+    }
+
     return NextResponse.json({
       success: true,
       connected: true,
       checkedAt: new Date().toISOString(),
       health: {
         tokenStatus: "valid",
+        webhookSubscription,
         tokenExpiryStatus,
         tokenExpiresAt: tokenExpiresAt?.toISOString() || null,
         dataAccessExpiresAt: dataAccessExpiresAt?.toISOString() || null,
