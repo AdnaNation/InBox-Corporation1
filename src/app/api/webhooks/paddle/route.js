@@ -241,6 +241,7 @@ async function processSubscriptionUpdate(db, event) {
   if (status === "active") {
     workspaceUpdate["subscription.plan"] = update.plan;
     workspaceUpdate["subscription.billingCycle"] = update.billingCycle;
+    workspaceUpdate["subscription.paddlePriceId"] = update.priceId;
     workspaceUpdate["subscription.graceUntil"] = null;
   } else if (status === "past_due") {
     const graceUntil = previousGraceUntil ? new Date(previousGraceUntil) : new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
