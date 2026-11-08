@@ -184,7 +184,7 @@ async function processSubscriptionUpdate(db, event) {
     return { outcome: "ignored", reason: "stale_subscription_event" };
   }
 
-  const status = event.event_type === "subscription.canceled" ? "canceled" : String(subscription.status || "");
+  const status = getPaddleEventType(event) === "subscription.canceled" ? "canceled" : String(subscription.status || "");
   if (!["active", "past_due", "paused", "canceled"].includes(status)) {
     return { outcome: "ignored", reason: "unsupported_subscription_status" };
   }
