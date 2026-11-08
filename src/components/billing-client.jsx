@@ -278,7 +278,7 @@ export default function BillingClient() {
         )}
       </section>
 
-      <p className="text-xs leading-5 text-slate-500">{data?.paymentEnabled ? "Paddle processes checkout and recurring renewals. Wavo changes subscription access only after verifying Paddle's signed webhook. Existing subscriptions must be changed or canceled through support until self-service management is enabled." : "Payments, invoices, and automatic renewals are not enabled yet. Submitting a request does not charge your account or change your plan. Usage shows your current totals against the included limits for your selected plan."}</p>
+      <p className="text-xs leading-5 text-slate-500">{data?.paymentEnabled ? (data?.paddle?.portalEnabled ? "Paddle processes checkout and recurring renewals. Wavo updates access only after verifying signed webhooks. Use Manage subscription to view invoices, update payment methods, change plans, or cancel." : "Paddle processes checkout and recurring renewals. Subscription changes and cancellations require support until the Paddle customer portal API key is configured.") : "Payments, invoices, and automatic renewals are not enabled yet. Submitting a request does not charge your account or change your plan. Usage shows your current totals against the included limits for your selected plan."}</p>
     </div>
   );
 }
