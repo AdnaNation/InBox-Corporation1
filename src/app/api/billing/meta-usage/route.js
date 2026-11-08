@@ -98,9 +98,13 @@ export async function GET() {
         const accessToken = decryptSecret(account.accessTokenEncrypted);
         const phoneNumbers = [...new Set(group.accounts.map((item) => String(item.displayPhoneNumber || "").replace(/\D/g, "")).filter(Boolean))];
         const phoneFilter = phoneNumbers.length ? `.phone_numbers(${JSON.stringify(phoneNumbers)})` : "";
-        const fields = `pricing_analytics.start(${startTimestamp}).end(${endTimestamp}).granularity(MONTHLY)${phoneFilter}.metric_types(["COST","VOLUME"]).dimensions(["PHONE","PRICING_CATEGORY","PRICING_TYPE","COUNTRY"])`;
-        const analyticsUrl = new URL(`https://graph.facebook.com/${apiVersion}/${group.wabaId}`);
-        analyticsUrl.searchParams.set("fields", fields);
+        const analyticsUrl = new URL(`https://graph.facebook.com/${apiVersion}/${group.wabaId}/pricing_analytics`);
+        analyticsUrl.searchParams.set("start", String(startTimestamp));
+        analyticsUrl.searchParams.set("end", String(endTimestamp));
+        analyticsUrl.searchParams.set("granularity", "MONTHLY");
+        if (phoneNumbers.length) analyticsUrl.searchParams.set("phone_numbers", JSON.stringify(phoneNumbers));
+        analyticsUrl.searchParams.set("metric_types", JSON.stringify(["COST", "VOLUME"]));
+        analyticsUrl.searchParams.set("dimensions", JSON.stringify(["PHONE", "PRICING_CATEGORY", "PRICING_TYPE", "COUNTRY"]));
         const businessUrl = new URL(`https://graph.facebook.com/${apiVersion}/${group.wabaId}`);
         businessUrl.searchParams.set("fields", "id,name,currency,timezone_id");
 
