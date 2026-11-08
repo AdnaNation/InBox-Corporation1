@@ -31,7 +31,7 @@ export function getPaddleCheckoutConfiguration(env = process.env) {
   );
   const clientToken = String(env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "").trim();
   const webhookSecret = String(env.PADDLE_WEBHOOK_SECRET || "").trim();
-  const environment = env.PADDLE_ENVIRONMENT === "sandbox" ? "sandbox" : "production";
+  const environment = env.PADDLE_ENVIRONMENT === "production" ? "production" : "sandbox";
 
   return {
     enabled: Boolean(clientToken && webhookSecret && allPricesConfigured),
