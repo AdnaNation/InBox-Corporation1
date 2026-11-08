@@ -6,6 +6,7 @@ import { isSameOrigin } from "@/lib/security";
 import { getWorkspacePlanUsage } from "@/lib/plan-limits";
 import { ensureBillingRequestIndexes } from "@/lib/billing-requests.mjs";
 import { getPublicPlanPricing } from "@/lib/plan-pricing.mjs";
+import { getPaddleCheckoutConfiguration } from "@/lib/paddle-billing.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,7 +17,7 @@ export async function GET() {
     if (!session?.workspace?.id) return NextResponse.json({ success: false, message: "Unauthorized." }, { status: 401 });
     const db = await getDatabase();
     const workspaceId = new ObjectId(session.workspace.id);
-    const workspace = await db.collection("workspaces").findOne({ _id: workspaceId }, { projection: { subscription: 1 } });
+    const workspace = await db.collection("workspaces").findOne({ _id: workspaceId }, { projection: { subscription: 1, ownerId: 1 } });
     if (!workspace) return NextResponse.json({ success: false, message: "Workspace not found." }, { status: 404 });
     const [planState, pendingRequest, requestHistory, pricingDocument] = await Promise.all([
       getWorkspacePlanUsage(db, workspaceId),
@@ -27,10 +28,20 @@ export async function GET() {
       ).sort({ createdAt: -1 }).limit(10).toArray(),
       db.collection("platformSettings").findOne({ _id: "planPricing" }, { projection: { currency: 1, plans: 1 } }),
     ]);
+
+    const canManageBilling = ["owner", "admin"].includes(session.membership?.role);
+    const paddleConfiguration = getPaddleCheckoutConfiguration();
+    const paddle = canManageBilling ? paddleConfiguration : {
+      enabled: false,
+      clientToken: null,
+      environment: "production",
+      priceIds: {},
+    };
+
     return NextResponse.json({
       success: true,
       plan: planState.plan,
-      subscriptionStatus: workspace.subscription?.status || "active",
+      subscriptionStatus: planState.subscriptionStatus,
       usage: { contacts: planState.usage.contacts, messagesThisMonth: planState.usage.messages, campaignsThisMonth: planState.usage.campaigns },
       limits: { contacts: planState.limits.contacts, messagesThisMonth: planState.limits.messages, campaignsThisMonth: planState.limits.campaigns },
       pendingRequest: pendingRequest ? { plan: pendingRequest.requestedPlan, billingCycle: pendingRequest.billingCycle, createdAt: pendingRequest.createdAt } : null,
@@ -43,7 +54,13 @@ export async function GET() {
         reviewedAt: item.reviewedAt || null,
       })),
       planPricing: getPublicPlanPricing(pricingDocument),
-      paymentEnabled: false,
+      paddle,
+      checkoutContext: canManageBilling && workspace.ownerId ? {
+        workspaceId: workspaceId.toString(),
+        ownerId: workspace.ownerId.toString(),
+        email: session.user.email || "",
+      } : null,
+      paymentEnabled: paddle.enabled,
     });
   } catch (error) {
     console.error("Billing overview error:", error);
@@ -62,6 +79,9 @@ export async function POST(request) {
     }
     if (!["owner", "admin"].includes(session.membership?.role)) {
       return NextResponse.json({ success: false, message: "Only workspace owners and admins can request a plan change." }, { status: 403 });
+    }
+    if (getPaddleCheckoutConfiguration().enabled) {
+      return NextResponse.json({ success: false, message: "Secure checkout is enabled. Use the checkout button to subscribe." }, { status: 409 });
     }
     const body = await request.json();
     const plan = String(body.plan || "").toLowerCase();
