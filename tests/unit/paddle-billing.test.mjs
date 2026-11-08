@@ -23,6 +23,7 @@ const ids = {
 const env = {
   NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: "test_client_token",
   PADDLE_WEBHOOK_SECRET: "webhook_secret",
+  PADDLE_API_KEY: "server_api_key",
   PADDLE_ENVIRONMENT: "sandbox",
   PADDLE_PRICE_STARTER_MONTHLY: ids.starterMonthly,
   PADDLE_PRICE_STARTER_YEARLY: ids.starterYearly,
@@ -36,9 +37,10 @@ test("Paddle checkout is enabled only when token, webhook secret and all six pri
   assert.equal(getPaddleCheckoutConfiguration(env).enabled, true);
   assert.equal(getPaddleCheckoutConfiguration({ ...env, PADDLE_ENVIRONMENT: "" }).environment, "sandbox");
   assert.equal(getPaddleCheckoutConfiguration(env).environment, "sandbox");
-  assert.equal(getPaddleCheckoutConfiguration(env).portalEnabled, false);
-  assert.equal(getPaddleCheckoutConfiguration({ ...env, PADDLE_API_KEY: "server_api_key" }).portalEnabled, true);
+  assert.equal(getPaddleCheckoutConfiguration(env).portalEnabled, true);
+  assert.equal(getPaddleCheckoutConfiguration({ ...env, PADDLE_API_KEY: "" }).portalEnabled, false);
   assert.equal(getPaddleCheckoutConfiguration({ ...env, PADDLE_WEBHOOK_SECRET: "" }).enabled, false);
+  assert.equal(getPaddleCheckoutConfiguration({ ...env, PADDLE_API_KEY: "" }).enabled, false);
   assert.equal(getPaddleCheckoutConfiguration({ ...env, PADDLE_PRICE_GROWTH_YEARLY: "" }).enabled, false);
   assert.equal(getPaddleCheckoutConfiguration({ ...env, PADDLE_PRICE_STARTER_MONTHLY: "bad" }).enabled, false);
 });
