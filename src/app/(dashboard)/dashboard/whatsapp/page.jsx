@@ -235,6 +235,30 @@ export default function WhatsAppPage() {
                 {health.connectionStatus === "healthy" ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
                 <div><p className="font-semibold">{health.connectionStatus === "healthy" ? "Connection healthy" : "Attention required"}</p><p className="mt-1">{health.message || "Meta account check completed."}</p></div>
               </div>
+              {health.webhookSubscription && (
+                <div className={`mt-4 rounded-xl border p-4 text-sm ${
+                  health.webhookSubscription.status === "subscribed"
+                    ? "border-green-200 bg-green-50 text-green-900"
+                    : health.webhookSubscription.status === "not_subscribed"
+                      ? "border-red-200 bg-red-50 text-red-900"
+                      : "border-amber-200 bg-amber-50 text-amber-900"
+                }`}>
+                  <div className="flex items-center gap-2 font-semibold">
+                    {health.webhookSubscription.status === "subscribed"
+                      ? <CheckCircle2 size={17} />
+                      : <AlertTriangle size={17} />}
+                    Incoming message webhook
+                    <span className="ml-auto text-xs font-semibold uppercase">{health.webhookSubscription.status.replaceAll("_", " ")}</span>
+                  </div>
+                  <p className="mt-2">{health.webhookSubscription.message}</p>
+                  {health.webhookSubscription.appName && (
+                    <p className="mt-1 text-xs">Subscribed app: {health.webhookSubscription.appName}</p>
+                  )}
+                  <p className="mt-2 text-xs opacity-80">
+                    This checks the app subscription on Meta for this WABA. It does not verify the global webhook callback URL or the Meta app's individual webhook field configuration.
+                  </p>
+                </div>
+              )}
               {health.tokenExpiryStatus && (
                 <div className={`mt-4 rounded-xl border p-4 text-sm ${
                   health.tokenExpiryStatus === "expired" || health.tokenExpiryStatus === "expiring"
