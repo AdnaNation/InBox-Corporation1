@@ -221,7 +221,7 @@ export default function BillingClient() {
               </div>
             </div>
             {metaUsage?.message && <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm leading-6 text-amber-800">{metaUsage.message}</p>}
-            {metaUsage?.currencyMismatch && <p className="mt-3 text-sm text-amber-700">Your connected Meta accounts use different billing currencies. Amounts are shown per account below and are not combined.</p>}
+            {metaUsage?.currencyMismatch && <p className="mt-3 text-sm text-amber-700">Wavo cannot safely combine these accounts because their billing currencies differ or could not all be confirmed. Review each account separately below.</p>}
             {metaUsage?.byCategory?.length > 0 && (
               <div className="mt-5">
                 <h3 className="text-sm font-semibold text-slate-800">Cost by message category</h3>
