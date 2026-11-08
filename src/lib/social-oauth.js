@@ -136,6 +136,7 @@ async function exchangeCode(provider, code, verifier, request) {
     client_secret: config.clientSecret(),
     redirect_uri: callbackUrl(provider, request),
     code,
+    grant_type: "authorization_code",
   });
   if (provider === "google") body.set("code_verifier", verifier);
   const response = await fetch(config.tokenUrl, {
