@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
 import { getWorkspacePlanUsage } from "@/lib/plan-limits";
 import { ensureBillingRequestIndexes } from "@/lib/billing-requests.mjs";
+import { getPublicPlanPricing } from "@/lib/plan-pricing.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,13 +18,14 @@ export async function GET() {
     const workspaceId = new ObjectId(session.workspace.id);
     const workspace = await db.collection("workspaces").findOne({ _id: workspaceId }, { projection: { subscription: 1 } });
     if (!workspace) return NextResponse.json({ success: false, message: "Workspace not found." }, { status: 404 });
-    const [planState, pendingRequest, requestHistory] = await Promise.all([
+    const [planState, pendingRequest, requestHistory, pricingDocument] = await Promise.all([
       getWorkspacePlanUsage(db, workspaceId),
       db.collection("billingRequests").findOne({ workspaceId, status: "pending" }, { sort: { createdAt: -1 }, projection: { requestedPlan: 1, billingCycle: 1, createdAt: 1 } }),
       db.collection("billingRequests").find(
         { workspaceId },
         { projection: { requestedPlan: 1, billingCycle: 1, status: 1, createdAt: 1, reviewedAt: 1 } },
       ).sort({ createdAt: -1 }).limit(10).toArray(),
+      db.collection("platformSettings").findOne({ _id: "planPricing" }, { projection: { currency: 1, plans: 1 } }),
     ]);
     return NextResponse.json({
       success: true,
@@ -40,6 +42,7 @@ export async function GET() {
         createdAt: item.createdAt || null,
         reviewedAt: item.reviewedAt || null,
       })),
+      planPricing: getPublicPlanPricing(pricingDocument),
       paymentEnabled: false,
     });
   } catch (error) {

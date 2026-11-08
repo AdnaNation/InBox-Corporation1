@@ -25,6 +25,11 @@ function statusStyle(status) {
   return "bg-slate-100 text-slate-600";
 }
 
+function formatPlanPrice(minor, currency, cycle) {
+  if (minor == null) return "Contact sales";
+  return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(minor / 100) + " / " + (cycle === "yearly" ? "year" : "month");
+}
+
 export default function BillingClient() {
   const [data, setData] = useState(null);
   const [cycle, setCycle] = useState("monthly");
@@ -70,6 +75,7 @@ export default function BillingClient() {
 
   const currentPlan = data?.plan || "free";
   const requestHistory = Array.isArray(data?.requestHistory) ? data.requestHistory : [];
+  const pricing = data?.planPricing || { currency: "BDT", plans: {} };
 
   return (
     <div className="space-y-7">
@@ -96,7 +102,7 @@ export default function BillingClient() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-slate-900">Choose a plan</h2>
-            <p className="mt-1 text-sm text-slate-500">Request an upgrade. Our team will confirm pricing and activation.</p>
+            <p className="mt-1 text-sm text-slate-500">Request an upgrade. Prices are published by InBox Corporation; activation is reviewed manually.</p>
           </div>
           <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1">
             {["monthly", "yearly"].map((value) => <button key={value} type="button" onClick={() => setCycle(value)} className={`rounded-lg px-3 py-2 text-sm font-medium capitalize ${cycle === value ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}>{value}</button>)}
@@ -105,12 +111,14 @@ export default function BillingClient() {
         <div className="mt-4 grid gap-4 lg:grid-cols-3">
           {plans.map((plan) => {
             const isCurrent = currentPlan === plan.id;
+            const price = pricing.plans?.[plan.id]?.[cycle + "Minor"];
             return <article key={plan.id} className={`flex flex-col rounded-2xl border bg-white p-5 shadow-sm ${isCurrent ? "border-slate-900 ring-1 ring-slate-900" : "border-slate-200"}`}>
               <div className="flex items-center justify-between gap-2">
                 <h3 className="text-lg font-bold text-slate-900">{plan.name}</h3>
                 {isCurrent && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">Current plan</span>}
               </div>
               <p className="mt-2 min-h-12 text-sm leading-6 text-slate-500">{plan.description}</p>
+              <p className="mt-4 text-2xl font-bold text-slate-950">{formatPlanPrice(price, pricing.currency || "BDT", cycle)}</p>
               <ul className="mt-5 flex-1 space-y-3 text-sm text-slate-700">
                 {plan.features.map((feature) => <li key={feature} className="flex gap-2"><span className="text-emerald-600">✓</span>{feature}</li>)}
               </ul>

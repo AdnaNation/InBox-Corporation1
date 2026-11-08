@@ -163,7 +163,7 @@ The internal platform admin console is available at `/dashboard/platform-admin`.
 PLATFORM_ADMIN_EMAILS=admin@example.com,owner@example.com
 ```
 
-Add this variable in Vercel Project Settings → Environment Variables, then redeploy. It is not a `NEXT_PUBLIC_` variable. Workspace owners and admins do not automatically receive platform-wide access. The console can review plan requests, activate plans, change workspace plans, suspend/reactivate workspaces, and review customer export/deletion requests; actions are recorded in `platformAdminAuditLogs`. Data request completion is an operator attestation and does not automatically export or delete records. Plan activation is manual and does not collect payment.
+Add this variable in Vercel Project Settings → Environment Variables, then redeploy. It is not a `NEXT_PUBLIC_` variable. Workspace owners and admins do not automatically receive platform-wide access. The console can review plan requests, activate plans, configure the BDT/USD prices displayed to customers, change workspace plans, suspend/reactivate workspaces, and review customer export/deletion requests; actions are recorded in `platformAdminAuditLogs`. Published plan prices are informational only until a payment provider is approved and integrated. Data request completion is an operator attestation and does not automatically export or delete records. Plan activation is manual and does not collect payment.
 
 ## Vercel deployment
 
