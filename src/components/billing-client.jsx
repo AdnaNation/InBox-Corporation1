@@ -235,6 +235,19 @@ export default function BillingClient() {
                 </div>
               </div>
             )}
+            {metaUsage?.byPhone?.length > 1 && (
+              <div className="mt-5">
+                <h3 className="text-sm font-semibold text-slate-800">Usage by WhatsApp number</h3>
+                <div className="mt-2 overflow-x-auto">
+                  <table className="w-full min-w-[360px] text-left text-sm">
+                    <thead className="border-b border-slate-200 text-xs uppercase text-slate-500"><tr><th className="py-2 pr-3">Phone number</th><th className="py-2 pr-3">Delivered</th><th className="py-2 text-right">Reported cost</th></tr></thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {metaUsage.byPhone.map((item) => <tr key={item.phoneNumber}><td className="py-3 pr-3 font-medium text-slate-800">{item.phoneNumber}</td><td className="py-3 pr-3 text-slate-600">{number(item.volume)}</td><td className="py-3 text-right font-semibold tabular-nums text-slate-900">{metaUsage.costAvailable ? formatMetaMoney(item.cost, metaUsage.currency) : "Unavailable"}</td></tr>)}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
             {metaUsage?.accounts?.length > 1 && (
               <div className="mt-5 space-y-3">
                 <h3 className="text-sm font-semibold text-slate-800">Connected WhatsApp accounts</h3>
