@@ -248,12 +248,12 @@ export default function BillingClient() {
                 </div>
               </div>
             )}
-            {metaUsage?.accounts?.length > 1 && (
+            {metaUsage?.accounts?.length > 0 && (
               <div className="mt-5 space-y-3">
-                <h3 className="text-sm font-semibold text-slate-800">Connected WhatsApp accounts</h3>
-                {metaUsage.accounts.map((account) => <div key={account.wabaId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 text-sm">
-                  <div><p className="font-semibold text-slate-800">{account.businessName}</p><p className="text-xs text-slate-500">{account.connectedPhoneNumbers?.join(", ")}</p></div>
-                  <div className="text-right"><p className="font-semibold text-slate-900">{account.success ? (account.costAvailable ? formatMetaMoney(account.currentMonth.cost, account.currency) : "Cost unavailable") : "Sync unavailable"}</p><p className="text-xs text-slate-500">{account.success ? number(account.currentMonth.volume) + " delivered" : account.message}</p></div>
+                <h3 className="text-sm font-semibold text-slate-800">WhatsApp account sync details</h3>
+                {metaUsage.accounts.map((account, index) => <div key={account.wabaId || account.connectedPhoneNumbers?.[0] || index} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-slate-200 p-3 text-sm">
+                  <div className="min-w-0 flex-1"><p className="font-semibold text-slate-800">{account.businessName}</p><p className="mt-1 text-xs text-slate-500">{account.connectedPhoneNumbers?.join(", ") || account.wabaId || "Account details unavailable"}</p>{!account.success && <p className="mt-2 text-sm leading-5 text-amber-800">{account.message}</p>}{account.code && <p className="mt-1 text-xs text-slate-500">Meta error code: {account.code}{account.subcode ? ` · ${account.subcode}` : ""}</p>}</div>
+                  <div className="text-right"><p className="font-semibold text-slate-900">{account.success ? (account.costAvailable ? formatMetaMoney(account.currentMonth.cost, account.currency) : "Cost unavailable") : "Sync unavailable"}</p><p className="mt-1 text-xs text-slate-500">{account.success ? number(account.currentMonth.volume) + " delivered" : account.httpStatus ? `HTTP ${account.httpStatus}` : "Needs attention"}</p></div>
                 </div>)}
               </div>
             )}
@@ -265,9 +265,10 @@ export default function BillingClient() {
       <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
         <h2 className="font-semibold text-blue-950">Meta charges are separate from your Wavo subscription</h2>
         <p className="mt-2 text-sm leading-6 text-blue-900">
-          Meta bills your connected WhatsApp Business Account for eligible delivered messages. Wavo displays Meta's reported usage analytics; Meta continues to manage the actual invoice and payment.
+          Meta bills your connected WhatsApp Business Account for eligible delivered messages. Wavo displays Meta's reported usage analytics; Meta continues to manage the actual invoice and payment. Open Meta Billing &amp; Payments to review your WhatsApp account balance, invoices, payment methods, and any available Pay now action. You may need a Business Portfolio admin or finance role.
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
+          <a href="https://business.facebook.com/latest/billing_hub/payment_activity/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-800">Open Meta Billing &amp; Payments <span aria-hidden="true" className="ml-2">↗</span></a>
           <a href="https://whatsappbusiness.com/products/platform-pricing/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-lg bg-white px-3 py-2 text-sm font-semibold text-blue-900 ring-1 ring-blue-200 transition hover:bg-blue-100">Official WhatsApp platform pricing <span aria-hidden="true" className="ml-2">↗</span></a>
           <a href="https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing" target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-lg bg-white px-3 py-2 text-sm font-semibold text-blue-900 ring-1 ring-blue-200 transition hover:bg-blue-100">Meta pricing documentation <span aria-hidden="true" className="ml-2">↗</span></a>
         </div>
