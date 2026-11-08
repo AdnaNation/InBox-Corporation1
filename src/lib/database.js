@@ -10,6 +10,8 @@ export async function initializeDatabase() {
 
       await Promise.all([
         db.collection("users").createIndex({ email: 1 }, { unique: true }),
+        db.collection("oauthAccounts").createIndex({ provider: 1, providerUserId: 1 }, { unique: true }),
+        db.collection("oauthAccounts").createIndex({ userId: 1, createdAt: -1 }),
         db.collection("apiKeys").createIndex({ keyHash: 1 }, { unique: true }),
         db.collection("apiKeys").createIndex({ workspaceId: 1, createdAt: -1 }),
         db.collection("platformAdminAuditLogs").createIndex({ targetWorkspaceId: 1, createdAt: -1 }),
