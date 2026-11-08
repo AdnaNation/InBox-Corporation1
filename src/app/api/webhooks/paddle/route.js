@@ -199,7 +199,7 @@ async function processSubscriptionUpdate(db, event) {
     return { outcome: "ignored", reason: "stale_subscription_event" };
   }
 
-  const status = getPaddleEventType(event) === "subscription.canceled" ? "canceled" : String(subscription.status || "");
+  const status = getPaddleSubscriptionStatus(event);
   if (!["active", "past_due", "paused", "canceled"].includes(status)) {
     return { outcome: "ignored", reason: "unsupported_subscription_status" };
   }
@@ -269,7 +269,7 @@ async function processPaddleEvent(db, event) {
   const type = getPaddleEventType(event);
   if (type === "transaction.completed") return processTransactionCompleted(db, event);
   if (type === "subscription.created") return processSubscriptionCreated(db, event);
-  if (type === "subscription.updated" || type === "subscription.canceled") {
+  if (["subscription.updated", "subscription.canceled", "subscription.activated", "subscription.past_due", "subscription.paused", "subscription.resumed"].includes(type)) {
     return processSubscriptionUpdate(db, event);
   }
   return { outcome: "ignored", reason: "event_not_used_for_subscription_provisioning" };
