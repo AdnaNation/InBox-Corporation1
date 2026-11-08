@@ -40,7 +40,7 @@ export async function GET() {
     const workspaceId = new ObjectId(session.workspace.id);
     const accounts = await db.collection("whatsappAccounts").find(
       { workspaceId, status: "connected" },
-      { projection: { wabaId: 1, phoneNumberId: 1, displayPhoneNumber: 1, accessTokenEncrypted: 1 } },
+      { projection: { wabaId: 1, phoneNumberId: 1, displayPhoneNumber: 1, accessTokenEncrypted: 1, businessName: 1 } },
     ).toArray();
 
     if (!accounts.length) {
@@ -67,15 +67,32 @@ export async function GET() {
     const endTimestamp = Math.floor(now.getTime() / 1000);
     const grouped = new Map();
 
+    const incompleteAccounts = [];
     for (const account of accounts) {
-      if (!account.wabaId || !account.phoneNumberId || !account.accessTokenEncrypted) continue;
+      if (!account.wabaId || !account.phoneNumberId || !account.accessTokenEncrypted) {
+        incompleteAccounts.push({
+          success: false,
+          wabaId: account.wabaId ? String(account.wabaId) : null,
+          businessName: account.businessName || "WhatsApp Business",
+          connectedPhoneNumbers: [account.displayPhoneNumber || account.phoneNumberId || "Phone number unavailable"],
+          code: null,
+          message: !account.wabaId
+            ? "This connected number has no WhatsApp Business Account ID saved. Reconnect it from WhatsApp settings."
+            : !account.phoneNumberId
+              ? "This connected account has no phone number ID saved. Reconnect it from WhatsApp settings."
+              : "No encrypted Meta access token is saved for this account. Reconnect it from WhatsApp settings.",
+        });
+        continue;
+      }
       const key = String(account.wabaId);
       const group = grouped.get(key) || { wabaId: key, accounts: [] };
       group.accounts.push(account);
       grouped.set(key, group);
     }
 
-    const results = await Promise.all([...grouped.values()].map(async (group) => {
+    const results = [
+      ...incompleteAccounts,
+      ...await Promise.all([...grouped.values()].map(async (group) => {
       const account = group.accounts[0];
       try {
         const accessToken = decryptSecret(account.accessTokenEncrypted);
@@ -104,15 +121,30 @@ export async function GET() {
           ...result,
         };
       } catch (error) {
+        const code = error.code == null ? null : String(error.code);
+        const message = code === "190"
+          ? "Meta access token expired or was revoked. Reconnect this WhatsApp account in Wavo settings."
+          : ["10", "200", "299"].includes(code)
+            ? "Meta denied access to pricing analytics. Confirm this app has Advanced Access to whatsapp_business_management for this WABA, then reconnect the account."
+            : code === "100"
+              ? "Meta rejected the pricing analytics request. Check the Graph API version and analytics field parameters."
+              : ["4", "17", "32", "613"].includes(code)
+                ? "Meta rate-limited this analytics request. Wait a little and refresh usage again."
+                : error.name === "TimeoutError" || error.name === "AbortError"
+                  ? "Meta pricing analytics timed out. Try refreshing in a moment."
+                  : error.message || "Meta pricing analytics is unavailable for this account.";
         return {
           success: false,
           wabaId: group.wabaId,
           businessName: account.businessName || "WhatsApp Business",
-          code: error.code || null,
-          message: error.message || "Meta pricing analytics is unavailable for this account.",
+          connectedPhoneNumbers: group.accounts.map((item) => item.displayPhoneNumber || item.phoneNumberId),
+          code,
+          subcode: error.subcode == null ? null : String(error.subcode),
+          httpStatus: error.status || null,
+          message,
         };
       }
-    }));
+    }))];
 
     const successful = results.filter((item) => item.success);
     const currencies = [...new Set(successful.map((item) => item.currency).filter(Boolean))];
@@ -162,7 +194,7 @@ export async function GET() {
       message: costAvailable
         ? null
         : successful.length !== results.length
-          ? "Meta usage could not be synchronized for every connected WhatsApp account. Review each account status below and try refreshing."
+          ? "Meta usage could not be synchronized for every connected WhatsApp account. Check the account-specific reason below, fix the connection or permissions, and refresh."
           : successful.length === 0
             ? (results[0]?.message || "Meta pricing analytics is unavailable for these accounts.")
             : currencyMismatch
