@@ -31,7 +31,7 @@ export async function GET() {
 
     const canManageBilling = ["owner", "admin"].includes(session.membership?.role);
     const paddleConfiguration = getPaddleCheckoutConfiguration();
-    const paddle = canManageBilling ? paddleConfiguration : {
+    const paddle = canManageBilling ? { ...paddleConfiguration, enabled: paddleConfiguration.enabled && planState.workspaceStatus === "active" } : {
       enabled: false,
       clientToken: null,
       environment: "production",
@@ -42,6 +42,7 @@ export async function GET() {
       success: true,
       plan: planState.plan,
       subscriptionStatus: planState.subscriptionStatus,
+      workspaceStatus: planState.workspaceStatus,
       usage: { contacts: planState.usage.contacts, messagesThisMonth: planState.usage.messages, campaignsThisMonth: planState.usage.campaigns },
       limits: { contacts: planState.limits.contacts, messagesThisMonth: planState.limits.messages, campaignsThisMonth: planState.limits.campaigns },
       pendingRequest: pendingRequest ? { plan: pendingRequest.requestedPlan, billingCycle: pendingRequest.billingCycle, createdAt: pendingRequest.createdAt } : null,
@@ -57,7 +58,7 @@ export async function GET() {
       paddle,
       canManageBilling,
       hasPaddleSubscription: Boolean(workspace.subscription?.paddleSubscriptionId && ["active", "past_due", "paused"].includes(workspace.subscription?.status)),
-      checkoutContext: canManageBilling && workspace.ownerId ? {
+      checkoutContext: canManageBilling && planState.workspaceStatus === "active" && workspace.ownerId ? {
         workspaceId: workspaceId.toString(),
         ownerId: workspace.ownerId.toString(),
         email: session.user.email || "",
