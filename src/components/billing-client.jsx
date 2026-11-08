@@ -215,7 +215,7 @@ export default function BillingClient() {
                 <p className="mt-1 text-xs text-slate-500">{metaUsage?.currency || "Meta account currency"} · {metaUsage?.currentMonth?.month || new Date().toISOString().slice(0, 7)}</p>
               </div>
               <div className="rounded-xl bg-slate-50 p-4">
-                <p className="text-xs font-medium text-slate-500">Delivered billable message volume</p>
+                <p className="text-xs font-medium text-slate-500">Delivered message volume</p>
                 <p className="mt-2 text-3xl font-bold tabular-nums text-slate-950">{number(metaUsage?.currentMonth?.volume || 0)}</p>
                 <p className="mt-1 text-xs text-slate-500">Across connected WhatsApp numbers</p>
               </div>
