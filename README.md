@@ -116,11 +116,12 @@ FACEBOOK_CLIENT_SECRET=your_meta_app_secret
 Register these exact HTTPS callback URLs with the providers:
 
 - Google: `https://YOUR_DOMAIN/api/auth/google/callback`
-- Facebook: `https://YOUR_DOMAIN/api/auth/facebook/callback`
+- Facebook sign-in: `https://YOUR_DOMAIN/api/auth/facebook/callback`
+- Facebook account linking (signed-in users): `https://YOUR_DOMAIN/api/auth/facebook/link/callback`
 
-For Google, configure the production origin as an authorized JavaScript origin and the callback URL as an authorized redirect URI. For Facebook Login, enable Client OAuth Login, Web OAuth Login, Enforce HTTPS and Strict Mode, then add the callback URL to Valid OAuth Redirect URIs and request the `email` permission.
+For Google, configure the production origin as an authorized JavaScript origin and the callback URL as an authorized redirect URI. For Facebook Login, enable Client OAuth Login, Web OAuth Login, Enforce HTTPS and Strict Mode, then add both Facebook callback URLs to Valid OAuth Redirect URIs and request the `email` permission.
 
-OAuth state is checked with short-lived HttpOnly cookies. Google uses PKCE and validates the ID token signature, issuer, audience, nonce and verified email. Provider identities are stored separately with a unique provider/user ID index. If an email already belongs to a password account, Wavo deliberately refuses automatic linking; the user must first sign in with the existing method. A new social account receives its own Free workspace and owner membership. Keep all client secrets server-side and never expose them with a `NEXT_PUBLIC_` prefix.
+OAuth state is checked with short-lived HttpOnly cookies. Google uses PKCE and validates the ID token signature, issuer, audience, nonce and verified email. Provider identities are stored separately with a unique provider/user ID index. If an email already belongs to a password account, Wavo deliberately refuses automatic linking; the user must first sign in with the existing method. Signed-in users can link Facebook from Dashboard → Settings → Connected sign-in methods; the callback requires the same active Wavo session and refuses an identity already linked to another user. A new social account receives its own Free workspace and owner membership. Keep all client secrets server-side and never expose them with a `NEXT_PUBLIC_` prefix.
 
 ## Included
 

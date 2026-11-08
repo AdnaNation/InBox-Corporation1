@@ -1,7 +1,10 @@
 import { redirect } from "next/navigation";
+import { ObjectId } from "mongodb";
 import { getSession } from "@/lib/auth";
+import { getDatabase } from "@/lib/db";
 import WebhookManager from "@/components/webhook-manager";
 import WorkspaceDataRequests from "@/components/workspace-data-requests";
+import FacebookAccountConnection from "@/components/facebook-account-connection";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +14,12 @@ export default async function SettingsPage() {
   if (!session?.workspace || !session?.membership || !session?.user) {
     redirect("/login");
   }
+
+  const db = await getDatabase();
+  const facebookLink = await db.collection("oauthAccounts").findOne(
+    { provider: "facebook", userId: new ObjectId(session.user.id) },
+    { projection: { email: 1 } },
+  );
 
   return (
     <div className="mx-auto max-w-4xl p-5 sm:p-8">
@@ -40,6 +49,8 @@ export default async function SettingsPage() {
           </div>
         </dl>
       </div>
+
+      <FacebookAccountConnection connected={Boolean(facebookLink)} email={facebookLink?.email || ""} />
 
       {["owner", "admin"].includes(session.membership.role) && (
         <div className="mt-6">
