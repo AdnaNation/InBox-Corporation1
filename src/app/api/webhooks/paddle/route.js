@@ -227,6 +227,7 @@ async function processSubscriptionUpdate(db, event) {
   } else {
     update.plan = stored.plan;
     update.billingCycle = stored.billingCycle;
+    update.priceId = stored.priceId;
   }
 
   const workspaceUpdate = {
