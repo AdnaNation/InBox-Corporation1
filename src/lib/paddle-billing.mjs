@@ -34,7 +34,7 @@ export function getPaddleCheckoutConfiguration(env = process.env) {
   const environment = env.PADDLE_ENVIRONMENT === "sandbox" ? "sandbox" : "production";
 
   return {
-    enabled: Boolean(clientToken && webhookSecret && allPricesConfigured),
+    enabled: Boolean(clientToken && webhookSecret && allPricesConfigured),\n    portalEnabled: Boolean(String(env.PADDLE_API_KEY || "").trim()),
     clientToken: clientToken || null,
     environment,
     priceIds,
