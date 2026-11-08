@@ -27,17 +27,34 @@ function getEventDate(event) {
 async function processTransactionCompleted(db, event) {
   const transaction = event.data || {};
   const customData = transaction.custom_data || {};
-  const reference = getWorkspaceReference(customData);
   const subscriptionId = String(transaction.subscription_id || "");
   const transactionId = String(transaction.id || "");
+  if (!subscriptionId || !transactionId) {
+    throw new Error("Paddle completed transaction is missing its subscription or transaction ID.");
+  }
+
+  const existingSubscription = await db.collection("billingSubscriptions").findOne({ _id: subscriptionId });
+  const payloadReference = getWorkspaceReference(customData);
+  const storedReference = existingSubscription?.workspaceId && existingSubscription?.ownerId
+    ? { workspaceId: existingSubscription.workspaceId, ownerId: existingSubscription.ownerId }
+    : null;
+  const reference = payloadReference || storedReference;
   const items = Array.isArray(transaction.items) ? transaction.items : [];
-  const priceId = items.length === 1 ? getPaddleItemPriceId(items[0]) : null;
+  const suppliedPriceId = items.length === 1 ? getPaddleItemPriceId(items[0]) : null;
+  const priceId = suppliedPriceId || existingSubscription?.priceId || null;
   const price = resolvePaddlePrice(priceId);
 
-  if (!reference || !subscriptionId || !transactionId || !price) {
-    throw new Error("Paddle completed transaction is missing a valid workspace, subscription, or configured price.");
+  if (!reference || !price) {
+    throw new Error("Paddle completed transaction is missing a valid workspace or configured price.");
   }
-  if (customData.plan !== price.plan || customData.billingCycle !== price.billingCycle) {
+  if (payloadReference && storedReference && (
+    payloadReference.workspaceId.toString() !== storedReference.workspaceId.toString() ||
+    payloadReference.ownerId.toString() !== storedReference.ownerId.toString()
+  )) {
+    throw new Error("Paddle transaction metadata does not match the stored subscription owner.");
+  }
+  if ((customData.plan && customData.plan !== price.plan) ||
+      (customData.billingCycle && customData.billingCycle !== price.billingCycle)) {
     throw new Error("Paddle checkout metadata does not match the configured price.");
   }
 
@@ -47,8 +64,6 @@ async function processTransactionCompleted(db, event) {
     status: "active",
   }, { projection: { subscription: 1 } });
   if (!workspace) return { outcome: "ignored", reason: "workspace_owner_or_status_mismatch" };
-
-  const existingSubscription = await db.collection("billingSubscriptions").findOne({ _id: subscriptionId });
   if (existingSubscription?.status === "canceled") {
     return { outcome: "ignored", reason: "subscription_already_canceled" };
   }
