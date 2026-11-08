@@ -219,6 +219,7 @@ export default function BillingClient() {
             const price = pricing.plans?.[plan.id]?.[cycle + "Minor"];
             const blockedBySubscription = data?.paymentEnabled && hasExistingSubscription && !isCurrent;
             const blockedByPermission = data?.canManageBilling === false;
+            const blockedByWorkspaceStatus = data?.workspaceStatus && data.workspaceStatus !== "active";
             const checkoutLoading = data?.paymentEnabled && !paddleReady;
             return <article key={plan.id} className={`flex flex-col rounded-2xl border bg-white p-5 shadow-sm ${isCurrent ? "border-slate-900 ring-1 ring-slate-900" : "border-slate-200"}`}>
               <div className="flex items-center justify-between gap-2">
@@ -230,8 +231,8 @@ export default function BillingClient() {
               <ul className="mt-5 flex-1 space-y-3 text-sm text-slate-700">
                 {plan.features.map((feature) => <li key={feature} className="flex gap-2"><span className="text-emerald-600">✓</span>{feature}</li>)}
               </ul>
-              <button type="button" disabled={loading || !!data?.pendingRequest || isCurrent || !!requesting || blockedBySubscription || checkoutLoading || blockedByPermission} onClick={() => requestPlan(plan.id)} className="mt-6 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300">
-                {requesting === plan.id ? "Opening…" : isCurrent ? "Current plan" : blockedByPermission ? "Ask a workspace admin" : blockedBySubscription ? "Contact support" : checkoutLoading ? "Loading checkout…" : data?.paymentEnabled ? "Subscribe securely" : data?.pendingRequest ? "Request pending" : "Request this plan"}
+              <button type="button" disabled={loading || !!data?.pendingRequest || isCurrent || !!requesting || blockedBySubscription || checkoutLoading || blockedByPermission || blockedByWorkspaceStatus} onClick={() => requestPlan(plan.id)} className="mt-6 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300">
+                {requesting === plan.id ? "Opening…" : isCurrent ? "Current plan" : blockedByPermission ? "Ask a workspace admin" : blockedByWorkspaceStatus ? "Workspace unavailable" : blockedBySubscription ? "Contact support" : checkoutLoading ? "Loading checkout…" : data?.paymentEnabled ? "Subscribe securely" : data?.pendingRequest ? "Request pending" : "Request this plan"}
               </button>
             </article>;
           })}
