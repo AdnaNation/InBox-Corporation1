@@ -77,6 +77,7 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
+      paymentEnabled: getPaddleCheckoutConfiguration().enabled,
       stats: { totalWorkspaces: totals[0], activeWorkspaces: totals[1], pendingRequests: totals[2] },
       workspaces: workspaces.map((workspace) => ({
         id: workspace._id.toString(),
