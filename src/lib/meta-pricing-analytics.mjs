@@ -6,7 +6,8 @@ function asNumber(value) {
 export function getMetaPricingDataPoints(analytics) {
   if (Array.isArray(analytics?.data_points)) return analytics.data_points;
   if (Array.isArray(analytics?.data?.[0]?.data_points)) return analytics.data[0].data_points;
-  return [];
+  if (Array.isArray(analytics?.data) && analytics.data.length === 0) return [];
+  return null;
 }
 
 export function aggregateMetaPricingPoints(points, now = new Date()) {
