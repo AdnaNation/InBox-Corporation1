@@ -163,7 +163,33 @@ The internal platform admin console is available at `/dashboard/platform-admin`.
 PLATFORM_ADMIN_EMAILS=admin@example.com,owner@example.com
 ```
 
-Add this variable in Vercel Project Settings → Environment Variables, then redeploy. It is not a `NEXT_PUBLIC_` variable. Workspace owners and admins do not automatically receive platform-wide access. The console can review plan requests, activate plans, configure the BDT/USD prices displayed to customers, change workspace plans, suspend/reactivate workspaces, and review customer export/deletion requests; actions are recorded in `platformAdminAuditLogs`. Published plan prices are informational only until a payment provider is approved and integrated. Data request completion is an operator attestation and does not automatically export or delete records. Plan activation is manual and does not collect payment.
+Add this variable in Vercel Project Settings → Environment Variables, then redeploy. It is not a `NEXT_PUBLIC_` variable. Workspace owners and admins do not automatically receive platform-wide access. The console can review plan requests, activate plans, configure the BDT/USD prices displayed to customers, change workspace plans, suspend/reactivate workspaces, and review customer export/deletion requests; actions are recorded in `platformAdminAuditLogs`. Published plan prices are informational until Paddle is configured. When Paddle is enabled, keep these display prices aligned with the matching Paddle catalog prices. Data request completion is an operator attestation and does not automatically export or delete records. Manual plan activation remains available only while checkout is disabled.
+
+## Paddle recurring billing
+
+Paddle Billing can process monthly and yearly subscriptions for Wavo. Create and verify a Paddle seller account, add your production domain to the approved checkout domains, and create three products (Starter, Growth, Business) with monthly and yearly recurring prices. Use the matching six Paddle price IDs in the environment variables below. Sandbox and live price IDs are different.
+
+Configure these Vercel environment variables:
+
+```env
+NEXT_PUBLIC_PADDLE_CLIENT_TOKEN=your_paddle_client_side_token
+PADDLE_ENVIRONMENT=sandbox
+PADDLE_WEBHOOK_SECRET=your_notification_destination_secret
+PADDLE_PRICE_STARTER_MONTHLY=pri_your_starter_monthly_price_id
+PADDLE_PRICE_STARTER_YEARLY=pri_your_starter_yearly_price_id
+PADDLE_PRICE_GROWTH_MONTHLY=pri_your_growth_monthly_price_id
+PADDLE_PRICE_GROWTH_YEARLY=pri_your_growth_yearly_price_id
+PADDLE_PRICE_BUSINESS_MONTHLY=pri_your_business_monthly_price_id
+PADDLE_PRICE_BUSINESS_YEARLY=pri_your_business_yearly_price_id
+```
+
+Set `PADDLE_ENVIRONMENT=production` only when all six IDs, the client-side token, and webhook secret are from your live Paddle account. Checkout is enabled only when all six valid price IDs, a client-side token, and a webhook secret are present. The client-side token is designed for browser use; the webhook secret must remain server-side.
+
+Create a Paddle notification destination pointing to `https://YOUR_DOMAIN/api/webhooks/paddle` and subscribe to `transaction.completed`, `subscription.created`, `subscription.updated`, and `subscription.canceled`. The webhook verifies the raw request body with Paddle's HMAC signature before changing subscription access. A completed recurring transaction activates the matching plan; past-due subscriptions receive a seven-day grace period; paused or canceled subscriptions fall back to Free. Duplicate notifications are recorded and do not reapply changes.
+
+After configuring Paddle, set the customer-visible BDT/USD prices in Dashboard → Platform administration → Plan pricing to match the Paddle catalog. Checkout itself uses Paddle's catalog price IDs and Paddle calculates applicable checkout totals/taxes. The admin price editor is display-only.
+
+The current release supports first-time recurring subscription checkout and webhook-driven activation/renewal/status updates. It deliberately blocks starting a second paid subscription for a workspace that already has one. Plan changes, cancellation self-service/customer portal, refunds, and invoice administration still require additional implementation before unrestricted commercial launch. Test the full flow in Paddle Sandbox and use its webhook simulator before switching to Live.
 
 ## Vercel deployment
 
