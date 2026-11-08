@@ -73,6 +73,7 @@ export default async function HomePage() {
             <span className="hidden border-l border-slate-200 pl-3 text-xs font-medium text-slate-500 sm:inline">by InBox Corporation</span>
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
+            <Link href="/#pricing-transparency" className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 md:inline-flex">Pricing &amp; Meta fees</Link>
             <Link href="/login" className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 sm:px-4">Sign in</Link>
             <Link href="/register" className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700">
               Get started <ArrowRight size={16} />
@@ -183,6 +184,27 @@ export default async function HomePage() {
               <div key={item} className="flex items-center gap-3 rounded-xl border border-slate-200 p-4 text-sm font-semibold text-slate-700"><CheckCircle2 size={18} className="shrink-0 text-emerald-600" />{item}</div>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section id="pricing-transparency" className="border-y border-slate-200 bg-slate-50 scroll-mt-8">
+        <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20">
+          <div className="max-w-3xl">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Pricing transparency</p>
+            <h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">Know the full messaging cost before you choose a plan.</h2>
+            <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">Your Wavo subscription covers use of the Wavo platform. Meta WhatsApp Business Platform message fees are separate and are billed by Meta to your connected WhatsApp Business Account. Meta rates vary by recipient country and message category, so review the official rates before purchasing a Wavo plan.</p>
+          </div>
+          <div className="mt-8 grid gap-4 md:grid-cols-2">
+            <a href="https://whatsappbusiness.com/products/platform-pricing/" target="_blank" rel="noopener noreferrer" className="group flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-emerald-300 hover:shadow-md">
+              <span><span className="block text-sm font-bold text-slate-900">WhatsApp Business Platform pricing</span><span className="mt-1 block text-xs leading-5 text-slate-500">Meta's pricing overview and country rate information</span></span>
+              <ArrowRight size={19} className="shrink-0 text-emerald-700 transition group-hover:translate-x-1" />
+            </a>
+            <a href="https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing" target="_blank" rel="noopener noreferrer" className="group flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-emerald-300 hover:shadow-md">
+              <span><span className="block text-sm font-bold text-slate-900">WhatsApp pricing documentation</span><span className="mt-1 block text-xs leading-5 text-slate-500">Detailed official pricing rules and billing documentation</span></span>
+              <ArrowRight size={19} className="shrink-0 text-emerald-700 transition group-hover:translate-x-1" />
+            </a>
+          </div>
+          <p className="mt-5 text-xs leading-5 text-slate-500">Wavo plan prices and Meta messaging fees are separate. Traditional SMS, if used through a separate provider, is also not included.</p>
         </div>
       </section>
 
