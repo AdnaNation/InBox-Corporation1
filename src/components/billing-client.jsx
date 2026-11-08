@@ -170,6 +170,15 @@ export default function BillingClient() {
         )}
       </section>
 
+      <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
+        <h2 className="font-semibold text-blue-950">WhatsApp message charges are separate</h2>
+        <p className="mt-2 text-sm leading-6 text-blue-900">
+          Your Wavo subscription pays for access to the platform. It does not include Meta WhatsApp message fees. Meta bills your connected WhatsApp Business Account for delivered messages according to the recipient's country and message category. Review the estimated Bangladesh rates on the Campaigns page before sending.
+        </p>
+        <p className="mt-2 text-xs leading-5 text-blue-800">
+          These are WhatsApp Business Platform charges, not traditional SMS charges. Wavo does not currently collect or pay these Meta fees on your behalf.
+        </p>
+      </section>
       <p className="text-xs leading-5 text-slate-500">Payments, invoices, and automatic renewals are not enabled yet. Submitting a request does not charge your account or change your plan. Usage shows your current totals against the included limits for your selected plan.</p>
     </div>
   );
