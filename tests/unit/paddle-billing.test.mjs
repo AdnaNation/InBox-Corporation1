@@ -62,7 +62,7 @@ test("verifies Paddle HMAC signatures and rejects invalid or stale requests", ()
   assert.equal(verifyPaddleSignature(body, header, secret, nowMs), true);
   assert.equal(verifyPaddleSignature(body, "ts=" + timestamp + ";h1=" + "0".repeat(64), secret, nowMs), false);
   assert.equal(verifyPaddleSignature(body, header, "wrong_secret", nowMs), false);
-  assert.equal(verifyPaddleSignature(body, header, secret, nowMs + 301000), false);
+  assert.equal(verifyPaddleSignature(body, header, secret, nowMs + 6000), false);
   assert.equal(verifyPaddleSignature(body, "invalid", secret, nowMs), false);
 });
 
