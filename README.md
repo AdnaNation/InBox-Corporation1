@@ -182,3 +182,12 @@ Do not commit `.env.local` or store Meta access tokens in client-side code.
 Collections: `users`, `workspaces`, `memberships`, `contacts`, `whatsappAccounts`, `messages`, `webhookEvents`.
 
 All tenant-owned queries must include the authenticated `workspaceId`.
+
+
+## WhatsApp message pricing estimates
+
+The Campaigns screen displays an indicative Bangladesh WhatsApp Business Platform rate card and estimates a selected campaign's message cost from the audience size and Meta-approved template category. The reference rates are USD $0.0732 per marketing message and $0.0037 per utility or authentication message, effective 1 October 2026. The BDT display uses an illustrative BDT 124 per USD conversion and is not a live exchange rate.
+
+These estimates assume all recipients have Bangladesh (+880) numbers and all messages are delivered. Meta pricing depends on the recipient's country, message category, eligibility for free-entry-point windows, applicable volume tiers, and rate-card changes. Service replies have a separate monthly free allowance (first 1,000 eligible service messages per WhatsApp Business phone number); the campaign estimator covers template messages only. Verify current rates with Meta before budgeting or sending.
+
+Wavo subscription fees do not include Meta WhatsApp messaging charges. Under the current customer-owned billing model, Meta charges the customer's connected WhatsApp Business Account directly. Traditional SMS is a separate channel and is not included in this WhatsApp estimate.
