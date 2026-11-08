@@ -144,7 +144,7 @@ export default function PlatformPricingEditor() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="max-w-2xl text-xs leading-5 text-slate-500">Prices are stored as integer minor units. Leave a field blank to hide that billing option. Existing subscriptions and plan limits are not changed.</p>
+            <p className="max-w-2xl text-xs leading-5 text-slate-500">Prices are stored as integer minor units. Leave a field blank to hide that billing option. When Paddle is enabled, keep these display prices aligned with the matching Paddle catalog prices. Existing subscriptions and plan limits are not changed.</p>
             <button type="submit" disabled={saving} className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50">
               {saving ? "Saving…" : "Save pricing"}
             </button>
