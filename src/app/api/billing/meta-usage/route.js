@@ -116,7 +116,8 @@ export async function GET() {
 
     const successful = results.filter((item) => item.success);
     const currencies = [...new Set(successful.map((item) => item.currency).filter(Boolean))];
-    const allCurrencySame = currencies.length <= 1;
+    const allCurrencySame = successful.length <= 1 || (successful.every((item) => item.currency) && currencies.length === 1);
+    const currencyMismatch = successful.length > 1 && (!successful.every((item) => item.currency) || currencies.length > 1);
     const total = successful.reduce((sum, item) => ({
       cost: sum.cost + (item.costAvailable && allCurrencySame ? item.currentMonth.cost : 0),
       volume: sum.volume + item.currentMonth.volume,
@@ -146,7 +147,7 @@ export async function GET() {
       configured: true,
       costAvailable,
       currency: allCurrencySame ? (currencies[0] || null) : null,
-      currencyMismatch: !allCurrencySame,
+      currencyMismatch,
       currentMonth: {
         month: now.toISOString().slice(0, 7),
         cost: total.cost,
@@ -164,8 +165,8 @@ export async function GET() {
           ? "Meta usage could not be synchronized for every connected WhatsApp account. Review each account status below and try refreshing."
           : successful.length === 0
             ? (results[0]?.message || "Meta pricing analytics is unavailable for these accounts.")
-            : currencies.length > 1
-              ? "Connected Meta accounts use different billing currencies. Their costs are shown separately below."
+            : currencyMismatch
+              ? "Connected Meta accounts use different billing currencies or their currencies could not all be confirmed. Their costs are shown separately below."
               : "Meta returned message volume without cost data. This can happen when a WABA shares a Solution Partner credit line; check the Meta invoice for the payable amount.",
     });
   } catch (error) {
