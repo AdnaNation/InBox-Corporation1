@@ -18,8 +18,8 @@ const PROVIDERS = {
   facebook: {
     clientId: () => process.env.FACEBOOK_CLIENT_ID,
     clientSecret: () => process.env.FACEBOOK_CLIENT_SECRET,
-    authorizationUrl: "https://www.facebook.com/v21.0/dialog/oauth",
-    tokenUrl: "https://graph.facebook.com/v21.0/oauth/access_token",
+    authorizationUrl: "https://www.facebook.com/v26.0/dialog/oauth",
+    tokenUrl: "https://graph.facebook.com/v26.0/oauth/access_token",
   },
 };
 
@@ -112,7 +112,7 @@ async function getGoogleProfile(tokens, expectedNonce) {
 }
 
 async function getFacebookProfile(accessToken) {
-  const url = new URL("https://graph.facebook.com/v21.0/me");
+  const url = new URL("https://graph.facebook.com/v26.0/me");
   url.searchParams.set("fields", "id,name,email");
   url.searchParams.set("access_token", accessToken);
   const response = await fetch(url, { signal: AbortSignal.timeout(10000), cache: "no-store" });
@@ -125,7 +125,7 @@ async function getFacebookProfile(accessToken) {
     email: String(profile.email).trim().toLowerCase(),
     name: typeof profile.name === "string" && profile.name.trim() ? profile.name.trim().slice(0, 80) : String(profile.email).split("@")[0],
     // Facebook only returns the email field when the user grants the email permission.
-    emailVerified: true,
+    emailVerified: false,
   };
 }
 
