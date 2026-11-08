@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MessageCircle, Loader2, Eye, EyeOff } from "lucide-react";
+import SocialAuthButtons from "@/components/social-auth-buttons";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -44,8 +45,9 @@ export default function RegisterPage() {
       <Field label="Email address"><input name="email" type="email" required value={form.email} onChange={handleChange} placeholder="you@example.com" className={inputClass}/></Field>
       <Field label="Password"><div className="relative"><input name="password" type={showPassword?"text":"password"} required minLength={8} maxLength={72} value={form.password} onChange={handleChange} placeholder="At least 8 characters" className={`${inputClass} pr-12`}/><button type="button" onClick={()=>setShowPassword(!showPassword)} className="absolute right-4 top-3.5 text-slate-400">{showPassword?<EyeOff size={18}/>:<Eye size={18}/>}</button></div></Field>
       <button disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3.5 font-semibold text-white hover:bg-green-700 disabled:opacity-60">{loading?<><Loader2 className="animate-spin" size={18}/>Creating account...</>:"Create account"}</button>
-      <p className="text-center text-sm text-slate-500">Already have an account? <Link href="/login" className="font-semibold text-green-700">Sign in</Link></p>
     </form>
+    <div className="mt-5"><SocialAuthButtons /></div>
+    <p className="mt-5 text-center text-sm text-slate-500">Already have an account? <Link href="/login" className="font-semibold text-green-700">Sign in</Link></p>
   </AuthShell>;
 }
 
