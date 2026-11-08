@@ -123,6 +123,7 @@ export async function GET() {
     }), { cost: 0, volume: 0 });
     const costAvailable = successful.length === results.length && successful.length > 0 && allCurrencySame && successful.every((item) => item.costAvailable);
     const categoryMap = new Map();
+    const phoneMap = new Map();
     for (const item of successful) {
       for (const row of (costAvailable ? item.byCategory : [])) {
         const key = row.category;
@@ -130,6 +131,13 @@ export async function GET() {
         current.cost += row.cost;
         current.volume += row.volume;
         categoryMap.set(key, current);
+      }
+      for (const row of item.byPhone) {
+        const key = row.phoneNumber;
+        const current = phoneMap.get(key) || { phoneNumber: key, cost: 0, volume: 0 };
+        current.cost += costAvailable ? row.cost : 0;
+        current.volume += row.volume;
+        phoneMap.set(key, current);
       }
     }
 
@@ -146,6 +154,7 @@ export async function GET() {
       },
       total,
       byCategory: [...categoryMap.values()].sort((a, b) => b.cost - a.cost),
+      byPhone: [...phoneMap.values()].sort((a, b) => b.cost - a.cost),
       accounts: results,
       fetchedAt: new Date().toISOString(),
       period: { start: start.toISOString(), end: now.toISOString() },
