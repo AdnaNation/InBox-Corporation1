@@ -43,7 +43,21 @@ export function buildContactQueryFilter(workspaceId, { cursor = null, query = ""
   const normalizedTag = typeof tag === "string" ? tag.trim().toLowerCase().slice(0, 30) : "";
 
   if (normalizedQuery) {
-    const escapedQuery = normalizedQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const escapedQuery = normalizedQuery
+      .replaceAll("\\", "\\\\")
+      .replaceAll(".", "\\.")
+      .replaceAll("*", "\\*")
+      .replaceAll("+", "\\+")
+      .replaceAll("?", "\\?")
+      .replaceAll("^", "\\^")
+      .replaceAll("$", "\\$")
+      .replaceAll("{", "\\{")
+      .replaceAll("}", "\\}")
+      .replaceAll("(", "\\(")
+      .replaceAll(")", "\\)")
+      .replaceAll("|", "\\|")
+      .replaceAll("[", "\\[")
+      .replaceAll("]", "\\]");
     const phoneQuery = normalizedQuery.replace(/\D/g, "");
     const searchConditions = [{ name: { $regex: escapedQuery, $options: "i" } }];
     if (phoneQuery) searchConditions.push({ phone: { $regex: phoneQuery } });
