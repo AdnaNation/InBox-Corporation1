@@ -7,6 +7,7 @@ import {
   getPaddleEventType,
   getPaddleItemPriceId,
   getPaddleSignatureParts,
+  getPaddleSubscriptionStatus,
   resolvePaddlePrice,
   verifyPaddleSignature,
 } from "../../src/lib/paddle-billing.mjs";
@@ -69,6 +70,15 @@ test("verifies Paddle HMAC signatures and rejects invalid or stale requests", ()
   assert.equal(verifyPaddleSignature(body, header, "wrong_secret", nowMs), false);
   assert.equal(verifyPaddleSignature(body, header, secret, nowMs + 6000), false);
   assert.equal(verifyPaddleSignature(body, "invalid", secret, nowMs), false);
+});
+
+test("maps Paddle subscription lifecycle notifications to access statuses", () => {
+  assert.equal(getPaddleSubscriptionStatus({ event_type: "subscription.activated", data: {} }), "active");
+  assert.equal(getPaddleSubscriptionStatus({ event_type: "subscription.resumed", data: {} }), "active");
+  assert.equal(getPaddleSubscriptionStatus({ event_type: "subscription.past_due", data: {} }), "past_due");
+  assert.equal(getPaddleSubscriptionStatus({ event_type: "subscription.paused", data: {} }), "paused");
+  assert.equal(getPaddleSubscriptionStatus({ event_type: "subscription.canceled", data: {} }), "canceled");
+  assert.equal(getPaddleSubscriptionStatus({ event_type: "subscription.updated", data: { status: "active" } }), "active");
 });
 
 test("parses multiple Paddle signature digests and event identifiers", () => {
