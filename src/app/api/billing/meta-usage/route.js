@@ -97,7 +97,6 @@ export async function GET() {
       try {
         const accessToken = decryptSecret(account.accessTokenEncrypted);
         const phoneNumbers = [...new Set(group.accounts.map((item) => String(item.displayPhoneNumber || "").replace(/\D/g, "")).filter(Boolean))];
-        const phoneFilter = phoneNumbers.length ? `.phone_numbers(${JSON.stringify(phoneNumbers)})` : "";
         const analyticsUrl = new URL(`https://graph.facebook.com/${apiVersion}/${group.wabaId}/pricing_analytics`);
         analyticsUrl.searchParams.set("start", String(startTimestamp));
         analyticsUrl.searchParams.set("end", String(endTimestamp));
