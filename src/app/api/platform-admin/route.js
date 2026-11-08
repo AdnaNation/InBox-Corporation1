@@ -91,7 +91,9 @@ export async function GET() {
         id: log._id.toString(),
         action: log.action,
         actor: auditActorMap.get(log.actorId?.toString()) || null,
-        workspaceName: workspaces.find((workspace) => workspace._id.toString() === log.targetWorkspaceId?.toString())?.name || "Workspace",
+        workspaceName: log.targetWorkspaceId
+          ? workspaces.find((workspace) => workspace._id.toString() === log.targetWorkspaceId.toString())?.name || "Workspace"
+          : "Platform",
         details: log.details || null,
         createdAt: log.createdAt || null,
       })),
