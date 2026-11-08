@@ -55,7 +55,7 @@ export async function GET() {
       })),
       planPricing: getPublicPlanPricing(pricingDocument),
       paddle,
-      checkoutContext: canManageBilling && workspace.ownerId ? {
+      canManageBilling,\n      hasPaddleSubscription: Boolean(workspace.subscription?.paddleSubscriptionId && ["active", "past_due", "paused"].includes(workspace.subscription?.status)),\n      checkoutContext: canManageBilling && workspace.ownerId ? {
         workspaceId: workspaceId.toString(),
         ownerId: workspace.ownerId.toString(),
         email: session.user.email || "",
