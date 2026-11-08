@@ -4,6 +4,7 @@ import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
 import { isPlatformAdmin } from "@/lib/platform-admin";
+import { getPaddleCheckoutConfiguration } from "@/lib/paddle-billing.mjs";
 import { canTransitionWorkspaceDataRequest, normalizeWorkspaceDataRequestNote } from "@/lib/workspace-data-requests.mjs";
 
 export const runtime = "nodejs";
@@ -159,6 +160,9 @@ export async function POST(request) {
     const actorId = new ObjectId(session.user.id);
 
     if (action === "review-request") {
+      if (body.decision === "approved" && getPaddleCheckoutConfiguration().enabled) {
+        return NextResponse.json({ success: false, message: "Paddle checkout is enabled. Customers must complete verified payment before a paid plan can be activated." }, { status: 409 });
+      }
       if (!ObjectId.isValid(body.requestId) || !["approved", "rejected"].includes(body.decision)) {
         return NextResponse.json({ success: false, message: "Invalid billing request action." }, { status: 400 });
       }
