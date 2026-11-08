@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { isPlatformAdmin } from "@/lib/platform-admin";
 import PlatformAdminClient from "@/components/platform-admin-client";
+import PlatformPricingEditor from "@/components/platform-pricing-editor";
 
 export const dynamic = "force-dynamic";
 
@@ -15,8 +16,9 @@ export default async function PlatformAdminPage() {
       <div>
         <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">InBox Corporation</p>
         <h1 className="mt-1 text-2xl font-bold text-slate-900">Platform administration</h1>
-        <p className="mt-1 text-sm text-slate-500">Manage customer workspaces, plans, and upgrade requests.</p>
+        <p className="mt-1 text-sm text-slate-500">Manage customer workspaces, plans, pricing, and upgrade requests.</p>
       </div>
+      <PlatformPricingEditor />
       <PlatformAdminClient />
     </main>
   );
