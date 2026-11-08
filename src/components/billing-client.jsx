@@ -80,7 +80,8 @@ export default function BillingClient() {
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState("");
   const [notice, setNotice] = useState("");
-  const [paddleReady, setPaddleReady] = useState(false);\n  const [portalLoading, setPortalLoading] = useState(false);
+  const [paddleReady, setPaddleReady] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
 
   async function loadBilling() {
     setLoading(true);
@@ -216,7 +217,8 @@ export default function BillingClient() {
           {plans.map((plan) => {
             const isCurrent = currentPlan === plan.id;
             const price = pricing.plans?.[plan.id]?.[cycle + "Minor"];
-            const blockedBySubscription = data?.paymentEnabled && hasExistingSubscription && !isCurrent;\n            const blockedByPermission = data?.canManageBilling === false;
+            const blockedBySubscription = data?.paymentEnabled && hasExistingSubscription && !isCurrent;
+            const blockedByPermission = data?.canManageBilling === false;
             const checkoutLoading = data?.paymentEnabled && !paddleReady;
             return <article key={plan.id} className={`flex flex-col rounded-2xl border bg-white p-5 shadow-sm ${isCurrent ? "border-slate-900 ring-1 ring-slate-900" : "border-slate-200"}`}>
               <div className="flex items-center justify-between gap-2">
