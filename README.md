@@ -175,6 +175,7 @@ Configure these Vercel environment variables:
 NEXT_PUBLIC_PADDLE_CLIENT_TOKEN=your_paddle_client_side_token
 PADDLE_ENVIRONMENT=sandbox
 PADDLE_WEBHOOK_SECRET=your_notification_destination_secret
+PADDLE_API_KEY=your_paddle_api_key_with_customer_portal_session_write_permission
 PADDLE_PRICE_STARTER_MONTHLY=pri_your_starter_monthly_price_id
 PADDLE_PRICE_STARTER_YEARLY=pri_your_starter_yearly_price_id
 PADDLE_PRICE_GROWTH_MONTHLY=pri_your_growth_monthly_price_id
@@ -189,7 +190,7 @@ Create a Paddle notification destination pointing to `https://YOUR_DOMAIN/api/we
 
 After configuring Paddle, set the customer-visible BDT/USD prices in Dashboard → Platform administration → Plan pricing to match the Paddle catalog. Checkout itself uses Paddle's catalog price IDs and Paddle calculates applicable checkout totals/taxes. The admin price editor is display-only.
 
-The current release supports first-time recurring subscription checkout and webhook-driven activation/renewal/status updates. It deliberately blocks starting a second paid subscription for a workspace that already has one. Plan changes, cancellation self-service/customer portal, refunds, and invoice administration still require additional implementation before unrestricted commercial launch. Test the full flow in Paddle Sandbox and use its webhook simulator before switching to Live.
+The current release supports first-time recurring subscription checkout, webhook-driven activation/renewal/status updates, and a Paddle-hosted customer portal for subscription management when `PADDLE_API_KEY` has customer portal session write permission. It deliberately blocks starting a second paid subscription for a workspace that already has one; customers use the Paddle portal to manage, change, or cancel their subscription. Refund handling and platform-side invoice administration still require additional operational work. Test the full flow in Paddle Sandbox and use its webhook simulator before switching to Live.
 
 ## Vercel deployment
 
