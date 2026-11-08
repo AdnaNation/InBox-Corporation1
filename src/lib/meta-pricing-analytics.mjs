@@ -15,12 +15,10 @@ export function aggregateMetaPricingPoints(points, now = new Date()) {
   const months = new Map();
   let totalCost = 0;
   let totalVolume = 0;
-  let hasCostField = false;
   let missingBillableCost = false;
 
   for (const point of points) {
     const costPresent = Object.prototype.hasOwnProperty.call(point, "cost") && point.cost != null;
-    if (costPresent) hasCostField = true;
     const pricingType = String(point.pricing_type || point.pricingType || "").toLowerCase();
     if (!costPresent && !["free_customer_service", "free_entry_point"].includes(pricingType)) missingBillableCost = true;
     const cost = costPresent ? asNumber(point.cost) : 0;
@@ -55,7 +53,7 @@ export function aggregateMetaPricingPoints(points, now = new Date()) {
   const current = months.get(currentMonth) || { month: currentMonth, cost: 0, volume: 0 };
 
   return {
-    costAvailable: points.length === 0 || (hasCostField && !missingBillableCost),
+    costAvailable: points.length === 0 || !missingBillableCost,
     currentMonth: current,
     total: { cost: totalCost, volume: totalVolume },
     byCategory: [...categories.values()].sort((a, b) => b.cost - a.cost),
