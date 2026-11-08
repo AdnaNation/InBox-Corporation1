@@ -101,6 +101,27 @@ After a customer finishes signup, the browser sends the short-lived authorizatio
 
 The current implementation supports the standard Cloud API signup path. It does not yet implement WhatsApp Business App coexistence onboarding, multi-number selection, partner credit-line sharing, billing, or automated token-expiry notifications. A different existing number is only replaced after the workspace admin explicitly checks the replacement confirmation; active campaigns block replacement.
 
+## Google and Facebook social sign-in
+
+The login and registration pages support Google and Facebook OAuth alongside email/password authentication. Configure these server-side environment variables in Vercel and locally in `.env.local`:
+
+```env
+NEXT_PUBLIC_APP_URL=https://your-production-domain.com
+GOOGLE_CLIENT_ID=your_google_oauth_client_id
+GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
+FACEBOOK_CLIENT_ID=your_meta_app_id
+FACEBOOK_CLIENT_SECRET=your_meta_app_secret
+```
+
+Register these exact HTTPS callback URLs with the providers:
+
+- Google: `https://YOUR_DOMAIN/api/auth/google/callback`
+- Facebook: `https://YOUR_DOMAIN/api/auth/facebook/callback`
+
+For Google, configure the production origin as an authorized JavaScript origin and the callback URL as an authorized redirect URI. For Facebook Login, enable Client OAuth Login, Web OAuth Login, Enforce HTTPS and Strict Mode, then add the callback URL to Valid OAuth Redirect URIs and request the `email` permission.
+
+OAuth state is checked with short-lived HttpOnly cookies. Google uses PKCE and validates the ID token signature, issuer, audience, nonce and verified email. Provider identities are stored separately with a unique provider/user ID index. If an email already belongs to a password account, Wavo deliberately refuses automatic linking; the user must first sign in with the existing method. A new social account receives its own Free workspace and owner membership. Keep all client secrets server-side and never expose them with a `NEXT_PUBLIC_` prefix.
+
 ## Included
 
 - Public landing page
