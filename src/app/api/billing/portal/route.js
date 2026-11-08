@@ -48,7 +48,7 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: "The saved Paddle subscription reference is invalid." }, { status: 409 });
     }
 
-    const environment = process.env.PADDLE_ENVIRONMENT === "sandbox" ? "sandbox" : "production";
+    const environment = process.env.PADDLE_ENVIRONMENT === "production" ? "production" : "sandbox";
     const apiBase = environment === "sandbox" ? "https://sandbox-api.paddle.com" : "https://api.paddle.com";
     const response = await fetch(
       apiBase + "/customers/" + workspace.subscription.paddleCustomerId + "/portal-sessions",
