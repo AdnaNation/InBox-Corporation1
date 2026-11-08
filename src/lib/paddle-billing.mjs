@@ -31,11 +31,12 @@ export function getPaddleCheckoutConfiguration(env = process.env) {
   );
   const clientToken = String(env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "").trim();
   const webhookSecret = String(env.PADDLE_WEBHOOK_SECRET || "").trim();
+  const apiKey = String(env.PADDLE_API_KEY || "").trim();
   const environment = env.PADDLE_ENVIRONMENT === "production" ? "production" : "sandbox";
 
   return {
-    enabled: Boolean(clientToken && webhookSecret && allPricesConfigured),
-    portalEnabled: Boolean(String(env.PADDLE_API_KEY || "").trim()),
+    enabled: Boolean(clientToken && webhookSecret && apiKey && allPricesConfigured),
+    portalEnabled: Boolean(apiKey),
     clientToken: clientToken || null,
     environment,
     priceIds,
