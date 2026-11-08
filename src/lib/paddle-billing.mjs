@@ -103,3 +103,15 @@ export function getPaddleEventType(event) {
   const value = event?.event_type || event?.type;
   return typeof value === "string" ? value : "";
 }
+
+export function getPaddleSubscriptionStatus(event) {
+  const eventType = getPaddleEventType(event);
+  const eventStatus = {
+    "subscription.activated": "active",
+    "subscription.resumed": "active",
+    "subscription.past_due": "past_due",
+    "subscription.paused": "paused",
+    "subscription.canceled": "canceled",
+  };
+  return eventStatus[eventType] || String(event?.data?.status || "");
+}
