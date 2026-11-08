@@ -13,11 +13,13 @@ function toMinor(value) {
   if (value === "") return null;
   const amount = Number(value);
   if (!Number.isFinite(amount) || amount < 0 || amount > 1000000000) return NaN;
-  return Math.round(amount * 100);
+  const minor = Math.round(amount * 100);
+  return Math.abs(amount * 100 - minor) < 0.000001 ? minor : NaN;
 }
 
 function formatPrice(minor, currency) {
   if (minor == null) return "Not published";
+  if (!Number.isSafeInteger(minor) || minor < 0) return "Enter a valid amount";
   return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(minor / 100);
 }
 
