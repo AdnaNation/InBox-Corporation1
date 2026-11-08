@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Send, AlertCircle, Loader2, Users, RefreshCw, FileText, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
+import { getBangladeshWhatsAppRate, estimateBangladeshWhatsAppCost } from "@/lib/whatsapp-pricing.mjs";
 
 export default function CampaignClient({ contactCount, connected, campaigns }) {
   // Existing single-contact sender
@@ -490,6 +491,66 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
             )}
           </div>
         )}
+
+        <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="font-semibold text-slate-900">WhatsApp message cost estimate</h3>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Bangladesh recipient rates · Meta rate card effective 1 October 2026 · indicative only
+              </p>
+            </div>
+            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">Meta fees separate</span>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            {[
+              { category: "MARKETING", label: "Marketing", purpose: "Offers and promotions" },
+              { category: "UTILITY", label: "Utility", purpose: "Order and payment updates" },
+              { category: "AUTHENTICATION", label: "Authentication", purpose: "One-time passwords" },
+            ].map((item) => {
+              const rate = getBangladeshWhatsAppRate(item.category);
+              return (
+                <div key={item.category} className="rounded-lg bg-slate-50 p-3">
+                  <p className="text-sm font-semibold text-slate-800">{item.label}</p>
+                  <p className="mt-1 text-xs text-slate-500">{item.purpose}</p>
+                  <p className="mt-2 text-lg font-bold tabular-nums text-slate-950">${rate.toFixed(4)}</p>
+                  <p className="text-xs text-slate-500">per delivered message</p>
+                  <p className="mt-1 text-xs font-medium text-slate-700">≈ ৳{(rate * 124).toFixed(2)}</p>
+                  <p className="text-xs text-slate-500">≈ ৳{(rate * 124 * 1000).toLocaleString("en-BD", { maximumFractionDigits: 0 })} / 1,000</p>
+                </div>
+              );
+            })}
+          </div>
+
+          {audiencePreview && selectedTemplate && ["MARKETING", "UTILITY", "AUTHENTICATION"].includes(String(selectedTemplate.category || "").toUpperCase()) && (
+            <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+              <p className="text-sm font-semibold text-emerald-900">Estimated cost for this audience</p>
+              <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <p className="text-2xl font-bold tabular-nums text-emerald-950">
+                    ${estimateBangladeshWhatsAppCost(selectedTemplate.category, audiencePreview.total).toFixed(2)}
+                  </p>
+                  <p className="text-xs text-emerald-800">
+                    ≈ ৳{(estimateBangladeshWhatsAppCost(selectedTemplate.category, audiencePreview.total) * 124).toLocaleString("en-BD", { maximumFractionDigits: 2 })}
+                    {" "}for {audiencePreview.total.toLocaleString()} recipients
+                  </p>
+                </div>
+                <p className="text-xs text-emerald-800">Template category: {selectedTemplate.category}</p>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-emerald-800">
+                Assumes every recipient has a Bangladesh (+880) number and every message is delivered. Meta bills per delivered message; actual charges can differ due to recipient country, free-entry-point eligibility, volume tiers, taxes, exchange rates, and Meta rate changes.
+              </p>
+            </div>
+          )}
+
+          <p className="mt-3 text-xs leading-5 text-slate-500">
+            Service replies: the first 1,000 eligible service messages per WhatsApp business phone number each month are free; additional service replies are approximately $0.0037 each for Bangladesh. This campaign estimate covers template messages only.
+          </p>
+          <p className="mt-2 text-xs leading-5 text-slate-500">
+            USD-to-BDT display uses an illustrative ৳124/USD conversion, not a live exchange rate. Meta charges your connected WhatsApp Business Account directly. Wavo subscription fees do not include Meta messaging charges.
+          </p>
+        </div>
       </section>
 
 
