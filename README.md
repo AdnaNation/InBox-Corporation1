@@ -46,7 +46,7 @@ Configure these server-side Vercel environment variables:
 
 ```env
 RESEND_API_KEY=your_resend_api_key
-EMAIL_FROM=Wavo <no-reply@your-verified-domain.com>
+EMAIL_FROM=InBox Corporation <noreply@your-verified-domain.com>
 NEXT_PUBLIC_APP_URL=https://your-production-domain.com
 ```
 
