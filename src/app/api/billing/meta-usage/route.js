@@ -93,6 +93,7 @@ export async function GET() {
         ]);
         const analytics = analyticsResponse.pricing_analytics || {};
         const points = getMetaPricingDataPoints(analytics);
+        if (!Array.isArray(points)) throw new Error("Meta returned an unsupported pricing analytics response format.");
         const result = aggregateMetaPricingPoints(points);
         return {
           success: true,
