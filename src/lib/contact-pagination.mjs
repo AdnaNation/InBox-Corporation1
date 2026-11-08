@@ -37,13 +37,20 @@ export function encodeContactCursor(contact) {
 }
 
 
+export function escapeContactSearchQuery(value) {
+  const specialCharacters = new Set(["\\", "^", "$", ".", "*", "+", "?", "(", ")", "[", "]", "{", "}", "|"]);
+  return Array.from(String(value ?? ""), (character) =>
+    specialCharacters.has(character) ? "\\" + character : character
+  ).join("");
+}
+
 export function buildContactQueryFilter(workspaceId, { cursor = null, query = "", tag = "" } = {}) {
   const clauses = [buildContactHistoryFilter(workspaceId, cursor)];
   const normalizedQuery = typeof query === "string" ? query.trim().slice(0, 100) : "";
   const normalizedTag = typeof tag === "string" ? tag.trim().toLowerCase().slice(0, 30) : "";
 
   if (normalizedQuery) {
-    const escapedQuery = normalizedQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const escapedQuery = escapeContactSearchQuery(normalizedQuery);
     const phoneQuery = normalizedQuery.replace(/\D/g, "");
     const searchConditions = [{ name: { $regex: escapedQuery, $options: "i" } }];
     if (phoneQuery) searchConditions.push({ phone: { $regex: phoneQuery } });
