@@ -3,7 +3,7 @@ import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
-import { encryptSecret } from "@/lib/crypto";
+import { encryptSecret, decryptSecret } from "@/lib/crypto";
 import { ensureWhatsAppAccountIndexes } from "@/lib/whatsapp-account";
 import { isMetaAppSubscribed } from "@/lib/whatsapp-subscription.mjs";
 
@@ -124,6 +124,45 @@ export async function DELETE(request) {
     return NextResponse.json({ success: false, message: "That WhatsApp number is not connected." }, { status: 404 });
   }
 
+  // Remove only Wavo's WABA-level callback override. Do not unsubscribe
+  // the customer's Meta App: a body-less POST restores its original app-level
+  // callback URL, which may be the customer's own website webhook.
+  if (target.metaAppIdEncrypted && target.accessTokenEncrypted && target.webhookCallbackUrl && target.wabaId) {
+    try {
+      const metaAppId = decryptSecret(target.metaAppIdEncrypted);
+      const accessToken = decryptSecret(target.accessTokenEncrypted);
+      const apiVersion = process.env.META_GRAPH_API_VERSION || "v26.0";
+      const subscriptionUrl = `https://graph.facebook.com/${apiVersion}/${encodeURIComponent(target.wabaId)}/subscribed_apps`;
+      const headers = { Authorization: `Bearer ${accessToken}` };
+      const beforeResponse = await fetch(subscriptionUrl, { headers, cache: "no-store" });
+      const beforeData = await beforeResponse.json().catch(() => ({}));
+      if (!beforeResponse.ok || beforeData.error) {
+        return NextResponse.json({ success: false, message: beforeData?.error?.message || "Could not inspect Meta's current webhook routing. The Wavo connection was left intact." }, { status: 502 });
+      }
+      const appSubscription = (beforeData.data || []).find((item) => String(item.whatsapp_business_api_data?.id || item.id || "") === metaAppId);
+      const currentOverride = String(appSubscription?.override_callback_uri || "");
+      if (currentOverride && currentOverride !== target.webhookCallbackUrl) {
+        return NextResponse.json({ success: false, code: "WABA_CALLBACK_OVERRIDE_CHANGED", message: "The WABA callback override was changed outside Wavo. Wavo did not modify it or disconnect the account. Review the current Meta webhook configuration first." }, { status: 409 });
+      }
+      if (currentOverride === target.webhookCallbackUrl) {
+        const restoreResponse = await fetch(subscriptionUrl, { method: "POST", headers, cache: "no-store" });
+        const restoreData = await restoreResponse.json().catch(() => ({}));
+        if (!restoreResponse.ok || restoreData.error || restoreData.success !== true) {
+          return NextResponse.json({ success: false, message: restoreData?.error?.message || "Meta could not restore the original app-level webhook callback. The Wavo connection was left intact." }, { status: 502 });
+        }
+        const verifyResponse = await fetch(subscriptionUrl, { headers, cache: "no-store" });
+        const verifyData = await verifyResponse.json().catch(() => ({}));
+        const verifiedSubscription = (verifyData.data || []).find((item) => String(item.whatsapp_business_api_data?.id || item.id || "") === metaAppId);
+        if (!verifyResponse.ok || verifyData.error || String(verifiedSubscription?.override_callback_uri || "")) {
+          return NextResponse.json({ success: false, message: "Meta did not confirm that the original app-level callback was restored. The Wavo connection was left intact; please retry after checking Meta." }, { status: 502 });
+        }
+      }
+    } catch (error) {
+      console.error("WhatsApp webhook override restoration failed:", error);
+      return NextResponse.json({ success: false, message: "Could not restore the customer's original Meta webhook callback. The Wavo connection was left intact." }, { status: 502 });
+    }
+  }
+
   if (target.isActive && target.phoneNumberId) {
     await db.collection("campaigns").updateMany(
       {
@@ -137,7 +176,7 @@ export async function DELETE(request) {
 
   await accounts.updateOne(
     { _id: target._id, workspaceId },
-    { $set: { status: "disconnected", disconnectedAt: new Date(), updatedAt: new Date() }, $unset: { accessTokenEncrypted: "", isActive: "" } },
+    { $set: { status: "disconnected", disconnectedAt: new Date(), updatedAt: new Date() }, $unset: { accessTokenEncrypted: "", metaAppIdEncrypted: "", metaAppSecretEncrypted: "", webhookVerifyTokenEncrypted: "", webhookCallbackUrl: "", isActive: "" } },
   );
 
   if (target.isActive) {
@@ -161,7 +200,7 @@ export async function DELETE(request) {
   return NextResponse.json({
     success: true,
     disconnected: true,
-    message: "WhatsApp number disconnected. Other connected numbers remain available.",
+    message: "WhatsApp number disconnected. Its WABA callback override was removed so Meta can deliver messages to the customer\'s original Meta App callback again. Other connected numbers remain available.",
   });
 }
 
