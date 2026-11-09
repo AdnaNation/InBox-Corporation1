@@ -128,6 +128,7 @@ export default function InboxPage() {
 
   const bottomRef = useRef(null);
   const messagesContainerRef = useRef(null);
+  const conversationsRequestIdRef = useRef(0);
   const messagesRequestIdRef = useRef(0);
   const loadedConversationIdRef = useRef("");
   const hasLoadedAllOlderMessagesRef = useRef(false);
@@ -138,29 +139,42 @@ export default function InboxPage() {
   selectedConversationIdRef.current = selectedId;
   const textareaRef = useRef(null);
 
-  const loadConversations = useCallback(async () => {
+  const loadConversations = useCallback(async (query = "") => {
+    const requestId = ++conversationsRequestIdRef.current;
     try {
-      const response = await fetch("/api/whatsapp/conversations", {
-        cache: "no-store",
-      });
+      const searchParams = new URLSearchParams();
+      if (query.trim()) searchParams.set("q", query.trim());
+      const queryString = searchParams.toString();
+      const response = await fetch(
+        queryString ? `/api/whatsapp/conversations?${queryString}` : "/api/whatsapp/conversations",
+        { cache: "no-store" },
+      );
 
       const data = await response.json();
 
       if (!response.ok || !data.success) {
         throw new Error(data.message || "Could not load conversations.");
       }
+      if (requestId !== conversationsRequestIdRef.current) return;
 
-      setConversations(data.conversations || []);
+      const nextConversations = data.conversations || [];
+      setConversations(nextConversations);
       setCurrentUserId(data.currentUserId || "");
 
       setSelectedId((currentId) => {
-        if (currentId) return currentId;
-        return data.conversations?.[0]?._id || "";
+        if (currentId && nextConversations.some((item) => item._id === currentId)) {
+          return currentId;
+        }
+        return nextConversations[0]?._id || "";
       });
     } catch (err) {
-      setError(err.message || "Could not load conversations.");
+      if (requestId === conversationsRequestIdRef.current) {
+        setError(err.message || "Could not load conversations.");
+      }
     } finally {
-      setLoading(false);
+      if (requestId === conversationsRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -244,12 +258,14 @@ export default function InboxPage() {
   }, []);
 
   useEffect(() => {
-    loadConversations();
+    const searchTimeout = setTimeout(() => loadConversations(search), 250);
+    const interval = setInterval(() => loadConversations(search), 8000);
 
-    const interval = setInterval(loadConversations, 8000);
-
-    return () => clearInterval(interval);
-  }, [loadConversations]);
+    return () => {
+      clearTimeout(searchTimeout);
+      clearInterval(interval);
+    };
+  }, [search, loadConversations]);
 
   useEffect(() => {
     let active = true;
@@ -407,7 +423,7 @@ export default function InboxPage() {
           // checking the conversation and Meta delivery status.
           setMessageText("");
           await loadMessages(selectedId, true);
-          await loadConversations();
+          await loadConversations(search);
           setError(data.message || "Message outcome is uncertain. Check delivery status before sending again.");
           return;
         }
@@ -418,7 +434,7 @@ export default function InboxPage() {
 
       // Reload the conversation history to get the saved WhatsApp message.
       await loadMessages(selectedId, true);
-      await loadConversations();
+      await loadConversations(search);
 
       textareaRef.current?.focus();
     } catch (err) {
@@ -534,7 +550,7 @@ export default function InboxPage() {
           setTemplateCouponCode("");
           setTemplateOfferExpiresAt("");
           await loadMessages(selectedId, true);
-          await loadConversations();
+          await loadConversations(search);
           setError(data.message || "Template outcome is uncertain. Check delivery status before sending again.");
           return;
         }
@@ -548,7 +564,7 @@ export default function InboxPage() {
       setTemplateOfferExpiresAt("");
 
       await loadMessages(selectedId, true);
-      await loadConversations();
+      await loadConversations(search);
     } catch (err) {
       setError(err.message || "Template could not be sent.");
     } finally {
