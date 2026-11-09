@@ -393,6 +393,7 @@ Known error codes include:
 - `CONTACT_EXISTS`: a contact with the phone number already exists in the workspace.
 - `CONTACT_SUPPRESSED`: the phone number is suppressed because of an opt-out.
 - `PLAN_LIMIT_REACHED`: the workspace has reached its current contact allowance.
+- `MESSAGE_SEND_OUTCOME_UNKNOWN`: Meta may have accepted a template send before a timeout, HTTP 408, or 5xx response. Do not retry with a new idempotency key until the original send is reconciled.
 
 ## 14. Integration recommendations
 
@@ -402,7 +403,7 @@ Known error codes include:
 - Keep your own consent record and submit accurate evidence when recording opt-in.
 - Never infer consent from a purchase, an existing contact record, or a prior conversation.
 - Handle `429` using `Retry-After`; use exponential backoff for transient `503` responses.
-- Treat network timeouts as ambiguous: check whether a contact was created before retrying a create request.
+- Treat network timeouts and ambiguous Meta send responses as unknown outcomes. For contact creation, check whether the contact already exists before retrying. For template sends, keep the same idempotency key and reconcile the original message before starting a genuinely new send.
 
 ## Current scope
 
