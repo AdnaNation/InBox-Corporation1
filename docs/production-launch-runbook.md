@@ -81,7 +81,9 @@ Use a dedicated test workspace, a phone number controlled by the business, and c
 
 ### WhatsApp connection and inbox
 
-- [ ] Complete Embedded Signup with the intended production business and phone number.
+- [ ] Connect a customer WABA to Wavo's single Meta app using an authorized flow; do not ask customers to create or configure their own Meta apps.
+- [ ] Confirm the customer's authorization token is issued to Wavo's Meta app and includes the required WhatsApp permissions.
+- [ ] Confirm Wavo's app appears in `GET /{WABA-ID}/subscribed_apps` after the subscription request; the application must not mark the account connected if Meta does not list Wavo.
 - [ ] Confirm the connected WABA and phone-number identifiers belong to that business.
 - [ ] Confirm the Meta app has the required approved access and is not relying on temporary test credentials.
 - [ ] Send one approved template to an opted-in test recipient.
