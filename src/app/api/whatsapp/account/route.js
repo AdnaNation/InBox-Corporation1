@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
 import { encryptSecret } from "@/lib/crypto";
 import { ensureWhatsAppAccountIndexes } from "@/lib/whatsapp-account";
+import { isMetaAppSubscribed } from "@/lib/whatsapp-subscription.mjs";
 
 export const runtime = "nodejs";
 
@@ -440,6 +441,46 @@ export async function POST(request) {
           success: false,
           message: subscriptionData?.error?.message || "Meta did not allow Wavo to subscribe to this WhatsApp Business Account. Check whatsapp_business_management permission.",
           metaErrorCode: subscriptionData?.error?.code || null,
+        },
+        { status: 422 },
+      );
+    }
+
+    // Confirm that Meta now lists Wavo's own app on this exact WABA. A
+    // successful POST response alone is not enough to mark the connection live.
+    let subscriptionCheck;
+    try {
+      const checkUrl = new URL(`https://graph.facebook.com/${apiVersion}/${encodeURIComponent(wabaId.trim())}/subscribed_apps`);
+      const checkResponse = await fetch(checkUrl, {
+        headers: { Authorization: `Bearer ${accessToken.trim()}` },
+        cache: "no-store",
+      });
+      subscriptionCheck = await checkResponse.json().catch(() => ({}));
+      if (!checkResponse.ok || subscriptionCheck.error) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: "WHATSAPP_SUBSCRIPTION_CHECK_FAILED",
+            message: subscriptionCheck?.error?.message || "Meta accepted the subscription request, but Wavo could not verify it. Retry the connection; no account was saved.",
+            metaErrorCode: subscriptionCheck?.error?.code || null,
+          },
+          { status: 502 },
+        );
+      }
+    } catch {
+      return NextResponse.json(
+        { success: false, code: "WHATSAPP_SUBSCRIPTION_CHECK_UNAVAILABLE", message: "Meta accepted the subscription request, but Wavo could not confirm it. Retry the connection; no account was saved." },
+        { status: 502 },
+      );
+    }
+
+    const wavoSubscribed = isMetaAppSubscribed(subscriptionCheck, metaAppId);
+    if (!wavoSubscribed) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "WAVO_APP_NOT_SUBSCRIBED",
+          message: "Meta did not list Wavo's app as subscribed to this WhatsApp Business Account. The number was not saved as connected.",
         },
         { status: 422 },
       );

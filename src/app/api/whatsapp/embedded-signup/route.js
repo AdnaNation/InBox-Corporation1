@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
 import { encryptSecret } from "@/lib/crypto";
 import { ensureWhatsAppAccountIndexes } from "@/lib/whatsapp-account";
+import { isMetaAppSubscribed } from "@/lib/whatsapp-subscription.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -120,6 +121,18 @@ export async function POST(request) {
     // Subscribe the app to this WABA so inbound messages and delivery statuses reach our webhook.
     const subscribeUrl = `https://graph.facebook.com/${apiVersion}/${wabaId}/subscribed_apps`;
     await metaRequest(subscribeUrl, { method: "POST", headers: authHeaders });
+
+    // Confirm the Wavo app is actually listed on this WABA before persisting
+    // the connection. This prevents a false-positive Connected state.
+    const subscriptionData = await metaRequest(subscribeUrl, { headers: authHeaders });
+    const wavoSubscribed = isMetaAppSubscribed(subscriptionData, appId);
+    if (!wavoSubscribed) {
+      return NextResponse.json({
+        success: false,
+        code: "WAVO_APP_NOT_SUBSCRIBED",
+        message: "Meta did not list Wavo's app as subscribed to this WhatsApp Business Account. The account was not saved as connected.",
+      }, { status: 422 });
+    }
 
     const now = new Date();
     const expiresInSeconds = Number(tokenData.expires_in);
