@@ -7,6 +7,7 @@ import { isWhatsAppOptOutMessage } from "@/lib/whatsapp-opt-out.mjs";
 import { ensureWhatsAppWebhookIndexes } from "@/lib/whatsapp-webhook-indexes.mjs";
 import { extractWhatsAppMessageContent } from "@/lib/whatsapp-message-content.mjs";
 import { refreshCampaignProgress } from "@/lib/campaign-progress.mjs";
+import { matchesWhatsAppWebhookAccount } from "@/lib/whatsapp-webhook-routing.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -570,6 +571,22 @@ export async function POST(request) {
             phoneNumberId,
           );
 
+          continue;
+        }
+
+        // Phone Number ID selects the tenant record; verify the signed
+        // webhook's WABA ID too, so a mismatched payload cannot be routed
+        // into another workspace.
+        if (!matchesWhatsAppWebhookAccount(account, entry.id, phoneNumberId)) {
+          console.error(
+            "WEBHOOK ERROR: WABA/phone identity does not match the stored Wavo connection.",
+            "Webhook WABA ID:",
+            entry.id,
+            "Stored WABA ID:",
+            account.wabaId || "(legacy record)",
+            "Phone Number ID:",
+            phoneNumberId,
+          );
           continue;
         }
 
