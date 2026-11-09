@@ -181,7 +181,6 @@ async function processSubscriptionCreated(db, event) {
         billingCycle: price.billingCycle,
         priceId,
         status: "pending",
-        lastEventAt: getEventDate(event),
         createdAt: now,
         updatedAt: now,
       },
