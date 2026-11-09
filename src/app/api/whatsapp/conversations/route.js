@@ -80,17 +80,42 @@ export async function GET(request) {
         );
       }
 
-      const [latestMessages, account] = await Promise.all([
+      const beforeTimestampValue = searchParams.get("beforeTimestamp");
+      const beforeIdValue = searchParams.get("beforeId");
+      const hasBeforeCursor = beforeTimestampValue !== null || beforeIdValue !== null;
+      let messageFilter = {
+        workspaceId,
+        conversationId: conversation._id,
+      };
+
+      if (hasBeforeCursor) {
+        const beforeTimestamp = new Date(beforeTimestampValue || "");
+        if (
+          !beforeTimestampValue ||
+          Number.isNaN(beforeTimestamp.getTime()) ||
+          !ObjectId.isValid(beforeIdValue || "")
+        ) {
+          return NextResponse.json(
+            { success: false, message: "Invalid message history cursor." },
+            { status: 400 },
+          );
+        }
+
+        messageFilter = {
+          ...messageFilter,
+          $or: [
+            { timestamp: { $lt: beforeTimestamp } },
+            { timestamp: beforeTimestamp, _id: { $lt: new ObjectId(beforeIdValue) } },
+          ],
+        };
+      }
+
+      const [messageRows, account] = await Promise.all([
         db
           .collection("messages")
-          .find({
-            workspaceId,
-            conversationId: conversation._id,
-          })
-          // Fetch the newest page first so active conversations with more than
-          // 200 messages still show the latest customer and agent replies.
+          .find(messageFilter)
           .sort({ timestamp: -1, _id: -1 })
-          .limit(200)
+          .limit(201)
           .toArray(),
         conversation.phoneNumberId
           ? db.collection("whatsappAccounts").findOne(
@@ -99,8 +124,10 @@ export async function GET(request) {
             )
           : null,
       ]);
-      // Keep the UI's chronological order after selecting the newest page.
-      const messages = latestMessages.reverse();
+      const hasMoreMessages = messageRows.length > 200;
+      // Fetch one extra row to determine whether an older page exists.
+      // Return only 200 and keep the UI's chronological order.
+      const messages = messageRows.slice(0, 200).reverse();
 
       // Opening a conversation clears its unread count.
       await db
@@ -119,6 +146,7 @@ export async function GET(request) {
           unreadCount: 0,
         },
         messages,
+        hasMoreMessages,
       });
     }
 
