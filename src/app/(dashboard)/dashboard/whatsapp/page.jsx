@@ -385,6 +385,7 @@ export default function WhatsAppPage() {
           <code className="break-all rounded bg-white px-2 py-1 text-xs">{webhookUrl || "Loading callback URL..."}</code>
           <button type="button" onClick={() => webhookUrl && navigator.clipboard.writeText(webhookUrl)} className="rounded border border-blue-300 bg-white px-3 py-1 text-xs font-semibold">Copy URL</button>
         </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2"><span className="font-semibold">Webhook verify token:</span><code className="rounded bg-white px-2 py-1 text-xs">{form.webhookVerifyToken || "Enter the token below"}</code><button type="button" disabled={!form.webhookVerifyToken} onClick={() => navigator.clipboard.writeText(form.webhookVerifyToken)} className="rounded border border-blue-300 bg-white px-3 py-1 text-xs font-semibold disabled:opacity-50">Copy token</button></div>
         <p className="mt-2">After connecting, open your Meta App → WhatsApp → Configuration. Set this callback URL and the same webhook verify token you enter below, then subscribe to the <code>messages</code> webhook field. Do not change another website's webhook configuration unless you intend to move its message delivery to Wavo.</p>
       </section>
 
@@ -412,7 +413,7 @@ export default function WhatsAppPage() {
             {label}
             <input
               required={!["businessName", "displayPhoneNumber"].includes(key)}
-              type={["metaAppSecret", "webhookVerifyToken", "accessToken"].includes(key) ? "password" : "text"}
+              type={["metaAppSecret", "accessToken"].includes(key) ? "password" : "text"}
               autoComplete="off"
               value={form[key]}
               onChange={(e) => setForm({ ...form, [key]: e.target.value })}
