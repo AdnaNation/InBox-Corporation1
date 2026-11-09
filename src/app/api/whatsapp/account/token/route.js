@@ -3,7 +3,7 @@ import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
-import { encryptSecret } from "@/lib/crypto";
+import { encryptSecret, decryptSecret } from "@/lib/crypto";
 import { ensureWhatsAppAccountIndexes } from "@/lib/whatsapp-account";
 
 export const runtime = "nodejs";
@@ -52,7 +52,7 @@ export async function POST(request) {
     else accountFilter.isActive = true;
     const account = await db.collection("whatsappAccounts").findOne(
       accountFilter,
-      { projection: { phoneNumberId: 1 } },
+      { projection: { phoneNumberId: 1, metaAppIdEncrypted: 1, metaAppSecretEncrypted: 1 } },
     );
 
     if (!account?.phoneNumberId) {
@@ -63,18 +63,22 @@ export async function POST(request) {
     }
 
     const apiVersion = process.env.META_GRAPH_API_VERSION || "v26.0";
-    const metaAppId = process.env.META_APP_ID;
-    const metaAppSecret = process.env.META_APP_SECRET;
+    // Each workspace validates replacement tokens against its own Meta App.
+    // Global environment credentials remain a compatibility fallback for
+    // legacy Wavo-owned connections created before per-customer credentials.
+    const metaAppId = account.metaAppIdEncrypted
+      ? decryptSecret(account.metaAppIdEncrypted)
+      : process.env.META_APP_ID;
+    const metaAppSecret = account.metaAppSecretEncrypted
+      ? decryptSecret(account.metaAppSecretEncrypted)
+      : process.env.META_APP_SECRET;
     if (!metaAppId || !metaAppSecret) {
       return NextResponse.json(
-        { success: false, code: "META_APP_NOT_CONFIGURED", message: "Wavo's Meta App ID and App Secret must be configured before replacing a WhatsApp access token." },
-        { status: 503 },
+        { success: false, code: "CUSTOMER_META_APP_CREDENTIALS_MISSING", message: "This connection is missing its Meta App ID or App Secret. Reconnect it with the customer's Meta App credentials." },
+        { status: 409 },
       );
     }
 
-    // A replacement token must continue authorizing Wavo's shared Meta app.
-    // Validating only the Phone Number ID would allow a token from another app
-    // to replace the credential and silently divert webhook events away from Wavo.
     const debugUrl = new URL(`https://graph.facebook.com/${apiVersion}/debug_token`);
     debugUrl.searchParams.set("input_token", accessToken);
     let debugResponse;
@@ -100,7 +104,7 @@ export async function POST(request) {
     }
     if (String(tokenInfo.app_id || "") !== String(metaAppId)) {
       return NextResponse.json(
-        { success: false, code: "TOKEN_NOT_ISSUED_TO_WAVO_APP", message: "This token belongs to a different Meta app. Use a token issued to Wavo's Meta app to preserve the shared webhook connection. The saved token was not changed." },
+        { success: false, code: "META_APP_ID_MISMATCH", message: "This token belongs to a different Meta App than the one saved for this WhatsApp account. The saved token was not changed." },
         { status: 422 },
       );
     }
