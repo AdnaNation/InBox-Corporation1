@@ -142,12 +142,13 @@ export default async function CampaignReviewPage({ params, searchParams }) {
             <p className="mt-2 text-sm text-slate-500">Created {createdAt}</p>
           </div>
 
-          <Status value={campaign.status} />
+
         </div>
 
         <CampaignDeliveryProgress
           campaignId={campaign._id.toString()}
           initialStatus={campaign.status}
+          initialCompletedAt={campaign.completedAt?.toISOString?.() || null}
           initialCounts={Object.fromEntries([
             "pending", "processing", "accepted", "sent", "delivered", "read", "failed", "unknown", "skipped",
           ].map((status) => [status, counts[status] || 0]))}
@@ -219,10 +220,12 @@ export default async function CampaignReviewPage({ params, searchParams }) {
           initialStatus={campaign.status}
           canManage={canManageCampaigns}
         />
-        {campaign.status === "completed_with_issues" && counts.failed > 0 && ["owner", "admin"].includes(session.membership?.role) && (
+        {canManageCampaigns && (
           <CampaignRetryAction
             campaignId={campaign._id.toString()}
-            failedCount={counts.failed}
+            initialStatus={campaign.status}
+            initialFailedCount={counts.failed || 0}
+            initialCompletedAt={campaign.completedAt?.toISOString?.() || null}
           />
         )}
       </section>
