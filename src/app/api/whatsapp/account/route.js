@@ -445,6 +445,48 @@ export async function POST(request) {
       );
     }
 
+    // Confirm that Meta now lists Wavo's own app on this exact WABA. A
+    // successful POST response alone is not enough to mark the connection live.
+    let subscriptionCheck;
+    try {
+      const checkUrl = new URL(`https://graph.facebook.com/${apiVersion}/${encodeURIComponent(wabaId.trim())}/subscribed_apps`);
+      const checkResponse = await fetch(checkUrl, {
+        headers: { Authorization: `Bearer ${accessToken.trim()}` },
+        cache: "no-store",
+      });
+      subscriptionCheck = await checkResponse.json().catch(() => ({}));
+      if (!checkResponse.ok || subscriptionCheck.error) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: "WHATSAPP_SUBSCRIPTION_CHECK_FAILED",
+            message: subscriptionCheck?.error?.message || "Meta accepted the subscription request, but Wavo could not verify it. Retry the connection; no account was saved.",
+            metaErrorCode: subscriptionCheck?.error?.code || null,
+          },
+          { status: 502 },
+        );
+      }
+    } catch {
+      return NextResponse.json(
+        { success: false, code: "WHATSAPP_SUBSCRIPTION_CHECK_UNAVAILABLE", message: "Meta accepted the subscription request, but Wavo could not confirm it. Retry the connection; no account was saved." },
+        { status: 502 },
+      );
+    }
+
+    const wavoSubscribed = (subscriptionCheck.data || []).some((item) =>
+      String(item.whatsapp_business_api_data?.id || item.id || "") === String(metaAppId),
+    );
+    if (!wavoSubscribed) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "WAVO_APP_NOT_SUBSCRIBED",
+          message: "Meta did not list Wavo's app as subscribed to this WhatsApp Business Account. The number was not saved as connected.",
+        },
+        { status: 422 },
+      );
+    }
+
     const now = new Date();
     const existingNumber = await db.collection("whatsappAccounts").findOne({
       workspaceId,
