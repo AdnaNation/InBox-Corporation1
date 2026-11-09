@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
+import { buildMessageHistoryFilter } from "@/lib/whatsapp-message-pagination.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -80,17 +81,26 @@ export async function GET(request) {
         );
       }
 
-      const [latestMessages, account] = await Promise.all([
+      const { filter: messageFilter, valid: validCursor } = buildMessageHistoryFilter(
+        { workspaceId, conversationId: conversation._id },
+        {
+          beforeTimestamp: searchParams.get("beforeTimestamp"),
+          beforeId: searchParams.get("beforeId"),
+        },
+      );
+      if (!validCursor) {
+        return NextResponse.json(
+          { success: false, message: "Invalid message history cursor." },
+          { status: 400 },
+        );
+      }
+
+      const [messageRows, account] = await Promise.all([
         db
           .collection("messages")
-          .find({
-            workspaceId,
-            conversationId: conversation._id,
-          })
-          // Fetch the newest page first so active conversations with more than
-          // 200 messages still show the latest customer and agent replies.
+          .find(messageFilter)
           .sort({ timestamp: -1, _id: -1 })
-          .limit(200)
+          .limit(201)
           .toArray(),
         conversation.phoneNumberId
           ? db.collection("whatsappAccounts").findOne(
@@ -99,8 +109,10 @@ export async function GET(request) {
             )
           : null,
       ]);
-      // Keep the UI's chronological order after selecting the newest page.
-      const messages = latestMessages.reverse();
+      const hasMoreMessages = messageRows.length > 200;
+      // Fetch one extra row to determine whether an older page exists.
+      // Return only 200 and keep the UI's chronological order.
+      const messages = messageRows.slice(0, 200).reverse();
 
       // Opening a conversation clears its unread count.
       await db
@@ -119,6 +131,7 @@ export async function GET(request) {
           unreadCount: 0,
         },
         messages,
+        hasMoreMessages,
       });
     }
 
