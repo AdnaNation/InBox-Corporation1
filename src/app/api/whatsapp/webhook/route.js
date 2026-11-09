@@ -5,6 +5,7 @@ import { getDatabase } from "@/lib/db";
 import { enqueueWebhookEvent } from "@/lib/public-webhooks.mjs";
 import { isWhatsAppOptOutMessage } from "@/lib/whatsapp-opt-out.mjs";
 import { ensureWhatsAppWebhookIndexes } from "@/lib/whatsapp-webhook-indexes.mjs";
+import { extractWhatsAppMessageContent } from "@/lib/whatsapp-message-content.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,64 +71,7 @@ function verifySignature(rawBody, signature) {
 // EXTRACT MESSAGE CONTENT
 // --------------------------------------------------
 
-function extractMessageContent(message) {
-  const type = message.type || "unknown";
-  const item = message[type];
 
-  if (!item) {
-    return {
-      type,
-      text: "",
-      media: null,
-    };
-  }
-
-  if (type === "text") {
-    return {
-      type,
-      text: item.body || "",
-      media: null,
-    };
-  }
-
-  if (
-    type === "image" ||
-    type === "video" ||
-    type === "audio" ||
-    type === "document" ||
-    type === "sticker"
-  ) {
-    return {
-      type,
-      text: item.caption || "",
-      media: {
-        id: item.id || null,
-        mimeType: item.mime_type || null,
-        filename: item.filename || null,
-      },
-    };
-  }
-
-  if (type === "location") {
-    return {
-      type,
-      text: item.name || item.address || "Shared location",
-      location: {
-        latitude: item.latitude,
-        longitude: item.longitude,
-        name: item.name || null,
-        address: item.address || null,
-      },
-      media: null,
-    };
-  }
-
-  return {
-    type,
-    text: "",
-    media: null,
-  };
-}
 
 // --------------------------------------------------
 // PROCESS INCOMING MESSAGE
@@ -223,7 +167,7 @@ async function processIncomingMessage(db, account, value, message) {
 
   // Extract message data.
 
-  const content = extractMessageContent(message);
+  const content = extractWhatsAppMessageContent(message);
 
   // A clear opt-out keyword immediately revokes marketing consent.
   // Keep a durable workspace-level suppression record so deleting and
