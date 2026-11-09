@@ -135,10 +135,30 @@ export async function GET(request) {
       });
     }
 
-    // Load conversation list.
+    // Search across the workspace before applying the page limit. The UI
+    // should be able to find older conversations, not only the latest 100.
+    const searchQuery = (searchParams.get("q") || "").trim().slice(0, 100);
+    const conversationFilter = { workspaceId };
+    if (searchQuery) {
+      const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\    // Load conversation list.
     const conversations = await db
       .collection("conversations")
       .find({ workspaceId })
+      .sort({ lastMessageAt: -1, updatedAt: -1 })
+      .limit(100)
+      .toArray();");
+      const pattern = new RegExp(escapedQuery, "i");
+      conversationFilter.$or = [
+        { customerName: pattern },
+        { waId: pattern },
+        { lastMessagePreview: pattern },
+      ];
+    }
+
+    // Load conversation list.
+    const conversations = await db
+      .collection("conversations")
+      .find(conversationFilter)
       .sort({ lastMessageAt: -1, updatedAt: -1 })
       .limit(100)
       .toArray();
