@@ -80,14 +80,16 @@ export async function GET(request) {
         );
       }
 
-      const [messages, account] = await Promise.all([
+      const [latestMessages, account] = await Promise.all([
         db
           .collection("messages")
           .find({
             workspaceId,
             conversationId: conversation._id,
           })
-          .sort({ timestamp: 1, _id: 1 })
+          // Fetch the newest page first so active conversations with more than
+          // 200 messages still show the latest customer and agent replies.
+          .sort({ timestamp: -1, _id: -1 })
           .limit(200)
           .toArray(),
         conversation.phoneNumberId
@@ -97,6 +99,8 @@ export async function GET(request) {
             )
           : null,
       ]);
+      // Keep the UI's chronological order after selecting the newest page.
+      const messages = latestMessages.reverse();
 
       // Opening a conversation clears its unread count.
       await db
