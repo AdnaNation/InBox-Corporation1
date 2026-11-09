@@ -42,6 +42,7 @@ export async function GET(request) {
           displayPhoneNumber: 1,
           phoneNumberId: 1,
           wabaId: 1,
+          metaAppIdEncrypted: 1,
           accessTokenEncrypted: 1,
           updatedAt: 1,
           tokenExpiresAt: 1,
@@ -161,7 +162,7 @@ export async function GET(request) {
         const subscriptionResult = await subscriptionResponse.json();
         if (subscriptionResponse.ok && Array.isArray(subscriptionResult.data)) {
           const subscribedApps = subscriptionResult.data;
-          const configuredAppId = process.env.META_APP_ID;
+          const configuredAppId = account.metaAppIdEncrypted ? decryptSecret(account.metaAppIdEncrypted) : process.env.META_APP_ID;
           const matchingApp = isMetaAppSubscribed({ data: subscribedApps }, configuredAppId)
             ? subscribedApps.find((item) =>
                 String(item.whatsapp_business_api_data?.id || item.id || "") === String(configuredAppId),
@@ -175,10 +176,10 @@ export async function GET(request) {
             subscribedAppCount: subscribedApps.length,
             message: configuredAppId
               ? matchingApp
-                ? "Wavo is subscribed to receive WhatsApp webhook events for this business account."
-                : "Meta does not list this Wavo app as subscribed to this WhatsApp Business Account."
+                ? "This customer's Meta App is subscribed to receive WhatsApp webhook events for this business account."
+                : "Meta does not list this customer's Meta App as subscribed to this WhatsApp Business Account."
               : subscribedApps.length
-                ? "Meta reports an app subscription, but META_APP_ID is not configured so Wavo cannot confirm it is the correct app."
+                ? "Meta reports an app subscription, but No customer Meta App ID is saved, so Wavo cannot confirm which app is subscribed."
                 : "Meta reports no subscribed app for this WhatsApp Business Account.",
             checkedAt: new Date().toISOString(),
           };
@@ -198,7 +199,7 @@ export async function GET(request) {
         };
       }
     } else {
-      webhookSubscription.message = "This connection has no saved WhatsApp Business Account ID. Reconnect it through Meta Embedded Signup.";
+      webhookSubscription.message = "This connection has no saved WhatsApp Business Account ID. Reconnect it with the customer's Meta App credentials.";
     }
 
     return NextResponse.json({
