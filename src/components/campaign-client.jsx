@@ -663,7 +663,7 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
             <div className="text-xs text-slate-500">
               <p>Audience: {audiencePreview?.total ?? "Preview not run"} eligible contact(s). The server saves an opted-in recipient snapshot.</p>
               {audiencePreview && audiencePreview.suppressedCount > 0 && (
-                <p className="mt-1 text-amber-700">{audiencePreview.suppressedCount} opted-out contact(s) excluded automatically.</p>
+                <p className="mt-1 text-amber-700">{audiencePreview.suppressedCount} suppressed contact(s) excluded automatically.</p>
               )}
             </div>
             <button type="submit" disabled={createLoading || !connected || !campaignName.trim() || !selectedTemplate || (hasCopyCode && !campaignCouponCode.trim()) || (isLimitedTimeOffer && !offerDurationHours) || (audienceType === "group" && !groupId) || (audienceType === "tag" && !tag)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50">
