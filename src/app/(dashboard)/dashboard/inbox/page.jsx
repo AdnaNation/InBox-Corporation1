@@ -103,6 +103,8 @@ export default function InboxPage() {
   const [messageText, setMessageText] = useState("");
   const [loading, setLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  const [hasOlderMessages, setHasOlderMessages] = useState(false);
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -127,7 +129,12 @@ export default function InboxPage() {
   const bottomRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const messagesRequestIdRef = useRef(0);
+  const loadedConversationIdRef = useRef("");
+  const selectedConversationIdRef = useRef(selectedId);
+  const loadingOlderMessagesRef = useRef(false);
+  const pendingScrollAdjustmentRef = useRef(null);
   const shouldAutoScrollRef = useRef(true);
+  selectedConversationIdRef.current = selectedId;
   const textareaRef = useRef(null);
 
   const loadConversations = useCallback(async () => {
@@ -161,6 +168,11 @@ export default function InboxPage() {
     if (!conversationId) {
       shouldAutoScrollRef.current = true;
       setMessagesLoading(false);
+      setHasOlderMessages(false);
+      setLoadingOlderMessages(false);
+      loadingOlderMessagesRef.current = false;
+      loadedConversationIdRef.current = "";
+      pendingScrollAdjustmentRef.current = null;
       setMessages([]);
       setSelectedConversation(null);
       return;
@@ -188,7 +200,25 @@ export default function InboxPage() {
       shouldAutoScrollRef.current = forceScroll || distanceFromBottom <= 120;
 
       setSelectedConversation(data.conversation);
-      setMessages(data.messages || []);
+      if (loadedConversationIdRef.current !== conversationId) {
+        loadedConversationIdRef.current = conversationId;
+        pendingScrollAdjustmentRef.current = null;
+        setMessages(data.messages || []);
+        setHasOlderMessages(data.hasMoreMessages === true);
+      } else {
+        // Polling and post-send refreshes merge the newest page into any older
+        // pages already loaded instead of discarding the operator's history.
+        setMessages((current) => {
+          const byId = new Map(current.map((message) => [String(message._id), message]));
+          for (const message of data.messages || []) {
+            byId.set(String(message._id), message);
+          }
+          return [...byId.values()].sort((a, b) => {
+            const timeDifference = new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+            return timeDifference || String(a._id).localeCompare(String(b._id));
+          });
+        });
+      }
 
       // The server resets unreadCount when this conversation is opened.
       setConversations((current) =>
@@ -230,16 +260,32 @@ export default function InboxPage() {
 
   useEffect(() => {
     shouldAutoScrollRef.current = true;
+    if (loadedConversationIdRef.current !== selectedId) {
+      loadedConversationIdRef.current = "";
+      setMessages([]);
+      setHasOlderMessages(false);
+      pendingScrollAdjustmentRef.current = null;
+    }
     loadMessages(selectedId, true);
 
     if (!selectedId) return;
 
     const interval = setInterval(() => {
-      loadMessages(selectedId);
+      if (!loadingOlderMessagesRef.current) loadMessages(selectedId);
     }, 5000);
 
     return () => clearInterval(interval);
   }, [selectedId, loadMessages]);
+
+  useEffect(() => {
+    const pending = pendingScrollAdjustmentRef.current;
+    const container = messagesContainerRef.current;
+    if (pending && container) {
+      const heightDifference = container.scrollHeight - pending.scrollHeight;
+      container.scrollTop = pending.scrollTop + heightDifference;
+      pendingScrollAdjustmentRef.current = null;
+    }
+  }, [messages]);
 
   useEffect(() => {
     if (!shouldAutoScrollRef.current) return;
@@ -248,6 +294,74 @@ export default function InboxPage() {
       block: "end",
     });
   }, [messages]);
+
+  async function loadOlderMessages() {
+    if (
+      !selectedId ||
+      !hasOlderMessages ||
+      loadingOlderMessagesRef.current ||
+      messages.length === 0
+    ) return;
+
+    const conversationId = selectedId;
+    const oldestMessage = messages[0];
+    const beforeTimestamp = new Date(oldestMessage.timestamp);
+    if (
+      Number.isNaN(beforeTimestamp.getTime()) ||
+      typeof oldestMessage._id !== "string"
+    ) {
+      setError("Could not determine the oldest message cursor. Refresh the conversation and try again.");
+      return;
+    }
+
+    const container = messagesContainerRef.current;
+    pendingScrollAdjustmentRef.current = container
+      ? { scrollHeight: container.scrollHeight, scrollTop: container.scrollTop }
+      : null;
+    shouldAutoScrollRef.current = false;
+    loadingOlderMessagesRef.current = true;
+    setLoadingOlderMessages(true);
+    setError("");
+
+    try {
+      const params = new URLSearchParams({
+        conversationId,
+        beforeTimestamp: beforeTimestamp.toISOString(),
+        beforeId: oldestMessage._id,
+      });
+      const response = await fetch(
+        `/api/whatsapp/conversations?${params.toString()}`,
+        { cache: "no-store" },
+      );
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Could not load older messages.");
+      }
+      if (
+        selectedConversationIdRef.current !== conversationId ||
+        loadedConversationIdRef.current !== conversationId
+      ) return;
+
+      const olderMessages = data.messages || [];
+      setMessages((current) => {
+        const existingIds = new Set(current.map((message) => String(message._id)));
+        const uniqueOlderMessages = olderMessages.filter(
+          (message) => !existingIds.has(String(message._id)),
+        );
+        return [...uniqueOlderMessages, ...current];
+      });
+      setHasOlderMessages(data.hasMoreMessages === true);
+    } catch (err) {
+      if (selectedConversationIdRef.current === conversationId) {
+        pendingScrollAdjustmentRef.current = null;
+        setError(err.message || "Could not load older messages.");
+      }
+    } finally {
+      loadingOlderMessagesRef.current = false;
+      setLoadingOlderMessages(false);
+    }
+  }
 
   async function handleSend(event) {
     event.preventDefault();
@@ -899,6 +1013,18 @@ export default function InboxPage() {
                   </div>
                 ) : (
                   <div className="mx-auto flex max-w-3xl flex-col gap-3">
+                    {hasOlderMessages && (
+                      <div className="flex justify-center pb-2">
+                        <button
+                          type="button"
+                          onClick={loadOlderMessages}
+                          disabled={loadingOlderMessages}
+                          className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+                        >
+                          {loadingOlderMessages ? "Loading older messages..." : "Load older messages"}
+                        </button>
+                      </div>
+                    )}
                     {messages.map((message) => {
                       const outbound = message.direction === "outbound";
                       const isTemplate = message.type === "template";
