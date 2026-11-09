@@ -32,6 +32,9 @@ test("recognizes standard WhatsApp opt-out keywords and clear natural-language r
     "যোগাযোগ করবেন না",
     "বার্তা পাঠাবেন না।",
     "স্টপ",
+    "bondho korun",
+    "ar msg diben na",
+    "msg pathaben na",
   ];
 
   for (const body of phrases) {
