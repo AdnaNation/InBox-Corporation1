@@ -8,6 +8,7 @@ const emptyForm = {
   metaAppId: "",
   metaAppSecret: "",
   webhookVerifyToken: "",
+  webhookCallbackUrl: "",
   phoneNumberId: "",
   wabaId: "",
   displayPhoneNumber: "",
@@ -65,7 +66,9 @@ export default function WhatsAppPage() {
   }
 
   useEffect(() => {
-    setWebhookUrl(`${window.location.origin}/api/whatsapp/webhook`);
+    const callback = `${window.location.origin}/api/whatsapp/webhook`;
+    setWebhookUrl(callback);
+    setForm((previous) => ({ ...previous, webhookCallbackUrl: callback }));
     loadAccount();
   }, []);
 
@@ -83,7 +86,7 @@ export default function WhatsAppPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Could not save account.");
       setMessage(data.message || "WhatsApp account saved.");
-      setForm({ ...emptyForm, metaAppId: form.metaAppId, webhookVerifyToken: form.webhookVerifyToken, wabaId: form.wabaId, phoneNumberId: form.phoneNumberId });
+      setForm({ ...emptyForm, metaAppId: form.metaAppId, webhookVerifyToken: form.webhookVerifyToken, webhookCallbackUrl: form.webhookCallbackUrl, wabaId: form.wabaId, phoneNumberId: form.phoneNumberId });
       await loadAccount();
     } catch (error) {
       setMessage(error.message || "Network error.");
@@ -398,6 +401,7 @@ export default function WhatsAppPage() {
           ["metaAppId", "Meta App ID"],
           ["metaAppSecret", "Meta App Secret"],
           ["webhookVerifyToken", "Webhook verify token (create your own, at least 8 characters)"],
+          ["webhookCallbackUrl", "Public HTTPS webhook callback URL (use a public dev tunnel for local testing)"],
           ["wabaId", "WhatsApp Business Account ID"],
           ["phoneNumberId", "Phone Number ID"],
           ["businessName", "Business name (optional)"],
