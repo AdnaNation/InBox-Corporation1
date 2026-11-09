@@ -11,6 +11,29 @@ const EXACT_OPT_OUT_KEYWORDS = new Set([
   "opt out",
   "optout",
   "opt-out",
+  "আনসাবস্ক্রাইব",
+  "আনসাবস্ক্রাইব করুন",
+  "অপ্ট আউট",
+  "অপ্টআউট",
+  "মেসেজ বন্ধ করুন",
+  "বার্তা বন্ধ করুন",
+  "যোগাযোগ বন্ধ করুন",
+  "আর মেসেজ নয়",
+  "আর মেসেজ না",
+  "মেসেজ পাঠাবেন না",
+  "মেসেজ দেবেন না",
+  "মেসেজ দিবেন না",
+  "মেসেজ দিয়েন না",
+  "আর মেসেজ পাঠাবেন না",
+  "আর মেসেজ দেবেন না",
+  "আর মেসেজ দিবেন না",
+  "আর মেসেজ দিয়েন না",
+  "আমাকে আর মেসেজ দেবেন না",
+  "আমাকে আর মেসেজ দিবেন না",
+  "আমাকে আর মেসেজ দিয়েন না",
+  "যোগাযোগ করবেন না",
+  "বার্তা পাঠাবেন না",
+  "স্টপ",
 ]);
 
 const OPT_OUT_PHRASES = [
@@ -34,7 +57,7 @@ export function isWhatsAppOptOutMessage(message) {
     .trim()
     .toLowerCase()
     .replace(/\s+/g, " ")
-    .replace(/[.!?,;:]+$/g, "");
+    .replace(/[.!?,;:\\u0964\\u0965]+$/g, "");
 
   if (!text) return false;
   return EXACT_OPT_OUT_KEYWORDS.has(text) || OPT_OUT_PHRASES.some((pattern) => pattern.test(text));
