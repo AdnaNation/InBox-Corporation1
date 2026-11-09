@@ -407,7 +407,13 @@ async function processStatus(db, account, status) {
               $ifNull: ["$" + statusTimestampField, statusDate],
             },
           } : {}),
-          ...(updateData.error ? { error: updateData.error } : {}),
+          error: {
+            $cond: [
+              { $gt: [incomingRank, { $ifNull: ["$statusRank", 0] }] },
+              updateData.error || "$REMOVE",
+              "$error",
+            ],
+          },
           ...(status.pricing ? { pricing: { $literal: status.pricing } } : {}),
         },
       },
@@ -449,6 +455,7 @@ async function processStatus(db, account, status) {
           updatedAt: new Date(),
           ...(updateData.error ? { error: updateData.error } : {}),
         },
+        ...(status.status !== "failed" ? { $unset: { error: "", metaErrorCode: "" } } : {}),
       },
     );
 
