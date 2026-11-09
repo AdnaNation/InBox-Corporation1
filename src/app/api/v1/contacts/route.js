@@ -6,6 +6,7 @@ import { authenticateApiKey } from "@/lib/api-key-auth";
 import { normalizePhoneNumber } from "@/lib/contact-utils";
 import { reserveWorkspaceContactUsage, releaseWorkspaceContactUsage } from "@/lib/plan-limits";
 import { buildContactHistoryFilter, decodeContactCursor, encodeContactCursor } from "@/lib/contact-pagination.mjs";
+import { getActiveSuppressedPhonesForContacts } from "@/lib/contact-suppression.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,6 +53,17 @@ export async function GET(request) {
   }).toArray();
   const hasMore = rows.length > limit;
   const contacts = hasMore ? rows.slice(0, limit) : rows;
+  let suppressedPhones;
+  try {
+    suppressedPhones = await getActiveSuppressedPhonesForContacts(
+      db,
+      workspaceId,
+      contacts.map((contact) => contact.phone),
+    );
+  } catch (error) {
+    console.error("Public API contact suppression lookup failed:", error);
+    return NextResponse.json({ success: false, message: "Contact consent status is temporarily unavailable." }, { status: 503 });
+  }
 
   return NextResponse.json({
     success: true,
@@ -61,6 +73,10 @@ export async function GET(request) {
       phone: contact.phone,
       tags: contact.tags || [],
       optedIn: contact.optIn?.status === true,
+      suppressed: suppressedPhones.has(contact.phone),
+      consentSource: contact.optIn?.consentSource || null,
+      consentedAt: contact.optIn?.date || contact.optIn?.recordedAt || null,
+      revokedAt: contact.optIn?.revokedAt || null,
       createdAt: contact.createdAt || null,
     })),
     pagination: {
