@@ -63,3 +63,23 @@ test("does not treat unrelated text or non-text messages as opt-outs", () => {
   assert.equal(isWhatsAppOptOutMessage({ type: "image", image: { caption: "STOP" } }), false);
   assert.equal(isWhatsAppOptOutMessage(null), false);
 });
+
+
+test("recognizes opt-out requests from WhatsApp quick-reply and list buttons", () => {
+  assert.equal(isWhatsAppOptOutMessage({
+    type: "button",
+    button: { text: "Stop", payload: "OPT_OUT" },
+  }), true);
+  assert.equal(isWhatsAppOptOutMessage({
+    type: "interactive",
+    interactive: { button_reply: { title: "আনসাবস্ক্রাইব", id: "unsubscribe" } },
+  }), true);
+  assert.equal(isWhatsAppOptOutMessage({
+    type: "interactive",
+    interactive: { list_reply: { title: "মেসেজ বন্ধ করুন", id: "stop" } },
+  }), true);
+  assert.equal(isWhatsAppOptOutMessage({
+    type: "interactive",
+    interactive: { button_reply: { title: "View details", id: "details" } },
+  }), false);
+});
