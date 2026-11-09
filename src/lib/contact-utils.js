@@ -7,8 +7,18 @@ export function normalizePhoneNumber(value) {
 
   if (!raw) return null;
 
+  // Accept Bengali, Arabic-Indic, and Eastern Arabic-Indic digits commonly
+  // used in customer-entered phone numbers, then validate as ASCII E.164.
+  const asciiDigits = raw.replace(/[০-৯٠-٩۰-۹]/g, (digit) => {
+    const code = digit.codePointAt(0);
+    if (code >= 0x09E6 && code <= 0x09EF) return String(code - 0x09E6);
+    if (code >= 0x0660 && code <= 0x0669) return String(code - 0x0660);
+    if (code >= 0x06F0 && code <= 0x06F9) return String(code - 0x06F0);
+    return digit;
+  });
+
   // Keep digits and an optional leading plus sign.
-  const cleaned = raw.replace(/[^\d+]/g, "");
+  const cleaned = asciiDigits.replace(/[^\d+]/g, "");
   const normalized = cleaned.startsWith("+")
     ? `+${cleaned.slice(1).replace(/\+/g, "")}`
     : cleaned.replace(/\+/g, "");
