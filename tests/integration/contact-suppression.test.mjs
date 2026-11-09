@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { MongoClient, ObjectId } from "mongodb";
-import { ensureContactSuppressionIndex, findActiveContactSuppression, getActiveSuppressedPhones } from "../../src/lib/contact-suppression.mjs";
+import { ensureContactSuppressionIndex, findActiveContactSuppression, getActiveSuppressedPhones, getActiveSuppressedPhonesForContacts } from "../../src/lib/contact-suppression.mjs";
 
 const mongoUri = process.env.MONGODB_URI;
 if (!mongoUri) throw new Error("MONGODB_URI is required to run contact suppression integration tests.");
@@ -93,4 +93,26 @@ test("falls back to a non-unique lookup index when legacy duplicate rows exist",
     await isolatedDb.dropDatabase();
     await isolatedClient.close();
   }
+});
+
+test("bounded suppression lookup returns only suppressed phones in the current contact page", async () => {
+  const workspaceId = new ObjectId();
+  workspaceIds.push(workspaceId);
+  await db.collection("contactSuppressions").insertMany([
+    { workspaceId, phone: "8801700000011", active: true },
+    { workspaceId, phone: "8801700000012" },
+    { workspaceId, phone: "8801700000013", active: false },
+    { workspaceId, phone: "8801700000014", active: true },
+  ]);
+
+  const suppressed = await getActiveSuppressedPhonesForContacts(db, workspaceId, [
+    "8801700000011",
+    "8801700000012",
+    "8801700000013",
+    "8801700000011",
+    "",
+    null,
+  ]);
+
+  assert.deepEqual([...suppressed].sort(), ["8801700000011", "8801700000012"]);
 });
