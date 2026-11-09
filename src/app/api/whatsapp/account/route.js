@@ -285,9 +285,10 @@ export async function POST(request) {
   let apiVersion = process.env.META_GRAPH_API_VERSION || "v26.0";
   let authHeaders = null;
   let subscribeUrl = null;
+  let phoneOverrideUrl = null;
   let wasSubscribedBefore = false;
-  let previousOverride = "";
-  let overrideAttempted = false;
+  let previousPhoneOverride = "";
+  let phoneOverrideAttempted = false;
   let metaAppId = "";
   let callbackUrl = "";
 
@@ -368,7 +369,7 @@ export async function POST(request) {
     const linkedElsewhere = await db.collection("whatsappAccounts").findOne({ phoneNumberId, status: "connected", workspaceId: { $ne: workspaceId } });
     if (linkedElsewhere) return NextResponse.json({ success: false, message: "This WhatsApp number is already connected to another Wavo workspace." }, { status: 409 });
     const wabaLinkedElsewhere = await db.collection("whatsappAccounts").findOne({ wabaId, status: "connected", workspaceId: { $ne: workspaceId } });
-    if (wabaLinkedElsewhere) return NextResponse.json({ success: false, code: "WABA_ALREADY_CONNECTED", message: "This WhatsApp Business Account is already connected to another Wavo workspace. A WABA-level webhook override applies to the whole WABA, so its phone numbers must stay in one workspace." }, { status: 409 });
+    if (wabaLinkedElsewhere) return NextResponse.json({ success: false, code: "WABA_ALREADY_CONNECTED", message: "This WhatsApp Business Account is already connected to another Wavo workspace. Keep all phone numbers belonging to one business WABA in the same workspace." }, { status: 409 });
 
     subscribeUrl = `https://graph.facebook.com/${apiVersion}/${encodeURIComponent(wabaId)}/subscribed_apps`;
     const beforeResponse = await fetch(subscribeUrl, { headers: authHeaders, cache: "no-store" });
@@ -378,13 +379,20 @@ export async function POST(request) {
     }
     const currentApp = (beforeData.data || []).find((item) => String(item.whatsapp_business_api_data?.id || item.id || "") === metaAppId);
     wasSubscribedBefore = Boolean(currentApp);
-    previousOverride = String(currentApp?.override_callback_uri || "");
-    if (previousOverride && previousOverride !== callbackUrl) {
-      return NextResponse.json({
-        success: false,
-        code: "EXISTING_WABA_CALLBACK_OVERRIDE",
-        message: `This Meta App already has a different WABA callback override (${previousOverride}). Wavo will not overwrite it. Review that existing integration first.`,
-      }, { status: 409 });
+
+    // Use a phone-number-level override so connecting or disconnecting one
+    // number never redirects every other number under the same WABA.
+    phoneOverrideUrl = `https://graph.facebook.com/${apiVersion}/${encodeURIComponent(phoneNumberId)}`;
+    const phoneConfigUrl = new URL(phoneOverrideUrl);
+    phoneConfigUrl.searchParams.set("fields", "webhook_configuration");
+    const phoneConfigResponse = await fetch(phoneConfigUrl, { headers: authHeaders, cache: "no-store" });
+    const phoneConfigData = await phoneConfigResponse.json().catch(() => ({}));
+    if (!phoneConfigResponse.ok || phoneConfigData.error) {
+      return NextResponse.json({ success: false, message: phoneConfigData?.error?.message || "Could not inspect the current phone-number webhook callback.", metaErrorCode: phoneConfigData?.error?.code || null }, { status: 422 });
+    }
+    previousPhoneOverride = String(phoneConfigData.webhook_configuration?.phone_number || "");
+    if (previousPhoneOverride && previousPhoneOverride !== callbackUrl) {
+      return NextResponse.json({ success: false, code: "EXISTING_PHONE_CALLBACK_OVERRIDE", message: `This phone number already has a different callback override (${previousPhoneOverride}). Wavo will not overwrite it.` }, { status: 409 });
     }
 
     pendingCollection = db.collection("whatsappPendingConnections");
@@ -397,46 +405,54 @@ export async function POST(request) {
       metaAppSecretEncrypted: encryptSecret(metaAppSecret),
       webhookVerifyTokenEncrypted: encryptSecret(webhookVerifyToken),
       webhookCallbackUrl: callbackUrl,
+      webhookCallbackScope: "phone_number",
       status: "pending",
       updatedAt: now,
     };
     await pendingCollection.updateOne(pendingFilter, { $set: pending, $setOnInsert: { createdAt: now } }, { upsert: true });
 
-    // Subscribe first if needed. Then set a WABA-level callback override.
-    // This leaves the customer's Meta App default callback untouched.
+    // Subscribe the customer's App to the WABA if it is not subscribed yet.
     if (!wasSubscribedBefore) {
       const subscribeResponse = await fetch(subscribeUrl, { method: "POST", headers: authHeaders, cache: "no-store" });
       const subscribeData = await subscribeResponse.json().catch(() => ({}));
-      if (!subscribeResponse.ok || subscribeData.error) throw new Error(subscribeData?.error?.message || "Meta could not subscribe this App to the WABA.");
+      if (!subscribeResponse.ok || subscribeData.error || subscribeData.success !== true) throw new Error(subscribeData?.error?.message || "Meta could not subscribe this App to the WABA.");
     }
 
-    overrideAttempted = true;
-    const overrideResponse = await fetch(subscribeUrl, {
+    // The phone-number override takes precedence over any WABA or app-level
+    // callback and affects only this phone number.
+    phoneOverrideAttempted = true;
+    const overrideResponse = await fetch(phoneOverrideUrl, {
       method: "POST",
       headers: { ...authHeaders, "Content-Type": "application/json" },
-      body: JSON.stringify({ override_callback_uri: callbackUrl, verify_token: webhookVerifyToken }),
+      body: JSON.stringify({ webhook_configuration: { override_callback_uri: callbackUrl, verify_token: webhookVerifyToken } }),
       cache: "no-store",
     });
     const overrideData = await overrideResponse.json().catch(() => ({}));
     if (!overrideResponse.ok || overrideData.error || overrideData.success !== true) {
-      throw new Error(overrideData?.error?.message || "Meta did not accept the WABA webhook callback override.");
+      throw new Error(overrideData?.error?.message || "Meta did not accept the phone-number webhook callback override.");
     }
 
+    const verifyPhoneUrl = new URL(phoneOverrideUrl);
+    verifyPhoneUrl.searchParams.set("fields", "webhook_configuration");
+    const verifyPhoneResponse = await fetch(verifyPhoneUrl, { headers: authHeaders, cache: "no-store" });
+    const verifyPhoneData = await verifyPhoneResponse.json().catch(() => ({}));
+    const verifiedCallback = String(verifyPhoneData.webhook_configuration?.phone_number || "");
     const checkResponse = await fetch(subscribeUrl, { headers: authHeaders, cache: "no-store" });
     const checkData = await checkResponse.json().catch(() => ({}));
     const verifiedApp = (checkData.data || []).find((item) => String(item.whatsapp_business_api_data?.id || item.id || "") === metaAppId);
-    if (!checkResponse.ok || checkData.error || !verifiedApp || String(verifiedApp.override_callback_uri || "") !== callbackUrl) {
-      throw new Error(checkData?.error?.message || "Meta did not confirm the WABA callback override. The connection was not completed.");
+    if (!verifyPhoneResponse.ok || verifyPhoneData.error || verifiedCallback !== callbackUrl || !checkResponse.ok || checkData.error || !verifiedApp) {
+      throw new Error(verifyPhoneData?.error?.message || checkData?.error?.message || "Meta did not confirm the phone-number callback override and WABA subscription. The connection was not completed.");
     }
 
     const existingNumber = await db.collection("whatsappAccounts").findOne({ workspaceId, phoneNumberId, status: "connected" });
+    const existingWabaAccounts = await db.collection("whatsappAccounts").find({ workspaceId, wabaId, status: "connected" }).toArray();
     const activeAccount = await db.collection("whatsappAccounts").findOne({ workspaceId, status: "connected", isActive: true });
     const account = {
       ...pending,
       status: "connected",
       isActive: !activeAccount || Boolean(existingNumber?.isActive),
       connectionMethod: "manual_customer_meta_app",
-      subscriptionCreatedByWavo: !wasSubscribedBefore,
+      subscriptionCreatedByWavo: !wasSubscribedBefore || existingWabaAccounts.some((item) => item.subscriptionCreatedByWavo === true),
       businessName: typeof body.businessName === "string" && body.businessName.trim() ? body.businessName.trim() : phoneData.verified_name || "WhatsApp Business",
       displayPhoneNumber: typeof body.displayPhoneNumber === "string" && body.displayPhoneNumber.trim() ? body.displayPhoneNumber.trim() : phoneData.display_phone_number || "",
       tokenSource: "manual",
@@ -453,7 +469,7 @@ export async function POST(request) {
 
     return NextResponse.json({
       success: true,
-      message: "WhatsApp account connected. The WABA-level override now routes message webhooks to Wavo; the Meta App's default callback URL was not changed.",
+      message: "WhatsApp account connected. The phone-number-level override now routes this number's message webhooks to Wavo; the Meta App's default callback URL was not changed.",
       account: { businessName: account.businessName, displayPhoneNumber: account.displayPhoneNumber, phoneNumberId, wabaId },
       webhook: { callbackUrl, defaultCallbackPreserved: true, overrideVerified: true },
     });
@@ -463,18 +479,21 @@ export async function POST(request) {
     }
     // If Wavo added the subscription or override but connection finalization
     // failed, remove only the WABA override. Never alter the Meta App default.
-    if (subscribeUrl && authHeaders && overrideAttempted && previousOverride !== callbackUrl) {
+    if (phoneOverrideUrl && authHeaders && phoneOverrideAttempted && previousPhoneOverride !== callbackUrl) {
       try {
-        // A body-less POST clears only the WABA callback override and restores
-        // the customer's Meta App default callback URL.
-        await fetch(subscribeUrl, { method: "POST", headers: authHeaders, cache: "no-store" });
+        // Clear only this phone number's override. Other phone numbers and
+        // the customer's WABA/app-level callbacks remain untouched.
+        await fetch(phoneOverrideUrl, {
+          method: "POST",
+          headers: { ...authHeaders, "Content-Type": "application/json" },
+          body: JSON.stringify({ webhook_configuration: { override_callback_uri: "" } }),
+          cache: "no-store",
+        });
         if (!wasSubscribedBefore) {
-          // This Wavo attempt created the WABA subscription, so remove only
-          // that newly-created subscription after clearing its override.
           await fetch(subscribeUrl, { method: "DELETE", headers: authHeaders, cache: "no-store" });
         }
       } catch (rollbackError) {
-        console.error("Meta webhook override rollback failed:", rollbackError);
+        console.error("Meta phone webhook override rollback failed:", rollbackError);
       }
     }
     console.error("Customer Meta WhatsApp connection error:", error);
