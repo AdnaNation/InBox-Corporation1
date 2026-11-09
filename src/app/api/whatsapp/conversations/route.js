@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
+import { buildMessageHistoryFilter } from "@/lib/whatsapp-message-pagination.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -80,34 +81,18 @@ export async function GET(request) {
         );
       }
 
-      const beforeTimestampValue = searchParams.get("beforeTimestamp");
-      const beforeIdValue = searchParams.get("beforeId");
-      const hasBeforeCursor = beforeTimestampValue !== null || beforeIdValue !== null;
-      let messageFilter = {
-        workspaceId,
-        conversationId: conversation._id,
-      };
-
-      if (hasBeforeCursor) {
-        const beforeTimestamp = new Date(beforeTimestampValue || "");
-        if (
-          !beforeTimestampValue ||
-          Number.isNaN(beforeTimestamp.getTime()) ||
-          !ObjectId.isValid(beforeIdValue || "")
-        ) {
-          return NextResponse.json(
-            { success: false, message: "Invalid message history cursor." },
-            { status: 400 },
-          );
-        }
-
-        messageFilter = {
-          ...messageFilter,
-          $or: [
-            { timestamp: { $lt: beforeTimestamp } },
-            { timestamp: beforeTimestamp, _id: { $lt: new ObjectId(beforeIdValue) } },
-          ],
-        };
+      const { filter: messageFilter, valid: validCursor } = buildMessageHistoryFilter(
+        { workspaceId, conversationId: conversation._id },
+        {
+          beforeTimestamp: searchParams.get("beforeTimestamp"),
+          beforeId: searchParams.get("beforeId"),
+        },
+      );
+      if (!validCursor) {
+        return NextResponse.json(
+          { success: false, message: "Invalid message history cursor." },
+          { status: 400 },
+        );
       }
 
       const [messageRows, account] = await Promise.all([
