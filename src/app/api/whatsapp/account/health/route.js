@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { decryptSecret } from "@/lib/crypto";
+import { isMetaAppSubscribed } from "@/lib/whatsapp-subscription.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -161,7 +162,7 @@ export async function GET(request) {
         if (subscriptionResponse.ok && Array.isArray(subscriptionResult.data)) {
           const subscribedApps = subscriptionResult.data;
           const configuredAppId = process.env.META_APP_ID;
-          const matchingApp = configuredAppId
+          const matchingApp = isMetaAppSubscribed({ data: subscribedApps }, configuredAppId)
             ? subscribedApps.find((item) =>
                 String(item.whatsapp_business_api_data?.id || item.id || "") === String(configuredAppId),
               )
