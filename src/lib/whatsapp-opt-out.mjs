@@ -57,7 +57,7 @@ export function isWhatsAppOptOutMessage(message) {
     .trim()
     .toLowerCase()
     .replace(/\s+/g, " ")
-    .replace(/[.!?,;:\\u0964\\u0965]+$/g, "");
+    .replace(/[.!?,;:।॥]+$/g, "");
 
   if (!text) return false;
   return EXACT_OPT_OUT_KEYWORDS.has(text) || OPT_OUT_PHRASES.some((pattern) => pattern.test(text));
