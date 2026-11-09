@@ -1,3 +1,5 @@
+import { summarizeMongoConnectionError } from "@/lib/mongo-error-summary.mjs";
+
 export function createMongoClientProvider({
   MongoClient,
   uri,
@@ -11,6 +13,7 @@ export function createMongoClientProvider({
     if (!state[cacheKey]) {
       const client = new MongoClient(uri, options);
       const connectionPromise = client.connect().catch(async (error) => {
+        console.error("[MONGO] Initial connection failed:", summarizeMongoConnectionError(error));
         await client.close().catch(() => {});
         if (state[cacheKey] === connectionPromise) {
           delete state[cacheKey];
