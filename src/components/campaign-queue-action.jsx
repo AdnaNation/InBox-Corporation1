@@ -10,7 +10,14 @@ function localDateTimeValue(date) {
   return local.toISOString().slice(0, 16);
 }
 
-export default function CampaignQueueAction({ campaignId, initialStatus, recipientCount, initialScheduledAt }) {
+export default function CampaignQueueAction({ campaignId, initialStatus, recipientCount, initialScheduledAt, canManage = false }) {
+  if (!canManage) {
+    return (
+      <p className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+        Campaign queueing, scheduling, and schedule changes are restricted to workspace owners and admins.
+      </p>
+    );
+  }
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
