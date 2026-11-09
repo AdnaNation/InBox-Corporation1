@@ -115,3 +115,14 @@ export function getPaddleSubscriptionStatus(event) {
   };
   return eventStatus[eventType] || String(event?.data?.status || "");
 }
+
+export function isPaddleEventStale(eventDate, lastEventAt) {
+  if (!lastEventAt) return false;
+  const incomingTime = new Date(eventDate).getTime();
+  const storedTime = new Date(lastEventAt).getTime();
+  return Number.isFinite(incomingTime) && Number.isFinite(storedTime) && incomingTime < storedTime;
+}
+
+export function hasPaddleInitialPayment(subscription) {
+  return Boolean(subscription?.lastTransactionId);
+}
