@@ -1,4 +1,4 @@
-import { summarizeMongoConnectionError } from "@/lib/mongo-error-summary.mjs";
+import { summarizeMongoConnectionError } from "./mongo-error-summary.mjs";
 
 export function createMongoClientProvider({
   MongoClient,
