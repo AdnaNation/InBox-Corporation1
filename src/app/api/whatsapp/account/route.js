@@ -319,8 +319,8 @@ export async function POST(request) {
     try { callback = new URL(callbackUrl); } catch {
       return NextResponse.json({ success: false, message: "Enter a valid public HTTPS webhook callback URL." }, { status: 400 });
     }
-    if (callback.protocol !== "https:" || ["localhost", "127.0.0.1", "::1"].includes(callback.hostname)) {
-      return NextResponse.json({ success: false, message: "Meta must be able to reach the webhook. Use a public HTTPS URL, such as your Wavo domain or a public development tunnel—not localhost." }, { status: 400 });
+    if (callback.protocol !== "https:" || callbackUrl.length > 200 || ["localhost", "127.0.0.1", "::1"].includes(callback.hostname)) {
+      return NextResponse.json({ success: false, message: "Meta must be able to reach the webhook. Use a public HTTPS URL of 200 characters or fewer, such as your Wavo domain or a public development tunnel—not localhost." }, { status: 400 });
     }
 
     const debugUrl = new URL(`https://graph.facebook.com/${apiVersion}/debug_token`);
