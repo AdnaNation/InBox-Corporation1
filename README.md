@@ -179,8 +179,7 @@ Add this variable in Vercel Project Settings → Environment Variables, then red
 3. Add the environment variables from `.env.example` in Vercel Project Settings.
 4. Add your production domain to `NEXT_PUBLIC_APP_URL`.
 5. Deploy.
-6. Configure the Meta webhook URL as `https://YOUR_DOMAIN/api/whatsapp/webhook`.
-7. Set the same `META_WEBHOOK_VERIFY_TOKEN` in Meta and Vercel.
+6. Configure each customer Meta App with the callback URL and verify token shown in Dashboard → WhatsApp. Wavo applies the WABA-level callback override during connection; no global `META_WEBHOOK_VERIFY_TOKEN` is required for new customer connections.
 
 Do not commit `.env.local` or store Meta access tokens in client-side code.
 
