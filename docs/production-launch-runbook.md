@@ -26,6 +26,19 @@ Record these values in the operator's private deployment notes (never commit sec
 | WhatsApp | Meta app, approved permissions, WABA and production phone | Real account can send and receive a controlled test message |
 | Operations | Named operator, alert destination, incident log | An operator can pause campaigns and respond to failed/unknown outcomes |
 
+### MongoDB connectivity troubleshooting
+
+If `/api/health` reports a disconnected database or Vercel logs show `MongoServerSelectionError`, diagnose the Atlas connection before changing driver timeouts:
+
+1. Confirm the Atlas cluster is running and not paused, and review Atlas activity/metrics for connection spikes or a cluster event.
+2. Check Atlas **Network Access**. The production Vercel runtime must be allowed to reach the cluster through the configured static egress/private networking setup. Do not leave `0.0.0.0/0` enabled as a permanent production workaround.
+3. Check **Database Access** for an active database user with the required database privileges. Confirm the username/password in `MONGODB_URI` are current and special characters in credentials are URL-encoded.
+4. In Vercel, verify that the correct `MONGODB_URI` is set for the **Production** environment and that the latest deployment includes the environment change. Never print or paste the URI into logs, issues, screenshots, or chat.
+5. Confirm the URI points to the intended Atlas cluster/database and uses the correct `mongodb+srv://` hostname. A DNS, TLS, firewall, allowlist, authentication, or unavailable-primary problem can all surface as a server-selection timeout.
+6. Recheck `/api/health` after correcting the underlying Atlas/network configuration. Use the sanitized `[MONGO]` diagnostic fields in server logs to distinguish topology state and network error codes without exposing connection strings or hostnames.
+
+Do not increase `serverSelectionTimeoutMS` simply to hide an unreachable cluster. A longer timeout can make requests exceed the function's execution budget without fixing the underlying network or Atlas configuration.
+
 ## 3. Start the background worker
 
 The web app does not process queued campaigns continuously by itself. The worker is a separate process; a successful Vercel deployment does not mean the worker is running.
