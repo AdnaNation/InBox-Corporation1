@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
 import { encryptSecret } from "@/lib/crypto";
 import { ensureWhatsAppAccountIndexes } from "@/lib/whatsapp-account";
+import { isMetaAppSubscribed } from "@/lib/whatsapp-subscription.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -124,9 +125,7 @@ export async function POST(request) {
     // Confirm the Wavo app is actually listed on this WABA before persisting
     // the connection. This prevents a false-positive Connected state.
     const subscriptionData = await metaRequest(subscribeUrl, { headers: authHeaders });
-    const wavoSubscribed = (subscriptionData.data || []).some((item) =>
-      String(item.whatsapp_business_api_data?.id || item.id || "") === String(appId),
-    );
+    const wavoSubscribed = isMetaAppSubscribed(subscriptionData, appId);
     if (!wavoSubscribed) {
       return NextResponse.json({
         success: false,
