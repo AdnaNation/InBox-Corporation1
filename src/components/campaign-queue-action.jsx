@@ -11,13 +11,6 @@ function localDateTimeValue(date) {
 }
 
 export default function CampaignQueueAction({ campaignId, initialStatus, recipientCount, initialScheduledAt, canManage = false }) {
-  if (!canManage) {
-    return (
-      <p className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-        Campaign queueing, scheduling, and schedule changes are restricted to workspace owners and admins.
-      </p>
-    );
-  }
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -74,6 +67,14 @@ export default function CampaignQueueAction({ campaignId, initialStatus, recipie
     } catch (err) {
       setError(err.message);
     }
+  }
+
+  if (!canManage) {
+    return (
+      <p className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+        Campaign queueing, scheduling, and schedule changes are restricted to workspace owners and admins.
+      </p>
+    );
   }
 
   if (initialStatus === "scheduled") {
