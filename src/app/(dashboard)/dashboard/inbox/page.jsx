@@ -398,7 +398,7 @@ export default function InboxPage() {
           setTemplateParameters([]);
           setTemplateCouponCode("");
           setTemplateOfferExpiresAt("");
-          await loadMessages(selectedId);
+          await loadMessages(selectedId, true);
           await loadConversations();
           setError(data.message || "Template outcome is uncertain. Check delivery status before sending again.");
           return;
@@ -412,7 +412,7 @@ export default function InboxPage() {
       setTemplateCouponCode("");
       setTemplateOfferExpiresAt("");
 
-      await loadMessages(selectedId);
+      await loadMessages(selectedId, true);
       await loadConversations();
     } catch (err) {
       setError(err.message || "Template could not be sent.");
