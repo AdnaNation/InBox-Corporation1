@@ -59,3 +59,13 @@ test("counts unknown and skipped recipients as issues and ignores unknown status
   assert.equal(result.counts.unknown, 1);
   assert.equal(result.counts.skipped, 2);
 });
+
+test("falls back to actual recipient totals when legacy campaigns have no saved count", () => {
+  const result = summarizeCampaignRecipientStatuses([
+    { _id: "delivered", count: 2 },
+    { _id: "failed", count: 1 },
+  ]);
+
+  assert.equal(result.total, 3);
+  assert.equal(result.status, "completed_with_issues");
+});
