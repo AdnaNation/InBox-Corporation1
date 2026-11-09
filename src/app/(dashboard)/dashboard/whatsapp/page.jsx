@@ -386,7 +386,7 @@ export default function WhatsAppPage() {
           <button type="button" onClick={() => webhookUrl && navigator.clipboard.writeText(webhookUrl)} className="rounded border border-blue-300 bg-white px-3 py-1 text-xs font-semibold">Copy URL</button>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2"><span className="font-semibold">Webhook verify token:</span><code className="rounded bg-white px-2 py-1 text-xs">{form.webhookVerifyToken || "Enter the token below"}</code><button type="button" disabled={!form.webhookVerifyToken} onClick={() => navigator.clipboard.writeText(form.webhookVerifyToken)} className="rounded border border-blue-300 bg-white px-3 py-1 text-xs font-semibold disabled:opacity-50">Copy token</button></div>
-        <p className="mt-2">After connecting, open your Meta App → WhatsApp → Configuration. Set this callback URL and the same webhook verify token you enter below, then subscribe to the <code>messages</code> webhook field. Do not change another website's webhook configuration unless you intend to move its message delivery to Wavo.</p>
+        <p className="mt-2">In your Meta App, make sure the WhatsApp product has the <code>messages</code> webhook field subscribed. Wavo applies a phone-number-level callback override for this number; your Meta App's default callback URL is not changed. While connected, this number's message events go to Wavo instead of the default callback. Disconnecting removes the override and restores the previous routing.</p>
       </section>
 
       <form onSubmit={submit} className="mt-5 rounded-2xl border border-slate-200 bg-white p-6">
