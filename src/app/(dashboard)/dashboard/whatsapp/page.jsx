@@ -356,7 +356,7 @@ export default function WhatsAppPage() {
             </div>
           </div>
           <p className="mb-4 text-sm leading-6 text-slate-600">
-            Paste a replacement access token issued to Wavo's Meta app, with both WhatsApp permissions. InBox Corporation verifies the app ownership, permissions, and connected Phone Number ID before saving. A token from your own separate Meta app cannot keep Wavo's shared webhook working. Your current token stays active if verification fails.
+            Paste a replacement access token issued by this connection's customer-owned Meta App, with both WhatsApp permissions. Wavo verifies the token against the App ID and App Secret saved for this WhatsApp account and checks the connected Phone Number ID before saving. Your current token stays active if verification fails.
           </p>
           <label className="block text-sm font-medium">
             New Meta access token
