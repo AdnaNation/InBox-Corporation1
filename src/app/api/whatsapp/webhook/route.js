@@ -29,19 +29,25 @@ export async function GET(request) {
 
   try {
     const db = await getDatabase();
-    const accounts = await db.collection("whatsappAccounts").find(
-      { status: "connected", webhookVerifyTokenEncrypted: { $exists: true, $ne: "" } },
-      { projection: { webhookVerifyTokenEncrypted: 1 } },
-    ).toArray();
+    const [accounts, pendingAccounts] = await Promise.all([
+      db.collection("whatsappAccounts").find(
+        { status: "connected", webhookVerifyTokenEncrypted: { $exists: true, $ne: "" } },
+        { projection: { webhookVerifyTokenEncrypted: 1 } },
+      ).toArray(),
+      db.collection("whatsappPendingConnections").find(
+        { status: "pending", webhookVerifyTokenEncrypted: { $exists: true, $ne: "" } },
+        { projection: { webhookVerifyTokenEncrypted: 1 } },
+      ).toArray(),
+    ]);
 
-    for (const account of accounts) {
+    for (const account of [...accounts, ...pendingAccounts]) {
       try {
         if (decryptSecret(account.webhookVerifyTokenEncrypted) === token) {
           return new Response(challenge, { status: 200, headers: { "Content-Type": "text/plain" } });
         }
       } catch {
         // Ignore one malformed encrypted credential and continue checking
-        // other connected tenants.
+        // other connected or pending tenants.
       }
     }
 
