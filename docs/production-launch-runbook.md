@@ -150,6 +150,38 @@ The request queue is an intake and review workflow only. It does **not** generat
 
 Do not promise immediate deletion from backups unless the backup retention policy supports it. The queue's **Completed** status is an operator attestation, not proof of automatic erasure.
 
+## WhatsApp customer-owned Meta App onboarding
+
+Wavo's manual connection mode uses each customer's own Meta App. Do not ask customers to authorize the Wavo app for this connection path.
+
+For each workspace, an owner/admin supplies:
+
+- Meta App ID and matching App Secret.
+- A customer-generated webhook verify token (at least 8 characters).
+- A WhatsApp access token issued by that same Meta App and with the required WhatsApp permissions.
+- WABA ID and Phone Number ID.
+- A public HTTPS Wavo webhook URL (maximum 200 characters).
+
+Wavo validates the token against the supplied App ID/App Secret, verifies the phone number belongs to the WABA, subscribes that customer's app to the WABA, and applies a WABA-level callback override to Wavo. The customer's app-level default callback URL is not changed. Use a public development tunnel for local testing; Meta cannot reach localhost.
+
+The webhook verification endpoint accepts the customer's encrypted per-workspace verify token. Incoming webhook signatures are checked using the matching customer's encrypted App Secret after matching the WABA ID and Phone Number ID. Outbound messages use the access token stored for that workspace. Never put Meta App Secrets, verify tokens, or access tokens in logs, tickets, chat messages, or source control.
+
+### Protecting an existing website webhook
+
+A WABA-level callback override diverts supported WhatsApp message webhooks for that WABA to Wavo while the connection is active. It does not replace the Meta App's default callback URL. If the customer's website previously received messages through that default callback, it will stop receiving those message events while the WABA override points to Wavo unless a separate forwarding integration is configured.
+
+On Wavo disconnect, the API first checks that the current override still points to the callback URL saved by Wavo. It then removes only the WABA-level override (a body-less POST to the subscribed_apps edge), which restores delivery to the customer's Meta App default callback. It does not blindly delete the subscription. If Wavo created the WABA subscription during onboarding, it removes that subscription as part of restoring the prior state. If the callback was changed outside Wavo, disconnect fails closed and requires operator review.
+
+Before a pilot connection:
+
+1. Record the customer's current Meta App default callback URL and confirm it is reachable.
+2. Confirm the WABA does not already have a different callback override; Wavo refuses to overwrite an unrelated override.
+3. Complete the Wavo connection using the customer's credentials and a public HTTPS callback URL.
+4. In the customer's Meta App, ensure the WhatsApp webhook product has the `messages` field subscribed. Wavo sets the WABA-level override and verify token during connection.
+5. Send a controlled inbound message and confirm it appears in the correct Wavo workspace.
+6. If the customer needs its own website inbox to keep receiving messages at the same time, do not assume Meta duplicates deliveries to both URLs; implement and test an authenticated raw-webhook relay before promising dual delivery.
+7. Test disconnect and confirm the WABA override is removed and the original app-level callback receives a new test message.
+
 ## 6. Incident response
 
 For suspected account compromise, accidental messaging, data exposure, or a major outage:
