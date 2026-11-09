@@ -17,6 +17,21 @@ test("recognizes standard WhatsApp opt-out keywords and clear natural-language r
     "no more messages",
     "cancel my subscription",
     "don’t message me again",
+    "আনসাবস্ক্রাইব",
+    "আনসাবস্ক্রাইব করুন",
+    "অপ্ট আউট",
+    "মেসেজ বন্ধ করুন",
+    "আর মেসেজ নয়",
+    "মেসেজ পাঠাবেন না",
+    "মেসেজ দেবেন না",
+    "মেসেজ দিবেন না",
+    "মেসেজ দিয়েন না",
+    "আর মেসেজ পাঠাবেন না",
+    "আর মেসেজ দেবেন না",
+    "আমাকে আর মেসেজ দিবেন না",
+    "যোগাযোগ করবেন না",
+    "বার্তা পাঠাবেন না।",
+    "স্টপ",
   ];
 
   for (const body of phrases) {
@@ -30,6 +45,8 @@ test("does not treat unrelated text or non-text messages as opt-outs", () => {
     "I can't stop laughing",
     "I want to receive more messages",
     "Can you send me the stop sign image?",
+    "মেসেজ না পাঠালে ভালো হয় না",
+    "আমি মেসেজ বন্ধ করে দিয়েছি",
     "",
   ];
 
