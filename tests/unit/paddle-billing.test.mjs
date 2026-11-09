@@ -8,6 +8,8 @@ import {
   getPaddleItemPriceId,
   getPaddleSignatureParts,
   getPaddleSubscriptionStatus,
+  hasPaddleInitialPayment,
+  isPaddleEventStale,
   resolvePaddlePrice,
   verifyPaddleSignature,
 } from "../../src/lib/paddle-billing.mjs";
@@ -85,4 +87,15 @@ test("parses multiple Paddle signature digests and event identifiers", () => {
   assert.deepEqual(getPaddleSignatureParts("ts=123;h1=abc;h1=def"), { ts: "123", h1: ["abc", "def"] });
   assert.equal(getPaddleEventId({ notification_id: "ntf_123" }), "ntf_123");
   assert.equal(getPaddleEventType({ event_type: "subscription.updated" }), "subscription.updated");
+});
+
+
+test("ignores out-of-order Paddle events and requires initial payment before activation", () => {
+  const earlier = new Date("2026-11-09T10:00:00.000Z");
+  const later = new Date("2026-11-09T10:01:00.000Z");
+  assert.equal(isPaddleEventStale(earlier, later), true);
+  assert.equal(isPaddleEventStale(later, earlier), false);
+  assert.equal(isPaddleEventStale(later, null), false);
+  assert.equal(hasPaddleInitialPayment({ status: "pending" }), false);
+  assert.equal(hasPaddleInitialPayment({ status: "active", lastTransactionId: "txn_123" }), true);
 });
