@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { createHmac, timingSafeEqual } from "node:crypto";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
+import { decryptSecret } from "@/lib/crypto";
+import { verifyWhatsAppWebhookSignature } from "@/lib/whatsapp-webhook-security.mjs";
 import { enqueueWebhookEvent } from "@/lib/public-webhooks.mjs";
 import { isWhatsAppOptOutMessage } from "@/lib/whatsapp-opt-out.mjs";
 import { ensureWhatsAppWebhookIndexes } from "@/lib/whatsapp-webhook-indexes.mjs";
@@ -18,62 +19,43 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-
   const mode = searchParams.get("hub.mode");
   const token = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
 
-  if (
-    mode === "subscribe" &&
-    token &&
-    token === process.env.META_WEBHOOK_VERIFY_TOKEN &&
-    challenge
-  ) {
-    return new Response(challenge, {
-      status: 200,
-      headers: { "Content-Type": "text/plain" },
-    });
+  if (mode !== "subscribe" || !token || !challenge) {
+    return NextResponse.json({ success: false, message: "Webhook verification failed." }, { status: 403 });
   }
 
-  return NextResponse.json(
-    { success: false, message: "Webhook verification failed." },
-    { status: 403 },
-  );
+  try {
+    const db = await getDatabase();
+    const accounts = await db.collection("whatsappAccounts").find(
+      { status: "connected", webhookVerifyTokenEncrypted: { $exists: true, $ne: "" } },
+      { projection: { webhookVerifyTokenEncrypted: 1 } },
+    ).toArray();
+
+    for (const account of accounts) {
+      try {
+        if (decryptSecret(account.webhookVerifyTokenEncrypted) === token) {
+          return new Response(challenge, { status: 200, headers: { "Content-Type": "text/plain" } });
+        }
+      } catch {
+        // Ignore one malformed encrypted credential and continue checking
+        // other connected tenants.
+      }
+    }
+
+    // Compatibility for legacy Wavo-owned connections. New customer-owned
+    // connections always use their workspace-specific encrypted verify token.
+    if (process.env.META_WEBHOOK_VERIFY_TOKEN && token === process.env.META_WEBHOOK_VERIFY_TOKEN) {
+      return new Response(challenge, { status: 200, headers: { "Content-Type": "text/plain" } });
+    }
+  } catch (error) {
+    console.error("WhatsApp webhook verification lookup failed:", error);
+  }
+
+  return NextResponse.json({ success: false, message: "Webhook verification failed." }, { status: 403 });
 }
-
-// --------------------------------------------------
-// VERIFY META SIGNATURE
-// --------------------------------------------------
-
-function verifySignature(rawBody, signature) {
-  const appSecret = process.env.META_APP_SECRET;
-
-  if (!appSecret || !signature) {
-    return false;
-  }
-
-  const expected = createHmac("sha256", appSecret)
-    .update(rawBody)
-    .digest("hex");
-
-  const received = signature.replace(/^sha256=/, "");
-
-  if (!/^[a-f0-9]{64}$/i.test(received) || !/^[a-f0-9]{64}$/i.test(expected)) {
-    return false;
-  }
-
-  return timingSafeEqual(
-    Buffer.from(expected, "hex"),
-    Buffer.from(received, "hex"),
-  );
-}
-
-
-// --------------------------------------------------
-// EXTRACT MESSAGE CONTENT
-// --------------------------------------------------
-
-
 
 // --------------------------------------------------
 // PROCESS INCOMING MESSAGE
@@ -486,142 +468,85 @@ async function processStatus(db, account, status) {
 // --------------------------------------------------
 
 export async function POST(request) {
-  console.log("\n========== WHATSAPP WEBHOOK RECEIVED ==========");
-
   try {
-    console.log("1. Request received from Meta");
-
     const rawBody = await request.text();
-
-    console.log("2. Request body received:", rawBody.length, "characters");
-
     const signature = request.headers.get("x-hub-signature-256");
-
-    console.log("3. Signature header exists:", Boolean(signature));
-    console.log(
-      "4. META_APP_SECRET configured:",
-      Boolean(process.env.META_APP_SECRET),
-    );
-
-    if (!verifySignature(rawBody, signature)) {
-      console.error("WEBHOOK ERROR: Invalid signature. Check META_APP_SECRET.");
-
-      return NextResponse.json(
-        { success: false, message: "Invalid webhook signature." },
-        { status: 401 },
-      );
-    }
-
-    console.log("5. Meta signature verified");
-
     let body;
-
     try {
       body = JSON.parse(rawBody);
     } catch {
-      console.error("WEBHOOK ERROR: Invalid JSON");
-
-      return NextResponse.json(
-        { success: false, message: "Invalid JSON payload." },
-        { status: 400 },
-      );
+      return NextResponse.json({ success: false, message: "Invalid JSON payload." }, { status: 400 });
     }
 
     if (body.object !== "whatsapp_business_account") {
-      console.error("WEBHOOK ERROR: Unsupported object:", body.object);
-
-      return NextResponse.json(
-        { success: false, message: "Unsupported webhook object." },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, message: "Unsupported webhook object." }, { status: 404 });
     }
 
-    console.log("6. WhatsApp payload recognized");
-
     const db = await getDatabase();
-
     await ensureWhatsAppWebhookIndexes(db);
+    const routedChanges = [];
 
+    // A Meta App signs its webhook with that app's own secret. Resolve each
+    // phone/WABA pair to its tenant first, then verify against that tenant's
+    // encrypted App Secret before processing any event.
     for (const entry of body.entry || []) {
-      console.log("Business Account ID:", entry.id);
-
       for (const change of entry.changes || []) {
         if (change.field !== "messages") continue;
-
         const value = change.value;
         const phoneNumberId = value?.metadata?.phone_number_id;
-
-        console.log("7. Webhook field:", change.field);
-        console.log("Phone Number ID:", phoneNumberId);
-
-        if (!phoneNumberId) {
-          console.warn("Missing phone_number_id");
-          continue;
-        }
+        if (!phoneNumberId) continue;
 
         const account = await db.collection("whatsappAccounts").findOne({
           phoneNumberId: String(phoneNumberId),
           status: "connected",
         });
-
-        if (!account) {
-          console.error(
-            "WEBHOOK ERROR: No connected Wavo account found.",
-            "Phone Number ID:",
+        if (!account || !matchesWhatsAppWebhookAccount(account, entry.id, phoneNumberId)) {
+          console.warn("Ignoring WhatsApp webhook with no matching connected WABA/phone account.", {
+            wabaId: entry.id,
             phoneNumberId,
-          );
-
+          });
           continue;
         }
 
-        // Phone Number ID selects the tenant record; verify the signed
-        // webhook's WABA ID too, so a mismatched payload cannot be routed
-        // into another workspace.
-        if (!matchesWhatsAppWebhookAccount(account, entry.id, phoneNumberId)) {
-          console.error(
-            "WEBHOOK ERROR: WABA/phone identity does not match the stored Wavo connection.",
-            "Webhook WABA ID:",
-            entry.id,
-            "Stored WABA ID:",
-            account.wabaId || "(legacy record)",
-            "Phone Number ID:",
-            phoneNumberId,
-          );
-          continue;
+        let appSecret;
+        try {
+          appSecret = account.metaAppSecretEncrypted
+            ? decryptSecret(account.metaAppSecretEncrypted)
+            : process.env.META_APP_SECRET;
+        } catch {
+          appSecret = null;
         }
 
-        console.log("8. Wavo workspace found:", String(account.workspaceId));
-
-        for (const message of value.messages || []) {
-          console.log("9. Processing incoming message:", message.id);
-
-          await processIncomingMessage(db, account, value, message);
-
-          console.log("10. Incoming message saved:", message.id);
+        if (!verifyWhatsAppWebhookSignature(rawBody, signature, appSecret)) {
+          console.error("WhatsApp webhook signature did not match the Meta App Secret for the resolved customer account.", {
+            workspaceId: String(account.workspaceId),
+            phoneNumberId: String(phoneNumberId),
+          });
+          return NextResponse.json({ success: false, message: "Invalid webhook signature for this connected Meta App." }, { status: 401 });
         }
 
-        for (const status of value.statuses || []) {
-          console.log("Processing message status:", status.id);
-
-          await processStatus(db, account, status);
-        }
+        routedChanges.push({ account, value });
       }
     }
 
-    console.log("========== WEBHOOK PROCESSING COMPLETE ==========\n");
+    if (!routedChanges.length) {
+      // Acknowledge unrelated/removed phone numbers so Meta does not retry
+      // events that this Wavo installation is not responsible for.
+      return NextResponse.json({ success: true, message: "No matching connected WhatsApp account; event ignored." });
+    }
 
-    return NextResponse.json({
-      success: true,
-      message: "Webhook processed.",
-    });
+    for (const { account, value } of routedChanges) {
+      for (const message of value.messages || []) {
+        await processIncomingMessage(db, account, value, message);
+      }
+      for (const status of value.statuses || []) {
+        await processStatus(db, account, status);
+      }
+    }
+
+    return NextResponse.json({ success: true, message: "Webhook processed." });
   } catch (error) {
-    console.error("========== WEBHOOK ERROR ==========");
-    console.error(error);
-    console.error("===================================\n");
-
-    return NextResponse.json(
-      { success: false, message: "Webhook processing failed." },
-      { status: 500 },
-    );
+    console.error("WhatsApp webhook processing failed:", error);
+    return NextResponse.json({ success: false, message: "Webhook processing failed." }, { status: 500 });
   }
 }
