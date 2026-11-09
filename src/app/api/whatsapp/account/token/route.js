@@ -63,6 +63,57 @@ export async function POST(request) {
     }
 
     const apiVersion = process.env.META_GRAPH_API_VERSION || "v26.0";
+    const metaAppId = process.env.META_APP_ID;
+    const metaAppSecret = process.env.META_APP_SECRET;
+    if (!metaAppId || !metaAppSecret) {
+      return NextResponse.json(
+        { success: false, code: "META_APP_NOT_CONFIGURED", message: "Wavo's Meta App ID and App Secret must be configured before replacing a WhatsApp access token." },
+        { status: 503 },
+      );
+    }
+
+    // A replacement token must continue authorizing Wavo's shared Meta app.
+    // Validating only the Phone Number ID would allow a token from another app
+    // to replace the credential and silently divert webhook events away from Wavo.
+    const debugUrl = new URL(`https://graph.facebook.com/${apiVersion}/debug_token`);
+    debugUrl.searchParams.set("input_token", accessToken);
+    let debugResponse;
+    let debugResult;
+    try {
+      debugResponse = await fetch(debugUrl, {
+        headers: { Authorization: `Bearer ${metaAppId}|${metaAppSecret}` },
+        cache: "no-store",
+      });
+      debugResult = await debugResponse.json().catch(() => ({}));
+    } catch {
+      return NextResponse.json(
+        { success: false, code: "META_TOKEN_DEBUG_UNAVAILABLE", message: "Could not reach Meta to inspect this access token. The saved token was not changed." },
+        { status: 502 },
+      );
+    }
+    const tokenInfo = debugResult?.data || {};
+    if (!debugResponse.ok || debugResult.error || tokenInfo.is_valid !== true) {
+      return NextResponse.json(
+        { success: false, code: "INVALID_ACCESS_TOKEN", message: debugResult?.error?.message || "Meta reports that this access token is invalid or expired. The saved token was not changed." },
+        { status: 422 },
+      );
+    }
+    if (String(tokenInfo.app_id || "") !== String(metaAppId)) {
+      return NextResponse.json(
+        { success: false, code: "TOKEN_NOT_ISSUED_TO_WAVO_APP", message: "This token belongs to a different Meta app. Use a token issued to Wavo's Meta app to preserve the shared webhook connection. The saved token was not changed." },
+        { status: 422 },
+      );
+    }
+    const grantedScopes = Array.isArray(tokenInfo.scopes) ? tokenInfo.scopes : [];
+    const requiredScopes = ["whatsapp_business_management", "whatsapp_business_messaging"];
+    const missingScopes = requiredScopes.filter((scope) => !grantedScopes.includes(scope));
+    if (missingScopes.length) {
+      return NextResponse.json(
+        { success: false, code: "META_WHATSAPP_PERMISSIONS_MISSING", message: `This token is missing required permissions: ${missingScopes.join(", ")}. The saved token was not changed.`, missingPermissions: missingScopes },
+        { status: 422 },
+      );
+    }
+
     const url = new URL(
       `https://graph.facebook.com/${apiVersion}/${encodeURIComponent(account.phoneNumberId)}`,
     );
