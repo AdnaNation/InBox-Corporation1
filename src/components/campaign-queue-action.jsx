@@ -70,6 +70,7 @@ export default function CampaignQueueAction({ campaignId, initialStatus, recipie
   }
 
   if (!canManage) {
+    if (!["draft", "scheduled"].includes(initialStatus)) return null;
     return (
       <p className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
         Campaign queueing, scheduling, and schedule changes are restricted to workspace owners and admins.
