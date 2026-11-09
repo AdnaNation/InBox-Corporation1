@@ -284,7 +284,7 @@ export default function WhatsAppPage() {
                     <p className="mt-1 text-xs">Meta data access expiry: {new Date(health.dataAccessExpiresAt).toLocaleString()}</p>
                   )}
                   {(health.tokenExpiryStatus === "expired" || health.tokenExpiryStatus === "expiring") && (
-                    <p className="mt-2">Reconnect using the Meta button below before messaging is interrupted.</p>
+                    <p className="mt-2">Update the access token using the customer-owned Meta App credentials below before messaging is interrupted.</p>
                   )}
                 </div>
               )}
