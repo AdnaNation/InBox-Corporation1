@@ -27,6 +27,7 @@ export async function GET() {
     displayPhoneNumber: 1,
     phoneNumberId: 1,
     wabaId: 1,
+    webhookCallbackUrl: 1,
     isActive: 1,
     createdAt: 1,
     updatedAt: 1,
@@ -52,6 +53,7 @@ export async function GET() {
     displayPhoneNumber: item.displayPhoneNumber || "",
     phoneNumberId: item.phoneNumberId || "",
     wabaId: item.wabaId || "",
+    webhookCallbackUrl: item.webhookCallbackUrl || "",
     isActive: item.isActive === true,
     connectedAt: item.createdAt || null,
     updatedAt: item.updatedAt || null,
@@ -419,6 +421,7 @@ export async function POST(request) {
       status: "connected",
       isActive: !activeAccount || Boolean(existingNumber?.isActive),
       connectionMethod: "manual_customer_meta_app",
+      subscriptionCreatedByWavo: !wasSubscribedBefore,
       businessName: typeof body.businessName === "string" && body.businessName.trim() ? body.businessName.trim() : phoneData.verified_name || "WhatsApp Business",
       displayPhoneNumber: typeof body.displayPhoneNumber === "string" && body.displayPhoneNumber.trim() ? body.displayPhoneNumber.trim() : phoneData.display_phone_number || "",
       tokenSource: "manual",
@@ -431,7 +434,7 @@ export async function POST(request) {
       { $set: account, $setOnInsert: { createdAt: now } },
       { upsert: true },
     );
-    await pendingCollection.deleteOne(pendingFilter);
+    try { await pendingCollection.deleteOne(pendingFilter); } catch (cleanupError) { console.error("Pending WhatsApp connection cleanup failed:", cleanupError); }
 
     return NextResponse.json({
       success: true,
