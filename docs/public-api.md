@@ -207,7 +207,7 @@ curl -X POST "https://YOUR_WAVO_DOMAIN/api/v1/messages/template" \
 
 A successful request returns HTTP `202` when Meta accepts the message. The response includes a `messageId` for correlating later delivery updates; acceptance is not delivery.
 
-This first version supports approved templates with positional BODY text variables and static text headers. Named parameters, media or variable headers, limited-time-offer and copy-code templates are not supported. If a send request times out after quota reservation, the result is treated as unknown and the reservation is retained because Meta may have accepted the message. The idempotency key is locked to that unknown result; check message status before attempting a new send.
+This first version supports approved templates with positional BODY text variables and static text headers. Named parameters, media or variable headers, limited-time-offer and copy-code templates are not supported. If a send request times out after quota reservation, or Meta returns HTTP 408 or a 5xx server response, the result is treated as unknown and the reservation is retained because Meta may have accepted the message. The idempotency key is locked to that unknown result; check message status before attempting a new send. Do not use a new idempotency key to resend until you have reconciled the original outcome.
 
 ## 9. Check a message’s delivery status
 
