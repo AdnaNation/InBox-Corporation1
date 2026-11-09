@@ -233,6 +233,7 @@ export async function POST(request) {
   let subscribeUrl = null;
   let wasSubscribedBefore = false;
   let previousOverride = "";
+  let overrideAttempted = false;
   let metaAppId = "";
   let callbackUrl = "";
 
@@ -353,6 +354,7 @@ export async function POST(request) {
       if (!subscribeResponse.ok || subscribeData.error) throw new Error(subscribeData?.error?.message || "Meta could not subscribe this App to the WABA.");
     }
 
+    overrideAttempted = true;
     const overrideResponse = await fetch(subscribeUrl, {
       method: "POST",
       headers: { ...authHeaders, "Content-Type": "application/json" },
@@ -404,10 +406,14 @@ export async function POST(request) {
     }
     // If Wavo added the subscription or override but connection finalization
     // failed, remove only the WABA override. Never alter the Meta App default.
-    if (subscribeUrl && authHeaders) {
+    if (subscribeUrl && authHeaders && overrideAttempted && previousOverride !== callbackUrl) {
       try {
+        // A body-less POST clears only the WABA callback override and restores
+        // the customer's Meta App default callback URL.
         await fetch(subscribeUrl, { method: "POST", headers: authHeaders, cache: "no-store" });
         if (!wasSubscribedBefore) {
+          // This Wavo attempt created the WABA subscription, so remove only
+          // that newly-created subscription after clearing its override.
           await fetch(subscribeUrl, { method: "DELETE", headers: authHeaders, cache: "no-store" });
         }
       } catch (rollbackError) {
