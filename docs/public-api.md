@@ -207,7 +207,7 @@ curl -X POST "https://YOUR_WAVO_DOMAIN/api/v1/messages/template" \
 
 A successful request returns HTTP `202` when Meta accepts the message. The response includes a `messageId` for correlating later delivery updates; acceptance is not delivery.
 
-This first version supports approved templates with positional BODY text variables and static text headers. Named parameters, media or variable headers, limited-time-offer and copy-code templates are not supported. If a send request times out after quota reservation, the result is treated as unknown and the reservation is retained because Meta may have accepted the message. The idempotency key is locked to that unknown result; check message status before attempting a new send.
+This first version supports approved templates with positional BODY text variables and static text headers. Named parameters, media or variable headers, limited-time-offer and copy-code templates are not supported. If a send request times out after quota reservation, or Meta returns HTTP 408 or a 5xx server response, the result is treated as unknown and the reservation is retained because Meta may have accepted the message. The idempotency key is locked to that unknown result; check message status before attempting a new send. Do not use a new idempotency key to resend until you have reconciled the original outcome.
 
 ## 9. Check a message’s delivery status
 
@@ -393,6 +393,7 @@ Known error codes include:
 - `CONTACT_EXISTS`: a contact with the phone number already exists in the workspace.
 - `CONTACT_SUPPRESSED`: the phone number is suppressed because of an opt-out.
 - `PLAN_LIMIT_REACHED`: the workspace has reached its current contact allowance.
+- `MESSAGE_SEND_OUTCOME_UNKNOWN`: Meta may have accepted a template send before a timeout, HTTP 408, or 5xx response. Do not retry with a new idempotency key until the original send is reconciled.
 
 ## 14. Integration recommendations
 
@@ -402,7 +403,7 @@ Known error codes include:
 - Keep your own consent record and submit accurate evidence when recording opt-in.
 - Never infer consent from a purchase, an existing contact record, or a prior conversation.
 - Handle `429` using `Retry-After`; use exponential backoff for transient `503` responses.
-- Treat network timeouts as ambiguous: check whether a contact was created before retrying a create request.
+- Treat network timeouts and ambiguous Meta send responses as unknown outcomes. For contact creation, check whether the contact already exists before retrying. For template sends, keep the same idempotency key and reconcile the original message before starting a genuinely new send.
 
 ## Current scope
 

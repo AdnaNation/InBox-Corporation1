@@ -9,6 +9,7 @@ import { decryptSecret } from "@/lib/crypto";
 import { reserveWorkspaceMessageUsage, releaseWorkspaceMessageUsage } from "@/lib/plan-limits";
 import { applyPendingWhatsAppStatus } from "@/lib/whatsapp-status";
 import { findActiveContactSuppression } from "@/lib/contact-suppression.mjs";
+import { isAmbiguousMetaSendResponse } from "@/lib/campaign-delivery.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -195,6 +196,7 @@ export async function POST(request) {
         template: { name: template.name, language: { code: template.language }, ...(components.length ? { components } : {}) },
       }),
       cache: "no-store",
+      signal: AbortSignal.timeout(20000),
     });
     metaData = await metaResponse.json();
   } catch (error) {
@@ -205,6 +207,24 @@ export async function POST(request) {
   }
 
   if (!metaResponse.ok) {
+    if (isAmbiguousMetaSendResponse(metaResponse.status)) {
+      // A gateway timeout or Meta/provider 5xx does not prove that the send
+      // was rejected. Keep the quota reservation and lock this idempotency key
+      // as unknown so a caller cannot accidentally create a duplicate send.
+      const unknownBody = {
+        success: false,
+        message: "Meta returned an uncertain server response. The message may have been accepted. Check message status before attempting another send.",
+        code: "MESSAGE_SEND_OUTCOME_UNKNOWN",
+        metaStatus: metaResponse.status,
+        metaErrorCode: metaData?.error?.code || null,
+      };
+      await idempotencyCollection.updateOne(
+        { _id: idempotencyId },
+        { $set: { status: "unknown", responseBody: unknownBody, updatedAt: new Date() } },
+      );
+      return NextResponse.json(unknownBody, { status: 502 });
+    }
+
     await releaseWorkspaceMessageUsage(db, workspaceId, 1);
     const rejectedBody = { success: false, message: metaData?.error?.message || "Meta rejected the WhatsApp message.", code: "META_MESSAGE_REJECTED", metaErrorCode: metaData?.error?.code || null };
     await idempotencyCollection.updateOne({ _id: idempotencyId }, { $set: { status: "completed", responseStatus: 502, responseBody: rejectedBody, updatedAt: new Date() } });
