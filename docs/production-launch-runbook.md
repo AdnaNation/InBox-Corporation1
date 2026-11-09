@@ -94,6 +94,9 @@ Use a dedicated test workspace, a phone number controlled by the business, and c
 
 - [ ] Import a small CSV containing only opted-in test contacts.
 - [ ] Confirm an opted-out or suppressed contact is skipped at send time, even if it was included in an earlier campaign audience.
+- [ ] Use a `contacts:write` API key to record an opt-out through `POST /api/v1/contacts/{contactId}/consent`; confirm `GET /contacts/{contactId}` returns `optedIn: false` and `suppressed: true`.
+- [ ] Confirm a re-opt-in is rejected without fresh evidence and `confirmed: true`; after valid fresh consent, confirm the contact returns `optedIn: true` and `suppressed: false`.
+- [ ] Confirm public contact reads expose consent source/timestamps but never return the stored consent evidence text.
 - [ ] Create a campaign draft, review recipient count/template/parameters, then explicitly queue it.
 - [ ] Confirm the worker processes recipients and usage is recorded exactly once.
 - [ ] Pause a queued/sending campaign and confirm no new recipient is claimed after the pause is observed.
