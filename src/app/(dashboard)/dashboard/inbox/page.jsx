@@ -130,6 +130,7 @@ export default function InboxPage() {
   const messagesContainerRef = useRef(null);
   const messagesRequestIdRef = useRef(0);
   const loadedConversationIdRef = useRef("");
+  const hasLoadedAllOlderMessagesRef = useRef(false);
   const selectedConversationIdRef = useRef(selectedId);
   const loadingOlderMessagesRef = useRef(false);
   const pendingScrollAdjustmentRef = useRef(null);
@@ -172,6 +173,7 @@ export default function InboxPage() {
       setLoadingOlderMessages(false);
       loadingOlderMessagesRef.current = false;
       loadedConversationIdRef.current = "";
+      hasLoadedAllOlderMessagesRef.current = false;
       pendingScrollAdjustmentRef.current = null;
       setMessages([]);
       setSelectedConversation(null);
@@ -204,8 +206,12 @@ export default function InboxPage() {
         loadedConversationIdRef.current = conversationId;
         pendingScrollAdjustmentRef.current = null;
         setMessages(data.messages || []);
+        hasLoadedAllOlderMessagesRef.current = false;
         setHasOlderMessages(data.hasMoreMessages === true);
       } else {
+        if (!hasLoadedAllOlderMessagesRef.current) {
+          setHasOlderMessages(data.hasMoreMessages === true);
+        }
         // Polling and post-send refreshes merge the newest page into any older
         // pages already loaded instead of discarding the operator's history.
         setMessages((current) => {
@@ -262,6 +268,7 @@ export default function InboxPage() {
     shouldAutoScrollRef.current = true;
     if (loadedConversationIdRef.current !== selectedId) {
       loadedConversationIdRef.current = "";
+      hasLoadedAllOlderMessagesRef.current = false;
       setMessages([]);
       setHasOlderMessages(false);
       pendingScrollAdjustmentRef.current = null;
@@ -351,6 +358,7 @@ export default function InboxPage() {
         );
         return [...uniqueOlderMessages, ...current];
       });
+      hasLoadedAllOlderMessagesRef.current = data.hasMoreMessages !== true;
       setHasOlderMessages(data.hasMoreMessages === true);
     } catch (err) {
       if (selectedConversationIdRef.current === conversationId) {
