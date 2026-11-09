@@ -126,6 +126,7 @@ export default function InboxPage() {
 
   const bottomRef = useRef(null);
   const messagesContainerRef = useRef(null);
+  const messagesRequestIdRef = useRef(0);
   const shouldAutoScrollRef = useRef(true);
   const textareaRef = useRef(null);
 
@@ -156,6 +157,7 @@ export default function InboxPage() {
   }, []);
 
   const loadMessages = useCallback(async (conversationId, forceScroll = false) => {
+    const requestId = ++messagesRequestIdRef.current;
     if (!conversationId) {
       shouldAutoScrollRef.current = true;
       setMessages([]);
@@ -176,6 +178,7 @@ export default function InboxPage() {
       if (!response.ok || !data.success) {
         throw new Error(data.message || "Could not load messages.");
       }
+      if (requestId !== messagesRequestIdRef.current) return;
 
       const container = messagesContainerRef.current;
       const distanceFromBottom = container
@@ -193,9 +196,13 @@ export default function InboxPage() {
         ),
       );
     } catch (err) {
-      setError(err.message || "Could not load messages.");
+      if (requestId === messagesRequestIdRef.current) {
+        setError(err.message || "Could not load messages.");
+      }
     } finally {
-      setMessagesLoading(false);
+      if (requestId === messagesRequestIdRef.current) {
+        setMessagesLoading(false);
+      }
     }
   }, []);
 
