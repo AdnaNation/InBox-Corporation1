@@ -125,6 +125,9 @@ export default function InboxPage() {
   const [templateSending, setTemplateSending] = useState(false);
 
   const bottomRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  const messagesRequestIdRef = useRef(0);
+  const shouldAutoScrollRef = useRef(true);
   const textareaRef = useRef(null);
 
   const loadConversations = useCallback(async () => {
@@ -153,8 +156,11 @@ export default function InboxPage() {
     }
   }, []);
 
-  const loadMessages = useCallback(async (conversationId) => {
+  const loadMessages = useCallback(async (conversationId, forceScroll = false) => {
+    const requestId = ++messagesRequestIdRef.current;
     if (!conversationId) {
+      shouldAutoScrollRef.current = true;
+      setMessagesLoading(false);
       setMessages([]);
       setSelectedConversation(null);
       return;
@@ -173,6 +179,13 @@ export default function InboxPage() {
       if (!response.ok || !data.success) {
         throw new Error(data.message || "Could not load messages.");
       }
+      if (requestId !== messagesRequestIdRef.current) return;
+
+      const container = messagesContainerRef.current;
+      const distanceFromBottom = container
+        ? container.scrollHeight - container.scrollTop - container.clientHeight
+        : 0;
+      shouldAutoScrollRef.current = forceScroll || distanceFromBottom <= 120;
 
       setSelectedConversation(data.conversation);
       setMessages(data.messages || []);
@@ -184,9 +197,13 @@ export default function InboxPage() {
         ),
       );
     } catch (err) {
-      setError(err.message || "Could not load messages.");
+      if (requestId === messagesRequestIdRef.current) {
+        setError(err.message || "Could not load messages.");
+      }
     } finally {
-      setMessagesLoading(false);
+      if (requestId === messagesRequestIdRef.current) {
+        setMessagesLoading(false);
+      }
     }
   }, []);
 
@@ -212,7 +229,8 @@ export default function InboxPage() {
   }, []);
 
   useEffect(() => {
-    loadMessages(selectedId);
+    shouldAutoScrollRef.current = true;
+    loadMessages(selectedId, true);
 
     if (!selectedId) return;
 
@@ -224,6 +242,7 @@ export default function InboxPage() {
   }, [selectedId, loadMessages]);
 
   useEffect(() => {
+    if (!shouldAutoScrollRef.current) return;
     bottomRef.current?.scrollIntoView({
       behavior: "smooth",
       block: "end",
@@ -260,7 +279,7 @@ export default function InboxPage() {
           // repeated by pressing Send again. The user can recompose after
           // checking the conversation and Meta delivery status.
           setMessageText("");
-          await loadMessages(selectedId);
+          await loadMessages(selectedId, true);
           await loadConversations();
           setError(data.message || "Message outcome is uncertain. Check delivery status before sending again.");
           return;
@@ -271,7 +290,7 @@ export default function InboxPage() {
       setMessageText("");
 
       // Reload the conversation history to get the saved WhatsApp message.
-      await loadMessages(selectedId);
+      await loadMessages(selectedId, true);
       await loadConversations();
 
       textareaRef.current?.focus();
@@ -387,7 +406,7 @@ export default function InboxPage() {
           setTemplateParameters([]);
           setTemplateCouponCode("");
           setTemplateOfferExpiresAt("");
-          await loadMessages(selectedId);
+          await loadMessages(selectedId, true);
           await loadConversations();
           setError(data.message || "Template outcome is uncertain. Check delivery status before sending again.");
           return;
@@ -401,7 +420,7 @@ export default function InboxPage() {
       setTemplateCouponCode("");
       setTemplateOfferExpiresAt("");
 
-      await loadMessages(selectedId);
+      await loadMessages(selectedId, true);
       await loadConversations();
     } catch (err) {
       setError(err.message || "Template could not be sent.");
@@ -861,7 +880,15 @@ export default function InboxPage() {
               <ConversationNotes conversationId={selectedId} />
 
               {/* Messages */}
-              <div className="min-h-0 flex-1 overflow-y-auto bg-[#f7f8f5] px-3 py-5 sm:px-6">
+              <div
+                ref={messagesContainerRef}
+                onScroll={(event) => {
+                  const element = event.currentTarget;
+                  shouldAutoScrollRef.current =
+                    element.scrollHeight - element.scrollTop - element.clientHeight <= 120;
+                }}
+                className="min-h-0 flex-1 overflow-y-auto bg-[#f7f8f5] px-3 py-5 sm:px-6"
+              >
                 {messagesLoading && messages.length === 0 ? (
                   <div className="py-10 text-center text-sm text-slate-500">
                     Loading messages...
