@@ -370,6 +370,9 @@ export default function InboxPage() {
     } finally {
       loadingOlderMessagesRef.current = false;
       setLoadingOlderMessages(false);
+      if (selectedConversationIdRef.current === conversationId) {
+        setMessagesLoading(false);
+      }
     }
   }
 
