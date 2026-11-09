@@ -367,6 +367,8 @@ export async function POST(request) {
     const workspaceId = new ObjectId(session.workspace.id);
     const linkedElsewhere = await db.collection("whatsappAccounts").findOne({ phoneNumberId, status: "connected", workspaceId: { $ne: workspaceId } });
     if (linkedElsewhere) return NextResponse.json({ success: false, message: "This WhatsApp number is already connected to another Wavo workspace." }, { status: 409 });
+    const wabaLinkedElsewhere = await db.collection("whatsappAccounts").findOne({ wabaId, status: "connected", workspaceId: { $ne: workspaceId } });
+    if (wabaLinkedElsewhere) return NextResponse.json({ success: false, code: "WABA_ALREADY_CONNECTED", message: "This WhatsApp Business Account is already connected to another Wavo workspace. A WABA-level webhook override applies to the whole WABA, so its phone numbers must stay in one workspace." }, { status: 409 });
 
     subscribeUrl = `https://graph.facebook.com/${apiVersion}/${encodeURIComponent(wabaId)}/subscribed_apps`;
     const beforeResponse = await fetch(subscribeUrl, { headers: authHeaders, cache: "no-store" });
