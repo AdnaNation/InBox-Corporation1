@@ -160,6 +160,7 @@ export default function InboxPage() {
     const requestId = ++messagesRequestIdRef.current;
     if (!conversationId) {
       shouldAutoScrollRef.current = true;
+      setMessagesLoading(false);
       setMessages([]);
       setSelectedConversation(null);
       return;
