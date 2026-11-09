@@ -24,7 +24,7 @@ export async function applyPublicApiConsent(db, {
   if (consent.action === "opt_out") {
     // Revoke contact-level consent first. Even if the suppression write
     // fails, all Wavo send paths reject contacts whose opt-in is false.
-    await db.collection("contacts").updateOne(
+    const contactUpdate = await db.collection("contacts").updateOne(
       { _id: contactId, workspaceId },
       {
         $set: {
@@ -37,6 +37,7 @@ export async function applyPublicApiConsent(db, {
         },
       },
     );
+    if (!contactUpdate.matchedCount) return null;
 
     await db.collection("contactSuppressions").updateOne(
       { workspaceId, phone: contact.phone },
@@ -61,7 +62,7 @@ export async function applyPublicApiConsent(db, {
   } else {
     // Record fresh consent before clearing durable suppression. If the
     // second write fails, the active suppression still blocks delivery.
-    await db.collection("contacts").updateOne(
+    const contactUpdate = await db.collection("contacts").updateOne(
       { _id: contactId, workspaceId },
       {
         $set: {
@@ -83,6 +84,7 @@ export async function applyPublicApiConsent(db, {
         },
       },
     );
+    if (!contactUpdate.matchedCount) return null;
 
     await db.collection("contactSuppressions").updateMany(
       { workspaceId, phone: contact.phone, active: { $ne: false } },
