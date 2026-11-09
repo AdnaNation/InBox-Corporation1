@@ -133,7 +133,12 @@ export async function POST(request) {
         workspaceId: campaign.workspaceId,
         campaignId: campaign._id,
         status: "processing",
-        processingStartedAt: { $lte: staleBefore },
+        $or: [
+          { processingStartedAt: { $lte: staleBefore } },
+          // Recover legacy processing rows created before processingStartedAt
+          // was introduced. Their updatedAt timestamp is set on each claim.
+          { processingStartedAt: { $exists: false }, updatedAt: { $lte: staleBefore } },
+        ],
       },
       {
         $set: {
