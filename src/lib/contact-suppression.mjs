@@ -78,3 +78,21 @@ export async function getActiveSuppressedPhones(db, workspaceId) {
     .filter((phone) => typeof phone === "string" && phone.trim())
     .map((phone) => phone.trim()))];
 }
+
+/**
+ * Resolve suppression state for a bounded contact page without loading every
+ * suppression record in the workspace.
+ */
+export async function getActiveSuppressedPhonesForContacts(db, workspaceId, phones) {
+  const uniquePhones = [...new Set((phones || [])
+    .filter((phone) => typeof phone === "string" && phone.trim())
+    .map((phone) => phone.trim()))];
+  if (!uniquePhones.length) return new Set();
+
+  await ensureContactSuppressionIndex(db);
+  const records = await db.collection("contactSuppressions")
+    .find({ workspaceId, phone: { $in: uniquePhones }, active: { $ne: false } })
+    .project({ phone: 1 })
+    .toArray();
+  return new Set(records.map((record) => record.phone));
+}

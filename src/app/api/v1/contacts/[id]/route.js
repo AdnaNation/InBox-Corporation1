@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db";
 import { authenticateApiKey } from "@/lib/api-key-auth";
+import { findActiveContactSuppression } from "@/lib/contact-suppression.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,6 +30,14 @@ export async function GET(request, { params }) {
     return NextResponse.json({ success: false, message: "Contact not found in this workspace." }, { status: 404 });
   }
 
+  let suppression;
+  try {
+    suppression = await findActiveContactSuppression(db, new ObjectId(auth.apiKey.workspaceId), contact.phone);
+  } catch (error) {
+    console.error("Public API contact suppression lookup failed:", error);
+    return NextResponse.json({ success: false, message: "Contact consent status is temporarily unavailable." }, { status: 503 });
+  }
+
   return NextResponse.json({
     success: true,
     data: {
@@ -37,6 +46,10 @@ export async function GET(request, { params }) {
       phone: contact.phone,
       tags: contact.tags || [],
       optedIn: contact.optIn?.status === true,
+      suppressed: Boolean(suppression),
+      consentSource: contact.optIn?.consentSource || null,
+      consentedAt: contact.optIn?.date || contact.optIn?.recordedAt || null,
+      revokedAt: contact.optIn?.revokedAt || null,
       createdAt: contact.createdAt || null,
       updatedAt: contact.updatedAt || null,
     },

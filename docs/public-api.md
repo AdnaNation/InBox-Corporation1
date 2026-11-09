@@ -23,7 +23,7 @@ Available permissions:
 
 | Permission | Allows |
 | --- | --- |
-| `contacts:read` | List contacts with `GET /contacts` |
+| `contacts:read` | List contacts and read recorded consent/suppression status |
 | `contacts:write` | Create contacts, update contact name/tags, and record opt-outs or fresh consent |
 | `messages:read` | Read delivery status for messages in this workspace |
 | `messages:send` | Send approved WhatsApp templates to existing opted-in contacts |
@@ -77,6 +77,10 @@ Successful response:
       "phone": "+8801712345678",
       "tags": ["customer", "website"],
       "optedIn": false,
+      "suppressed": true,
+      "consentSource": null,
+      "consentedAt": null,
+      "revokedAt": "2026-11-06T10:00:00.000Z",
       "createdAt": "2026-11-06T10:00:00.000Z"
     }
   ],
@@ -98,11 +102,11 @@ curl "https://YOUR_WAVO_DOMAIN/api/v1/contacts?limit=100&before=$WAVO_NEXT_CURSO
 
 The cursor shown above is illustrative. Always use the exact `nextCursor` value returned by the API; do not decode, construct, or edit it. When `hasMore` is false, `nextCursor` is `null`.
 
-The `optedIn` field reflects the workspace's recorded consent status. A contact being present in the address book does not mean it is eligible for marketing messages.
+The `optedIn` field reflects the contact's recorded consent status; `suppressed` reflects the durable workspace-level opt-out list. `consentSource`, `consentedAt`, and `revokedAt` provide consent metadata without exposing the evidence text. A contact is eligible for marketing sends only when `optedIn` is true and `suppressed` is false.
 
 ## 5. Get a contact
 
-`GET /contacts/{contactId}` requires `contacts:read`. It returns one contact from the API key's workspace, including its recorded opt-in boolean and timestamps. It does not expose internal consent evidence or suppression records. A contact ID from another workspace is returned as `404`.
+`GET /contacts/{contactId}` requires `contacts:read`. It returns one contact from the API key's workspace, including `optedIn`, `suppressed`, `consentSource`, `consentedAt`, and `revokedAt`. It does not expose internal consent evidence or suppression records. A contact ID from another workspace is returned as `404`.
 
 Example:
 
@@ -160,7 +164,7 @@ A successful create returns HTTP `201` with the new contact in `data`. New conta
 
 `PATCH /contacts/{contactId}`
 
-Only `name` and `tags` may be changed through this endpoint. Phone number and consent status cannot be modified here. Use the workspace's consent workflow to record new consent or an opt-out.
+Only `name` and `tags` may be changed through this endpoint. Phone number and consent status cannot be modified here. Use `POST /contacts/{contactId}/consent` to record a customer opt-out or fresh consent.
 
 Example:
 
