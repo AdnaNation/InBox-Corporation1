@@ -272,6 +272,75 @@ export async function POST(request) {
     }
 
     const apiVersion = process.env.META_GRAPH_API_VERSION || "v26.0";
+    const metaAppId = process.env.META_APP_ID;
+    const metaAppSecret = process.env.META_APP_SECRET;
+
+    // A shared Wavo webhook only receives this WABA's events when Wavo's
+    // own Meta app is the app authorized on the supplied access token.
+    // Checking the token against the app access token prevents accidentally
+    // subscribing a customer's separate Meta app instead.
+    if (!metaAppId || !metaAppSecret) {
+      return NextResponse.json(
+        { success: false, code: "META_APP_NOT_CONFIGURED", message: "Wavo's Meta App ID and App Secret must be configured before connecting customer WhatsApp accounts." },
+        { status: 503 },
+      );
+    }
+
+    let debugData;
+    try {
+      const debugUrl = new URL(`https://graph.facebook.com/${apiVersion}/debug_token`);
+      debugUrl.searchParams.set("input_token", accessToken.trim());
+      const debugResponse = await fetch(debugUrl, {
+        headers: { Authorization: `Bearer ${metaAppId}|${metaAppSecret}` },
+        cache: "no-store",
+      });
+      debugData = await debugResponse.json().catch(() => ({}));
+      if (!debugResponse.ok || debugData.error) {
+        return NextResponse.json(
+          { success: false, code: "META_TOKEN_DEBUG_FAILED", message: debugData?.error?.message || "Wavo could not inspect this access token with Meta. Nothing was saved." },
+          { status: 422 },
+        );
+      }
+    } catch {
+      return NextResponse.json(
+        { success: false, code: "META_TOKEN_DEBUG_UNAVAILABLE", message: "Could not reach Meta to inspect this access token. Nothing was saved; try again." },
+        { status: 502 },
+      );
+    }
+
+    const tokenInfo = debugData?.data || {};
+    if (tokenInfo.is_valid !== true) {
+      return NextResponse.json(
+        { success: false, code: "INVALID_ACCESS_TOKEN", message: "Meta reports that this access token is invalid or expired." },
+        { status: 422 },
+      );
+    }
+
+    if (String(tokenInfo.app_id || "") !== String(metaAppId)) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "TOKEN_NOT_ISSUED_TO_WAVO_APP",
+          message: "This token belongs to a different Meta app. To use Wavo's shared webhook, the customer must authorize Wavo's Meta app and provide a token issued to that app. A token from the customer's own Meta app will send webhook events to that app instead.",
+        },
+        { status: 422 },
+      );
+    }
+
+    const grantedScopes = Array.isArray(tokenInfo.scopes) ? tokenInfo.scopes : [];
+    const requiredScopes = ["whatsapp_business_management", "whatsapp_business_messaging"];
+    const missingScopes = requiredScopes.filter((scope) => !grantedScopes.includes(scope));
+    if (missingScopes.length) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "META_WHATSAPP_PERMISSIONS_MISSING",
+          message: `This Wavo-authorized token is missing required permissions: ${missingScopes.join(", ")}. Re-authorize Wavo with both WhatsApp permissions.`,
+          missingPermissions: missingScopes,
+        },
+        { status: 422 },
+      );
+    }
     const verifyUrl = new URL(`https://graph.facebook.com/${apiVersion}/${encodeURIComponent(phoneNumberId.trim())}`);
     verifyUrl.searchParams.set("fields", "id,display_phone_number,verified_name");
     let metaResponse;
