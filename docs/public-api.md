@@ -24,7 +24,7 @@ Available permissions:
 | Permission | Allows |
 | --- | --- |
 | `contacts:read` | List contacts with `GET /contacts` |
-| `contacts:write` | Create contacts and update contact name/tags |
+| `contacts:write` | Create contacts, update contact name/tags, and record opt-outs or fresh consent |
 | `messages:read` | Read delivery status for messages in this workspace |
 | `messages:send` | Send approved WhatsApp templates to existing opted-in contacts |
 | `templates:read` | List templates and their Meta approval status |
