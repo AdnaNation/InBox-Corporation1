@@ -6,6 +6,8 @@ import {
   getPaddleEventType,
   getPaddleItemPriceId,
   getPaddleSubscriptionStatus,
+  hasPaddleInitialPayment,
+  isPaddleEventStale,
   resolvePaddlePrice,
   verifyPaddleSignature,
 } from "@/lib/paddle-billing.mjs";
@@ -36,7 +38,7 @@ async function processTransactionCompleted(db, event) {
 
   const existingSubscription = await db.collection("billingSubscriptions").findOne({ _id: subscriptionId });
   const eventDate = getEventDate(event);
-  if (existingSubscription?.lastEventAt && eventDate < new Date(existingSubscription.lastEventAt)) {
+  if (isPaddleEventStale(eventDate, existingSubscription?.lastEventAt)) {
     return { outcome: "ignored", reason: "stale_transaction_event" };
   }
   const payloadReference = getWorkspaceReference(customData);
@@ -199,7 +201,7 @@ async function processSubscriptionUpdate(db, event) {
   if (!stored) return { outcome: "ignored", reason: "subscription_not_yet_provisioned" };
 
   const eventDate = getEventDate(event);
-  if (stored.lastEventAt && eventDate < new Date(stored.lastEventAt)) {
+  if (isPaddleEventStale(eventDate, stored.lastEventAt)) {
     return { outcome: "ignored", reason: "stale_subscription_event" };
   }
 
@@ -209,7 +211,7 @@ async function processSubscriptionUpdate(db, event) {
   }
   // Do not grant a paid plan from a subscription status event alone before
   // Paddle confirms the first successful transaction.
-  if (status === "active" && !stored.lastTransactionId) {
+  if (status === "active" && !hasPaddleInitialPayment(stored)) {
     return { outcome: "ignored", reason: "awaiting_initial_transaction" };
   }
 
