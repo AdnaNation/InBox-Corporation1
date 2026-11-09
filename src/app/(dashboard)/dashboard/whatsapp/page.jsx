@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { Plug, ShieldCheck, Loader2, AlertTriangle, Unplug, RefreshCw, Activity, CheckCircle2 } from "lucide-react";
-import WhatsAppEmbeddedSignup from "@/components/whatsapp-embedded-signup";
 import { showConfirm } from "@/lib/swal";
 
 const emptyForm = {
+  metaAppId: "",
+  metaAppSecret: "",
+  webhookVerifyToken: "",
   phoneNumberId: "",
   wabaId: "",
   displayPhoneNumber: "",
@@ -27,6 +29,7 @@ export default function WhatsAppPage() {
   const [messageError, setMessageError] = useState(false);
   const [replacementToken, setReplacementToken] = useState("");
   const [savingToken, setSavingToken] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState("");
 
   async function loadAccount() {
     setLoadingAccount(true);
@@ -62,6 +65,7 @@ export default function WhatsAppPage() {
   }
 
   useEffect(() => {
+    setWebhookUrl(`${window.location.origin}/api/whatsapp/webhook`);
     loadAccount();
   }, []);
 
@@ -79,7 +83,7 @@ export default function WhatsAppPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Could not save account.");
       setMessage(data.message || "WhatsApp account saved.");
-      setForm(emptyForm);
+      setForm({ ...emptyForm, metaAppId: form.metaAppId, webhookVerifyToken: form.webhookVerifyToken, wabaId: form.wabaId, phoneNumberId: form.phoneNumberId });
       await loadAccount();
     } catch (error) {
       setMessage(error.message || "Network error.");
@@ -370,36 +374,41 @@ export default function WhatsAppPage() {
         </form>
       )}
 
-      {!loadingAccount && <WhatsAppEmbeddedSignup onConnected={loadAccount} />}
-
-      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
-        <div className="flex items-center gap-2 font-semibold text-slate-900"><AlertTriangle size={18} />How the shared Wavo connection works</div>
-        <p className="mt-1">Wavo uses one Meta app for all customer WhatsApp accounts. Each customer authorizes Wavo's app for their own WhatsApp Business Account, and Wavo subscribes that WABA to its webhook individually. Incoming events are then routed to the matching Wavo workspace.</p>
-        <p className="mt-2">You can connect through Meta Embedded Signup or provide a valid access token issued to Wavo's Meta app in the form below. A token issued to a customer's separate Meta app is not compatible with this shared-webhook setup.</p>
-        <p className="mt-2">Meta controls which apps and permissions can be authorized by external businesses. If Meta blocks customer authorization because Wavo still needs business verification, App Review, or Advanced Access, the app cannot bypass that restriction. Existing connected numbers continue to work independently.</p>
-      </div>
+      <section className="mb-5 rounded-2xl border border-blue-200 bg-blue-50 p-5 text-sm leading-6 text-blue-950">
+        <div className="flex items-center gap-2 font-semibold"><AlertTriangle size={18} /> Manual connection using your own Meta App</div>
+        <p className="mt-2">Each business connects with its own Meta App credentials. Wavo encrypts the App Secret, webhook verify token, and WhatsApp access token separately for each workspace.</p>
+        <p className="mt-2 font-semibold">Webhook callback URL</p>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <code className="break-all rounded bg-white px-2 py-1 text-xs">{webhookUrl || "Loading callback URL..."}</code>
+          <button type="button" onClick={() => webhookUrl && navigator.clipboard.writeText(webhookUrl)} className="rounded border border-blue-300 bg-white px-3 py-1 text-xs font-semibold">Copy URL</button>
+        </div>
+        <p className="mt-2">After connecting, open your Meta App → WhatsApp → Configuration. Set this callback URL and the same webhook verify token you enter below, then subscribe to the <code>messages</code> webhook field. Do not change another website's webhook configuration unless you intend to move its message delivery to Wavo.</p>
+      </section>
 
       <form onSubmit={submit} className="mt-5 rounded-2xl border border-slate-200 bg-white p-6">
         <div className="mb-5 flex items-center gap-3">
           <span className="rounded-xl bg-green-50 p-3 text-green-700"><Plug /></span>
           <div>
-            <h2 className="font-semibold">Add another WhatsApp number</h2>
-            <p className="text-xs text-slate-500">Advanced connection: use only a token issued to Wavo's Meta app. Credentials are encrypted before being stored.</p>
+            <h2 className="font-semibold">Connect a WhatsApp Business Account</h2>
+            <p className="text-xs text-slate-500">Enter credentials from the same customer-owned Meta App. Secrets are encrypted before storage and never returned by the API.</p>
           </div>
         </div>
 
         {[
-          ["businessName", "Business name"],
+          ["metaAppId", "Meta App ID"],
+          ["metaAppSecret", "Meta App Secret"],
+          ["webhookVerifyToken", "Webhook verify token (create your own, at least 8 characters)"],
           ["wabaId", "WhatsApp Business Account ID"],
           ["phoneNumberId", "Phone Number ID"],
-          ["displayPhoneNumber", "Display phone number"],
-          ["accessToken", "Permanent/system-user access token"],
+          ["businessName", "Business name (optional)"],
+          ["displayPhoneNumber", "Display phone number (optional)"],
+          ["accessToken", "WhatsApp access token / System User token"],
         ].map(([key, label]) => (
           <label key={key} className="mb-4 block text-sm font-medium">
             {label}
             <input
-              required
-              type={key === "accessToken" ? "password" : "text"}
+              required={!["businessName", "displayPhoneNumber"].includes(key)}
+              type={["metaAppSecret", "webhookVerifyToken", "accessToken"].includes(key) ? "password" : "text"}
               autoComplete="off"
               value={form[key]}
               onChange={(e) => setForm({ ...form, [key]: e.target.value })}
@@ -409,8 +418,8 @@ export default function WhatsAppPage() {
         ))}
 
         <button disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3 font-semibold text-white disabled:opacity-50">
-          {loading ? <Loader2 className="animate-spin" /> : <ShieldCheck size={18} />}
-          Add WhatsApp number
+          {loading ? <Loader2 className="animate-spin" /> : <ShieldCheck />}
+          Verify credentials and connect
         </button>
       </form>
 
