@@ -162,7 +162,9 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
       try {
         const [groupsResponse, contactsResponse] = await Promise.all([
           fetch("/api/groups"),
-          fetch("/api/contacts?limit=5000"),
+          // The API returns workspace-wide availableTags separately, so one
+          // contact is enough as a fallback without downloading a full page.
+          fetch("/api/contacts?limit=1"),
         ]);
 
         const groupsData = await groupsResponse.json();
@@ -660,7 +662,12 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
           )}
 
           <div className="lg:col-span-2 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-slate-500">Audience: {audiencePreview?.total ?? "Preview not run"} eligible contact(s). The server saves an opted-in recipient snapshot.</p>
+            <div className="text-xs text-slate-500">
+              <p>Audience: {audiencePreview?.total ?? "Preview not run"} eligible contact(s). The server saves an opted-in recipient snapshot.</p>
+              {audiencePreview && audiencePreview.suppressedCount > 0 && (
+                <p className="mt-1 text-amber-700">{audiencePreview.suppressedCount} suppressed contact(s) excluded automatically.</p>
+              )}
+            </div>
             <button type="submit" disabled={createLoading || !connected || !campaignName.trim() || !selectedTemplate || (hasCopyCode && !campaignCouponCode.trim()) || (isLimitedTimeOffer && !offerDurationHours) || (audienceType === "group" && !groupId) || (audienceType === "tag" && !tag)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50">
               {createLoading ? <Loader2 size={17} className="animate-spin" /> : <FileText size={17} />}
               Create campaign draft

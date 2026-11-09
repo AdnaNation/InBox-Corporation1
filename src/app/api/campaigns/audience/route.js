@@ -84,12 +84,16 @@ export async function POST(request) {
     }
 
     const suppressedPhones = await getActiveSuppressedPhones(db, workspaceId);
+    const suppressedFilter = suppressedPhones.length
+      ? { ...filter, phone: { $in: suppressedPhones } }
+      : null;
     if (suppressedPhones.length) filter.phone = { $nin: suppressedPhones };
 
     const contactsCollection = db.collection("contacts");
 
-    const [total, contacts] = await Promise.all([
+    const [total, suppressedCount, contacts] = await Promise.all([
       contactsCollection.countDocuments(filter),
+      suppressedFilter ? contactsCollection.countDocuments(suppressedFilter) : Promise.resolve(0),
       contactsCollection
         .find(filter)
         .project({ name: 1, phone: 1, tags: 1 })
@@ -101,6 +105,7 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       total,
+      suppressedCount,
       preview: contacts.map((contact) => ({
         id: contact._id.toString(),
         name: contact.name,
