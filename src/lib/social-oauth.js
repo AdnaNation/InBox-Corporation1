@@ -135,6 +135,7 @@ async function exchangeCode(provider, code, verifier, request) {
     client_id: config.clientId(),
     client_secret: config.clientSecret(),
     redirect_uri: callbackUrl(provider, request),
+    grant_type: "authorization_code",
     code,
     grant_type: "authorization_code",
   });
