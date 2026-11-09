@@ -178,16 +178,23 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
 
         setGroups(groupsData.groups || []);
 
-        const tags = [
-          ...new Set(
-            (contactsData.contacts || [])
-              .flatMap((contact) => contact.tags || [])
-              .filter(Boolean)
-              .map((value) => value.trim()),
-          ),
-        ].sort((a, b) => a.localeCompare(b));
+        // The contacts endpoint returns availableTags from MongoDB distinct(),
+        // covering the whole workspace. Deriving tags from the first paginated
+        // contact page silently hid tags used only by older contacts.
+        const tags = Array.isArray(contactsData.availableTags)
+          ? contactsData.availableTags
+            .filter((value) => typeof value === "string" && value.trim())
+            .map((value) => value.trim())
+          : [
+              ...new Set(
+                (contactsData.contacts || [])
+                  .flatMap((contact) => contact.tags || [])
+                  .filter(Boolean)
+                  .map((value) => value.trim()),
+              ),
+            ];
 
-        setAvailableTags(tags);
+        setAvailableTags([...new Set(tags)].sort((a, b) => a.localeCompare(b)));
       } catch (error) {
         setAudienceError(error.message || "Could not load audience options.");
       } finally {
