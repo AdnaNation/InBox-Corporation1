@@ -159,6 +159,19 @@ export async function DELETE(request) {
           return NextResponse.json({ success: false, message: "Meta did not confirm that the original app-level callback was restored. The Wavo connection was left intact; please retry after checking Meta." }, { status: 502 });
         }
       }
+      if (target.subscriptionCreatedByWavo && appSubscription) {
+        const unsubscribeResponse = await fetch(subscriptionUrl, { method: "DELETE", headers, cache: "no-store" });
+        const unsubscribeData = await unsubscribeResponse.json().catch(() => ({}));
+        if (!unsubscribeResponse.ok || unsubscribeData.error) {
+          return NextResponse.json({ success: false, message: unsubscribeData?.error?.message || "Meta could not restore the WABA's previous subscription state. The Wavo connection was left intact." }, { status: 502 });
+        }
+        const finalCheck = await fetch(subscriptionUrl, { headers, cache: "no-store" });
+        const finalData = await finalCheck.json().catch(() => ({}));
+        const stillSubscribed = (finalData.data || []).some((item) => String(item.whatsapp_business_api_data?.id || item.id || "") === metaAppId);
+        if (!finalCheck.ok || finalData.error || stillSubscribed) {
+          return NextResponse.json({ success: false, message: "Meta did not confirm restoration of the previous subscription state. The Wavo connection was left intact." }, { status: 502 });
+        }
+      }
     } catch (error) {
       console.error("WhatsApp webhook override restoration failed:", error);
       return NextResponse.json({ success: false, message: "Could not restore the customer's original Meta webhook callback. The Wavo connection was left intact." }, { status: 502 });
