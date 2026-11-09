@@ -2,6 +2,7 @@ import { getSession } from "@/lib/auth";
 import { getDatabase } from "@/lib/db";
 import { ObjectId } from "mongodb";
 import CampaignClient from "@/components/campaign-client";
+import { getActiveSuppressedPhones } from "@/lib/contact-suppression.mjs";
 
 export const runtime = "nodejs";
 
@@ -9,10 +10,16 @@ export default async function CampaignsPage() {
   const session = await getSession();
   const db = await getDatabase();
   const workspaceId = new ObjectId(session.workspace.id);
+  const suppressedPhones = await getActiveSuppressedPhones(db, workspaceId);
+  const eligibleContactFilter = {
+    workspaceId,
+    "optIn.status": true,
+    ...(suppressedPhones.length ? { phone: { $nin: suppressedPhones } } : {}),
+  };
   const [contacts, account, campaigns] = await Promise.all([
     db
       .collection("contacts")
-      .countDocuments({ workspaceId, "optIn.status": true }),
+      .countDocuments(eligibleContactFilter),
     db
       .collection("whatsappAccounts")
       .findOne({ workspaceId, status: "connected" }),
