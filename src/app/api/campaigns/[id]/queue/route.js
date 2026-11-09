@@ -18,6 +18,12 @@ export async function POST(request, { params }) {
   try {
     const session = await getSession();
     if (!session) return NextResponse.json({ success: false, message: "Unauthorized." }, { status: 401 });
+    if (!["owner", "admin"].includes(session.membership?.role)) {
+      return NextResponse.json(
+        { success: false, message: "Only workspace owners and admins can queue or schedule campaigns." },
+        { status: 403 },
+      );
+    }
 
     const { id } = await params;
     if (!ObjectId.isValid(id)) return NextResponse.json({ success: false, message: "Invalid campaign ID." }, { status: 400 });
