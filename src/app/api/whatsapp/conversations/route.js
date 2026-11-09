@@ -140,13 +140,7 @@ export async function GET(request) {
     const searchQuery = (searchParams.get("q") || "").trim().slice(0, 100);
     const conversationFilter = { workspaceId };
     if (searchQuery) {
-      const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\    // Load conversation list.
-    const conversations = await db
-      .collection("conversations")
-      .find({ workspaceId })
-      .sort({ lastMessageAt: -1, updatedAt: -1 })
-      .limit(100)
-      .toArray();");
+      const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const pattern = new RegExp(escapedQuery, "i");
       conversationFilter.$or = [
         { customerName: pattern },
@@ -162,7 +156,6 @@ export async function GET(request) {
       .sort({ lastMessageAt: -1, updatedAt: -1 })
       .limit(100)
       .toArray();
-
     const phoneNumberIds = [...new Set(
       conversations.map((item) => item.phoneNumberId).filter(Boolean),
     )];
