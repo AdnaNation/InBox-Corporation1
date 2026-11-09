@@ -5,6 +5,7 @@ import {
   getPaddleEventId,
   getPaddleEventType,
   getPaddleItemPriceId,
+  getPaddleSubscriptionStatus,
   resolvePaddlePrice,
   verifyPaddleSignature,
 } from "@/lib/paddle-billing.mjs";
@@ -34,6 +35,10 @@ async function processTransactionCompleted(db, event) {
   }
 
   const existingSubscription = await db.collection("billingSubscriptions").findOne({ _id: subscriptionId });
+  const eventDate = getEventDate(event);
+  if (existingSubscription?.lastEventAt && eventDate < new Date(existingSubscription.lastEventAt)) {
+    return { outcome: "ignored", reason: "stale_transaction_event" };
+  }
   const payloadReference = getWorkspaceReference(customData);
   const storedReference = existingSubscription?.workspaceId && existingSubscription?.ownerId
     ? { workspaceId: existingSubscription.workspaceId, ownerId: existingSubscription.ownerId }
@@ -86,7 +91,6 @@ async function processTransactionCompleted(db, event) {
   }
 
   const now = new Date();
-  const eventDate = getEventDate(event);
   await db.collection("billingSubscriptions").updateOne(
     { _id: subscriptionId },
     {
@@ -177,6 +181,7 @@ async function processSubscriptionCreated(db, event) {
         billingCycle: price.billingCycle,
         priceId,
         status: "pending",
+        lastEventAt: getEventDate(event),
         createdAt: now,
         updatedAt: now,
       },
@@ -202,6 +207,11 @@ async function processSubscriptionUpdate(db, event) {
   const status = getPaddleSubscriptionStatus(event);
   if (!["active", "past_due", "paused", "canceled"].includes(status)) {
     return { outcome: "ignored", reason: "unsupported_subscription_status" };
+  }
+  // Do not grant a paid plan from a subscription status event alone before
+  // Paddle confirms the first successful transaction.
+  if (status === "active" && !stored.lastTransactionId) {
+    return { outcome: "ignored", reason: "awaiting_initial_transaction" };
   }
 
   const items = Array.isArray(subscription.items) ? subscription.items : [];
