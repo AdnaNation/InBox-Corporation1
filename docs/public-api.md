@@ -24,7 +24,7 @@ Available permissions:
 | Permission | Allows |
 | --- | --- |
 | `contacts:read` | List contacts with `GET /contacts` |
-| `contacts:write` | Create contacts and update contact name/tags |
+| `contacts:write` | Create contacts, update contact name/tags, and record opt-outs or fresh consent |
 | `messages:read` | Read delivery status for messages in this workspace |
 | `messages:send` | Send approved WhatsApp templates to existing opted-in contacts |
 | `templates:read` | List templates and their Meta approval status |
@@ -172,6 +172,37 @@ curl -X PATCH "https://YOUR_WAVO_DOMAIN/api/v1/contacts/66a000000000000000000001
 ```
 
 The contact ID must belong to the API key's workspace. A contact from another workspace is returned as `404`, not exposed.
+
+### Record or revoke consent
+
+`POST /contacts/{contactId}/consent` requires `contacts:write`. This endpoint lets an authorized integration record a customer's opt-out immediately or record fresh consent after an opt-out.
+
+Opt out immediately when a customer asks to stop receiving messages:
+
+```json
+{
+  "action": "opt_out",
+  "source": "customer_request",
+  "evidence": "Customer unsubscribed from WhatsApp updates in account settings."
+}
+```
+
+Supported opt-out sources are `customer_request`, `whatsapp_keyword`, `external_system`, and `other`. Evidence is optional for opt-out because the customer's request must not be delayed by documentation requirements. Wavo sets the contact's opt-in status to false and creates or updates a durable workspace-level suppression record, so deleting and re-importing the contact does not silently restore permission.
+
+Fresh opt-in is allowed only after new consent has actually been received:
+
+```json
+{
+  "action": "opt_in",
+  "source": "website_form",
+  "evidence": "Checked the WhatsApp updates consent box on form version 4 on 2026-11-09.",
+  "confirmed": true
+}
+```
+
+Supported opt-in sources are `website_form`, `paper_form`, `verbal`, `whatsapp_initiated`, and `other`. Fresh opt-in requires 8–500 characters of evidence and `confirmed: true`. Wavo records the evidence, clears active suppression records, and writes a workspace audit event. Never use opt-in to undo an opt-out unless fresh consent has been received. The API key's creator is recorded as the audit actor where available.
+
+Both actions return the contact's resulting `optedIn` and `suppressed` state. A contact from another workspace returns `404`. If the endpoint returns `503`, inspect the contact's current consent and suppression state before retrying because the contact-level update may already have been applied.
 
 ## 8. Send an approved WhatsApp template
 
