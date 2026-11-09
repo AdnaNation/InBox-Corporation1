@@ -126,55 +126,84 @@ export async function DELETE(request) {
     return NextResponse.json({ success: false, message: "That WhatsApp number is not connected." }, { status: 404 });
   }
 
-  // Remove only Wavo's WABA-level callback override. Do not unsubscribe
-  // the customer's Meta App: a body-less POST restores its original app-level
-  // callback URL, which may be the customer's own website webhook.
+  // Remove only Wavo's phone-number-level callback override. The customer's
+  // WABA-level and app-level callbacks remain untouched.
+  const remainingWabaAccount = await accounts.findOne({
+    workspaceId,
+    wabaId: target.wabaId,
+    status: "connected",
+    phoneNumberId: { $ne: target.phoneNumberId },
+  });
+
   if (target.metaAppIdEncrypted && target.accessTokenEncrypted && target.webhookCallbackUrl && target.wabaId) {
     try {
       const metaAppId = decryptSecret(target.metaAppIdEncrypted);
       const accessToken = decryptSecret(target.accessTokenEncrypted);
       const apiVersion = process.env.META_GRAPH_API_VERSION || "v26.0";
-      const subscriptionUrl = `https://graph.facebook.com/${apiVersion}/${encodeURIComponent(target.wabaId)}/subscribed_apps`;
       const headers = { Authorization: `Bearer ${accessToken}` };
-      const beforeResponse = await fetch(subscriptionUrl, { headers, cache: "no-store" });
+      const phoneUrl = new URL(`https://graph.facebook.com/${apiVersion}/${encodeURIComponent(target.phoneNumberId)}`);
+      phoneUrl.searchParams.set("fields", "webhook_configuration");
+      const beforeResponse = await fetch(phoneUrl, { headers, cache: "no-store" });
       const beforeData = await beforeResponse.json().catch(() => ({}));
       if (!beforeResponse.ok || beforeData.error) {
-        return NextResponse.json({ success: false, message: beforeData?.error?.message || "Could not inspect Meta's current webhook routing. The Wavo connection was left intact." }, { status: 502 });
+        return NextResponse.json({ success: false, message: beforeData?.error?.message || "Could not inspect Meta's current phone webhook routing. The Wavo connection was left intact." }, { status: 502 });
       }
-      const appSubscription = (beforeData.data || []).find((item) => String(item.whatsapp_business_api_data?.id || item.id || "") === metaAppId);
-      const currentOverride = String(appSubscription?.override_callback_uri || "");
+      const currentOverride = String(beforeData.webhook_configuration?.phone_number || "");
       if (currentOverride && currentOverride !== target.webhookCallbackUrl) {
-        return NextResponse.json({ success: false, code: "WABA_CALLBACK_OVERRIDE_CHANGED", message: "The WABA callback override was changed outside Wavo. Wavo did not modify it or disconnect the account. Review the current Meta webhook configuration first." }, { status: 409 });
+        return NextResponse.json({ success: false, code: "PHONE_CALLBACK_OVERRIDE_CHANGED", message: "The phone-number callback override was changed outside Wavo. Wavo did not modify it or disconnect the account. Review the current Meta webhook configuration first." }, { status: 409 });
       }
+
       if (currentOverride === target.webhookCallbackUrl) {
-        const restoreResponse = await fetch(subscriptionUrl, { method: "POST", headers, cache: "no-store" });
+        const restoreResponse = await fetch(phoneUrl, {
+          method: "POST",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({ webhook_configuration: { override_callback_uri: "" } }),
+          cache: "no-store",
+        });
         const restoreData = await restoreResponse.json().catch(() => ({}));
         if (!restoreResponse.ok || restoreData.error || restoreData.success !== true) {
-          return NextResponse.json({ success: false, message: restoreData?.error?.message || "Meta could not restore the original app-level webhook callback. The Wavo connection was left intact." }, { status: 502 });
+          return NextResponse.json({ success: false, message: restoreData?.error?.message || "Meta could not restore the previous callback routing for this phone number. The Wavo connection was left intact." }, { status: 502 });
         }
-        const verifyResponse = await fetch(subscriptionUrl, { headers, cache: "no-store" });
+        const verifyResponse = await fetch(phoneUrl, { headers, cache: "no-store" });
         const verifyData = await verifyResponse.json().catch(() => ({}));
-        const verifiedSubscription = (verifyData.data || []).find((item) => String(item.whatsapp_business_api_data?.id || item.id || "") === metaAppId);
-        if (!verifyResponse.ok || verifyData.error || String(verifiedSubscription?.override_callback_uri || "")) {
-          return NextResponse.json({ success: false, message: "Meta did not confirm that the original app-level callback was restored. The Wavo connection was left intact; please retry after checking Meta." }, { status: 502 });
+        if (!verifyResponse.ok || verifyData.error || String(verifyData.webhook_configuration?.phone_number || "")) {
+          return NextResponse.json({ success: false, message: "Meta did not confirm that the phone-number override was removed. The Wavo connection was left intact." }, { status: 502 });
         }
       }
-      if (target.subscriptionCreatedByWavo && appSubscription) {
-        const unsubscribeResponse = await fetch(subscriptionUrl, { method: "DELETE", headers, cache: "no-store" });
-        const unsubscribeData = await unsubscribeResponse.json().catch(() => ({}));
-        if (!unsubscribeResponse.ok || unsubscribeData.error) {
-          return NextResponse.json({ success: false, message: unsubscribeData?.error?.message || "Meta could not restore the WABA's previous subscription state. The Wavo connection was left intact." }, { status: 502 });
+
+      // If Wavo originally created the WABA subscription, keep that ownership
+      // marker on another connected number in this WABA. Only unsubscribe when
+      // the last Wavo-connected number is removed.
+      if (target.subscriptionCreatedByWavo && remainingWabaAccount) {
+        await accounts.updateOne(
+          { _id: remainingWabaAccount._id, workspaceId, status: "connected" },
+          { $set: { subscriptionCreatedByWavo: true, updatedAt: new Date() } },
+        );
+      } else if (target.subscriptionCreatedByWavo && !remainingWabaAccount) {
+        const subscriptionUrl = `https://graph.facebook.com/${apiVersion}/${encodeURIComponent(target.wabaId)}/subscribed_apps`;
+        const subscriptionResponse = await fetch(subscriptionUrl, { headers, cache: "no-store" });
+        const subscriptionData = await subscriptionResponse.json().catch(() => ({}));
+        if (!subscriptionResponse.ok || subscriptionData.error) {
+          return NextResponse.json({ success: false, message: subscriptionData?.error?.message || "Could not inspect the WABA subscription before disconnecting. The Wavo connection was left intact." }, { status: 502 });
         }
-        const finalCheck = await fetch(subscriptionUrl, { headers, cache: "no-store" });
-        const finalData = await finalCheck.json().catch(() => ({}));
-        const stillSubscribed = (finalData.data || []).some((item) => String(item.whatsapp_business_api_data?.id || item.id || "") === metaAppId);
-        if (!finalCheck.ok || finalData.error || stillSubscribed) {
-          return NextResponse.json({ success: false, message: "Meta did not confirm restoration of the previous subscription state. The Wavo connection was left intact." }, { status: 502 });
+        const appSubscription = (subscriptionData.data || []).find((item) => String(item.whatsapp_business_api_data?.id || item.id || "") === metaAppId);
+        if (appSubscription) {
+          const unsubscribeResponse = await fetch(subscriptionUrl, { method: "DELETE", headers, cache: "no-store" });
+          const unsubscribeData = await unsubscribeResponse.json().catch(() => ({}));
+          if (!unsubscribeResponse.ok || unsubscribeData.error) {
+            return NextResponse.json({ success: false, message: unsubscribeData?.error?.message || "Meta could not restore the WABA's previous subscription state. The Wavo connection was left intact." }, { status: 502 });
+          }
+          const finalResponse = await fetch(subscriptionUrl, { headers, cache: "no-store" });
+          const finalData = await finalResponse.json().catch(() => ({}));
+          const stillSubscribed = (finalData.data || []).some((item) => String(item.whatsapp_business_api_data?.id || item.id || "") === metaAppId);
+          if (!finalResponse.ok || finalData.error || stillSubscribed) {
+            return NextResponse.json({ success: false, message: "Meta did not confirm restoration of the previous WABA subscription state. The Wavo connection was left intact." }, { status: 502 });
+          }
         }
       }
     } catch (error) {
-      console.error("WhatsApp webhook override restoration failed:", error);
-      return NextResponse.json({ success: false, message: "Could not restore the customer's original Meta webhook callback. The Wavo connection was left intact." }, { status: 502 });
+      console.error("WhatsApp phone webhook override restoration failed:", error);
+      return NextResponse.json({ success: false, message: "Could not restore the customer's previous Meta webhook routing. The Wavo connection was left intact." }, { status: 502 });
     }
   }
 
