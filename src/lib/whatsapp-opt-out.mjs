@@ -68,6 +68,7 @@ function normalizeOptOutText(value) {
     .replace(/[’‘]/g, "'")
     .trim()
     .toLowerCase()
+    .replace(/_/g, " ")
     .replace(/\s+/g, " ")
     .replace(/[.!?,;:।॥]+$/g, "");
 }
