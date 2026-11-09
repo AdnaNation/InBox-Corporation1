@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { isSameOrigin } from "@/lib/security";
 import { encryptSecret } from "@/lib/crypto";
 import { ensureWhatsAppAccountIndexes } from "@/lib/whatsapp-account";
+import { isMetaAppSubscribed } from "@/lib/whatsapp-subscription.mjs";
 
 export const runtime = "nodejs";
 
@@ -473,9 +474,7 @@ export async function POST(request) {
       );
     }
 
-    const wavoSubscribed = (subscriptionCheck.data || []).some((item) =>
-      String(item.whatsapp_business_api_data?.id || item.id || "") === String(metaAppId),
-    );
+    const wavoSubscribed = isMetaAppSubscribed(subscriptionCheck, metaAppId);
     if (!wavoSubscribed) {
       return NextResponse.json(
         {
