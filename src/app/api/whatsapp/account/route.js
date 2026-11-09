@@ -316,6 +316,7 @@ export async function POST(request) {
   let subscribeUrl = null;
   let phoneOverrideUrl = null;
   let wasSubscribedBefore = false;
+  let subscriptionAttempted = false;
   let previousPhoneOverride = "";
   let phoneOverrideAttempted = false;
   let metaAppId = "";
@@ -442,6 +443,7 @@ export async function POST(request) {
 
     // Subscribe the customer's App to the WABA if it is not subscribed yet.
     if (!wasSubscribedBefore) {
+      subscriptionAttempted = true;
       const subscribeResponse = await fetch(subscribeUrl, { method: "POST", headers: authHeaders, cache: "no-store" });
       const subscribeData = await subscribeResponse.json().catch(() => ({}));
       if (!subscribeResponse.ok || subscribeData.error || subscribeData.success !== true) throw new Error(subscribeData?.error?.message || "Meta could not subscribe this App to the WABA.");
@@ -518,11 +520,15 @@ export async function POST(request) {
           body: JSON.stringify({ webhook_configuration: { override_callback_uri: "" } }),
           cache: "no-store",
         });
-        if (!wasSubscribedBefore) {
-          await fetch(subscribeUrl, { method: "DELETE", headers: authHeaders, cache: "no-store" });
-        }
       } catch (rollbackError) {
         console.error("Meta phone webhook override rollback failed:", rollbackError);
+      }
+    }
+    if (subscribeUrl && authHeaders && subscriptionAttempted && !wasSubscribedBefore) {
+      try {
+        await fetch(subscribeUrl, { method: "DELETE", headers: authHeaders, cache: "no-store" });
+      } catch (rollbackError) {
+        console.error("Meta WABA subscription rollback failed:", rollbackError);
       }
     }
     console.error("Customer Meta WhatsApp connection error:", error);
