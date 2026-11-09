@@ -220,331 +220,146 @@ export async function PATCH(request) {
 
 export async function POST(request) {
   if (!isSameOrigin(request)) {
-    return NextResponse.json(
-      { success: false, message: "Invalid origin." },
-      { status: 403 },
-    );
+    return NextResponse.json({ success: false, message: "Invalid origin." }, { status: 403 });
   }
 
   const session = await getSession();
-
-  if (!session) {
-    return NextResponse.json(
-      { success: false, message: "Unauthorized." },
-      { status: 401 },
-    );
-  }
-
+  if (!session) return NextResponse.json({ success: false, message: "Unauthorized." }, { status: 401 });
   if (!["owner", "admin"].includes(session.membership?.role)) {
-    return NextResponse.json(
-      { success: false, message: "Only workspace owners and admins can manage the WhatsApp connection." },
-      { status: 403 },
-    );
+    return NextResponse.json({ success: false, message: "Only workspace owners and admins can manage the WhatsApp connection." }, { status: 403 });
   }
 
   try {
     const body = await request.json();
-
-    const {
-      phoneNumberId,
-      wabaId,
-      displayPhoneNumber,
-      businessName,
-      accessToken,
-    } = body;
-    if (
-      ![
-        phoneNumberId,
-        wabaId,
-        displayPhoneNumber,
-        businessName,
-        accessToken,
-      ].every(
-        (value) =>
-          typeof value === "string" &&
-          value.trim().length > 0 &&
-          value.length <= 500,
-      )
-    ) {
-      return NextResponse.json(
-        { success: false, message: "Complete all WhatsApp account fields." },
-        { status: 400 },
-      );
+    const fields = {
+      phoneNumberId: body.phoneNumberId,
+      wabaId: body.wabaId,
+      accessToken: body.accessToken,
+      metaAppId: body.metaAppId,
+      metaAppSecret: body.metaAppSecret,
+      webhookVerifyToken: body.webhookVerifyToken,
+    };
+    for (const [key, value] of Object.entries(fields)) {
+      if (typeof value !== "string" || !value.trim() || value.trim().length > (key === "accessToken" || key === "metaAppSecret" ? 5000 : 500)) {
+        return NextResponse.json({ success: false, message: "Complete the Meta App ID, App Secret, webhook verify token, WABA ID, Phone Number ID, and access token fields." }, { status: 400 });
+      }
+    }
+    const phoneNumberId = fields.phoneNumberId.trim();
+    const wabaId = fields.wabaId.trim();
+    const accessToken = fields.accessToken.trim();
+    const metaAppId = fields.metaAppId.trim();
+    const metaAppSecret = fields.metaAppSecret.trim();
+    const webhookVerifyToken = fields.webhookVerifyToken.trim();
+    if (!/^\d{5,30}$/.test(phoneNumberId) || !/^\d{5,30}$/.test(wabaId) || !/^\d{5,30}$/.test(metaAppId) || webhookVerifyToken.length < 8) {
+      return NextResponse.json({ success: false, message: "Check the App ID, WABA ID, Phone Number ID, and webhook verify token. IDs must be numeric and the verify token must contain at least 8 characters." }, { status: 400 });
     }
 
     const apiVersion = process.env.META_GRAPH_API_VERSION || "v26.0";
-    const metaAppId = process.env.META_APP_ID;
-    const metaAppSecret = process.env.META_APP_SECRET;
-
-    // A shared Wavo webhook only receives this WABA's events when Wavo's
-    // own Meta app is the app authorized on the supplied access token.
-    // Checking the token against the app access token prevents accidentally
-    // subscribing a customer's separate Meta app instead.
-    if (!metaAppId || !metaAppSecret) {
-      return NextResponse.json(
-        { success: false, code: "META_APP_NOT_CONFIGURED", message: "Wavo's Meta App ID and App Secret must be configured before connecting customer WhatsApp accounts." },
-        { status: 503 },
-      );
-    }
-
+    const debugUrl = new URL(`https://graph.facebook.com/${apiVersion}/debug_token`);
+    debugUrl.searchParams.set("input_token", accessToken);
+    let debugResponse;
     let debugData;
     try {
-      const debugUrl = new URL(`https://graph.facebook.com/${apiVersion}/debug_token`);
-      debugUrl.searchParams.set("input_token", accessToken.trim());
-      const debugResponse = await fetch(debugUrl, {
+      debugResponse = await fetch(debugUrl, {
         headers: { Authorization: `Bearer ${metaAppId}|${metaAppSecret}` },
         cache: "no-store",
       });
       debugData = await debugResponse.json().catch(() => ({}));
-      if (!debugResponse.ok || debugData.error) {
-        return NextResponse.json(
-          { success: false, code: "META_TOKEN_DEBUG_FAILED", message: debugData?.error?.message || "Wavo could not inspect this access token with Meta. Nothing was saved." },
-          { status: 422 },
-        );
-      }
     } catch {
-      return NextResponse.json(
-        { success: false, code: "META_TOKEN_DEBUG_UNAVAILABLE", message: "Could not reach Meta to inspect this access token. Nothing was saved; try again." },
-        { status: 502 },
-      );
+      return NextResponse.json({ success: false, code: "META_TOKEN_DEBUG_UNAVAILABLE", message: "Could not reach Meta to validate these credentials. Nothing was saved." }, { status: 502 });
     }
-
     const tokenInfo = debugData?.data || {};
-    if (tokenInfo.is_valid !== true) {
-      return NextResponse.json(
-        { success: false, code: "INVALID_ACCESS_TOKEN", message: "Meta reports that this access token is invalid or expired." },
-        { status: 422 },
-      );
+    if (!debugResponse.ok || debugData.error || tokenInfo.is_valid !== true) {
+      return NextResponse.json({ success: false, code: "INVALID_ACCESS_TOKEN", message: debugData?.error?.message || "Meta reports that this access token is invalid or expired. Nothing was saved." }, { status: 422 });
     }
-
-    if (String(tokenInfo.app_id || "") !== String(metaAppId)) {
-      return NextResponse.json(
-        {
-          success: false,
-          code: "TOKEN_NOT_ISSUED_TO_WAVO_APP",
-          message: "This token belongs to a different Meta app. To use Wavo's shared webhook, the customer must authorize Wavo's Meta app and provide a token issued to that app. A token from the customer's own Meta app will send webhook events to that app instead.",
-        },
-        { status: 422 },
-      );
+    if (String(tokenInfo.app_id || "") !== metaAppId) {
+      return NextResponse.json({ success: false, code: "META_APP_ID_MISMATCH", message: "The access token was not issued by the Meta App ID you entered. Use credentials and a token from the same Meta App." }, { status: 422 });
     }
-
     const grantedScopes = Array.isArray(tokenInfo.scopes) ? tokenInfo.scopes : [];
     const requiredScopes = ["whatsapp_business_management", "whatsapp_business_messaging"];
     const missingScopes = requiredScopes.filter((scope) => !grantedScopes.includes(scope));
     if (missingScopes.length) {
-      return NextResponse.json(
-        {
-          success: false,
-          code: "META_WHATSAPP_PERMISSIONS_MISSING",
-          message: `This Wavo-authorized token is missing required permissions: ${missingScopes.join(", ")}. Re-authorize Wavo with both WhatsApp permissions.`,
-          missingPermissions: missingScopes,
-        },
-        { status: 422 },
-      );
-    }
-    const verifyUrl = new URL(`https://graph.facebook.com/${apiVersion}/${encodeURIComponent(phoneNumberId.trim())}`);
-    verifyUrl.searchParams.set("fields", "id,display_phone_number,verified_name");
-    let metaResponse;
-    try {
-      metaResponse = await fetch(verifyUrl, {
-        headers: { Authorization: `Bearer ${accessToken.trim()}` },
-        cache: "no-store",
-      });
-    } catch {
-      return NextResponse.json(
-        { success: false, message: "Could not reach Meta to verify this WhatsApp number. Nothing was saved; try again." },
-        { status: 502 },
-      );
-    }
-    const metaData = await metaResponse.json().catch(() => ({}));
-    if (!metaResponse.ok || String(metaData.id || "") !== phoneNumberId.trim()) {
-      const errorCode = metaData?.error?.code;
-      return NextResponse.json(
-        {
-          success: false,
-          code: errorCode === 190 ? "INVALID_ACCESS_TOKEN" : "WHATSAPP_ACCOUNT_VERIFICATION_FAILED",
-          message: errorCode === 190
-            ? "Meta rejected this access token. Check that it is valid and has not expired."
-            : metaResponse.status === 403
-              ? "This token does not have permission to access the selected WhatsApp number."
-              : metaData?.error?.message || "Meta could not verify this token for the selected WhatsApp number. Nothing was saved.",
-          metaErrorCode: errorCode || null,
-        },
-        { status: 422 },
-      );
+      return NextResponse.json({ success: false, code: "META_WHATSAPP_PERMISSIONS_MISSING", message: `The token is missing required permissions: ${missingScopes.join(", ")}.`, missingPermissions: missingScopes }, { status: 422 });
     }
 
-    const wabaUrl = new URL(`https://graph.facebook.com/${apiVersion}/${encodeURIComponent(wabaId.trim())}/phone_numbers`);
+    const authHeaders = { Authorization: `Bearer ${accessToken}` };
+    const phoneUrl = new URL(`https://graph.facebook.com/${apiVersion}/${encodeURIComponent(phoneNumberId)}`);
+    phoneUrl.searchParams.set("fields", "id,display_phone_number,verified_name");
+    const phoneResponse = await fetch(phoneUrl, { headers: authHeaders, cache: "no-store" });
+    const phoneData = await phoneResponse.json().catch(() => ({}));
+    if (!phoneResponse.ok || String(phoneData.id || "") !== phoneNumberId) {
+      return NextResponse.json({ success: false, code: "WHATSAPP_ACCOUNT_VERIFICATION_FAILED", message: phoneData?.error?.message || "Meta could not verify this token for the supplied Phone Number ID.", metaErrorCode: phoneData?.error?.code || null }, { status: 422 });
+    }
+
+    const wabaUrl = new URL(`https://graph.facebook.com/${apiVersion}/${encodeURIComponent(wabaId)}/phone_numbers`);
     wabaUrl.searchParams.set("fields", "id");
     wabaUrl.searchParams.set("limit", "100");
-    let wabaResponse;
-    try {
-      wabaResponse = await fetch(wabaUrl, {
-        headers: { Authorization: `Bearer ${accessToken.trim()}` },
-        cache: "no-store",
-      });
-    } catch {
-      return NextResponse.json(
-        { success: false, message: "Could not verify the WhatsApp Business Account with Meta. Nothing was saved." },
-        { status: 502 },
-      );
-    }
+    const wabaResponse = await fetch(wabaUrl, { headers: authHeaders, cache: "no-store" });
     const wabaData = await wabaResponse.json().catch(() => ({}));
-    if (!wabaResponse.ok || !(wabaData.data || []).some((item) => String(item.id) === phoneNumberId.trim())) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: wabaData?.error?.message || "The selected Phone Number ID does not belong to the supplied WhatsApp Business Account ID.",
-          metaErrorCode: wabaData?.error?.code || null,
-        },
-        { status: 422 },
-      );
+    if (!wabaResponse.ok || !(wabaData.data || []).some((item) => String(item.id) === phoneNumberId)) {
+      return NextResponse.json({ success: false, code: "WHATSAPP_WABA_PHONE_MISMATCH", message: wabaData?.error?.message || "The Phone Number ID does not belong to the supplied WABA ID.", metaErrorCode: wabaData?.error?.code || null }, { status: 422 });
     }
 
     const db = await getDatabase();
     await ensureWhatsAppAccountIndexes(db);
     const workspaceId = new ObjectId(session.workspace.id);
     const linkedElsewhere = await db.collection("whatsappAccounts").findOne({
-      phoneNumberId: phoneNumberId.trim(),
-      status: "connected",
-      workspaceId: { $ne: workspaceId },
+      phoneNumberId, status: "connected", workspaceId: { $ne: workspaceId },
     });
     if (linkedElsewhere) {
-      return NextResponse.json(
-        { success: false, message: "This WhatsApp number is already connected to another Wavo workspace." },
-        { status: 409 },
-      );
+      return NextResponse.json({ success: false, message: "This WhatsApp number is already connected to another Wavo workspace." }, { status: 409 });
     }
 
-    // Subscribe Wavo's Meta app to this WABA. This adds Wavo's webhook
-    // subscription; it does not replace subscriptions owned by other Meta apps.
-    let subscriptionResponse;
-    try {
-      subscriptionResponse = await fetch(
-        `https://graph.facebook.com/${apiVersion}/${encodeURIComponent(wabaId.trim())}/subscribed_apps`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${accessToken.trim()}` },
-          cache: "no-store",
-        },
-      );
-    } catch {
-      return NextResponse.json(
-        { success: false, message: "Meta verified the token, but Wavo could not subscribe its webhook to this WhatsApp Business Account. Nothing was saved." },
-        { status: 502 },
-      );
+    // Subscribe the customer's own Meta app to its WABA. The app's webhook
+    // callback must be configured to this Wavo endpoint in that Meta app.
+    const subscribeUrl = `https://graph.facebook.com/${apiVersion}/${encodeURIComponent(wabaId)}/subscribed_apps`;
+    const subscribeResponse = await fetch(subscribeUrl, { method: "POST", headers: authHeaders, cache: "no-store" });
+    const subscribeData = await subscribeResponse.json().catch(() => ({}));
+    if (!subscribeResponse.ok || subscribeData.error) {
+      return NextResponse.json({ success: false, code: "META_WABA_SUBSCRIPTION_FAILED", message: subscribeData?.error?.message || "Meta did not allow this app to subscribe to the WABA.", metaErrorCode: subscribeData?.error?.code || null }, { status: 422 });
     }
-    const subscriptionData = await subscriptionResponse.json().catch(() => ({}));
-    if (!subscriptionResponse.ok || subscriptionData.error) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: subscriptionData?.error?.message || "Meta did not allow Wavo to subscribe to this WhatsApp Business Account. Check whatsapp_business_management permission.",
-          metaErrorCode: subscriptionData?.error?.code || null,
-        },
-        { status: 422 },
-      );
+    const checkResponse = await fetch(subscribeUrl, { headers: authHeaders, cache: "no-store" });
+    const checkData = await checkResponse.json().catch(() => ({}));
+    if (!checkResponse.ok || checkData.error || !isMetaAppSubscribed(checkData, metaAppId)) {
+      return NextResponse.json({ success: false, code: "CUSTOMER_APP_NOT_SUBSCRIBED", message: checkData?.error?.message || "Meta did not confirm that the customer's Meta App is subscribed to this WABA. The account was not saved.", metaErrorCode: checkData?.error?.code || null }, { status: 422 });
     }
 
-    // Confirm that Meta now lists Wavo's own app on this exact WABA. A
-    // successful POST response alone is not enough to mark the connection live.
-    let subscriptionCheck;
-    try {
-      const checkUrl = new URL(`https://graph.facebook.com/${apiVersion}/${encodeURIComponent(wabaId.trim())}/subscribed_apps`);
-      const checkResponse = await fetch(checkUrl, {
-        headers: { Authorization: `Bearer ${accessToken.trim()}` },
-        cache: "no-store",
-      });
-      subscriptionCheck = await checkResponse.json().catch(() => ({}));
-      if (!checkResponse.ok || subscriptionCheck.error) {
-        return NextResponse.json(
-          {
-            success: false,
-            code: "WHATSAPP_SUBSCRIPTION_CHECK_FAILED",
-            message: subscriptionCheck?.error?.message || "Meta accepted the subscription request, but Wavo could not verify it. Retry the connection; no account was saved.",
-            metaErrorCode: subscriptionCheck?.error?.code || null,
-          },
-          { status: 502 },
-        );
-      }
-    } catch {
-      return NextResponse.json(
-        { success: false, code: "WHATSAPP_SUBSCRIPTION_CHECK_UNAVAILABLE", message: "Meta accepted the subscription request, but Wavo could not confirm it. Retry the connection; no account was saved." },
-        { status: 502 },
-      );
-    }
-
-    const wavoSubscribed = isMetaAppSubscribed(subscriptionCheck, metaAppId);
-    if (!wavoSubscribed) {
-      return NextResponse.json(
-        {
-          success: false,
-          code: "WAVO_APP_NOT_SUBSCRIBED",
-          message: "Meta did not list Wavo's app as subscribed to this WhatsApp Business Account. The number was not saved as connected.",
-        },
-        { status: 422 },
-      );
-    }
-
+    const existingNumber = await db.collection("whatsappAccounts").findOne({ workspaceId, phoneNumberId, status: "connected" });
+    const activeAccount = await db.collection("whatsappAccounts").findOne({ workspaceId, status: "connected", isActive: true });
     const now = new Date();
-    const existingNumber = await db.collection("whatsappAccounts").findOne({
+    const account = {
       workspaceId,
-      phoneNumberId: phoneNumberId.trim(),
+      wabaId,
+      phoneNumberId,
+      displayPhoneNumber: typeof body.displayPhoneNumber === "string" && body.displayPhoneNumber.trim() ? body.displayPhoneNumber.trim() : phoneData.display_phone_number || "",
+      businessName: typeof body.businessName === "string" && body.businessName.trim() ? body.businessName.trim() : phoneData.verified_name || "WhatsApp Business",
+      accessTokenEncrypted: encryptSecret(accessToken),
+      metaAppIdEncrypted: encryptSecret(metaAppId),
+      metaAppSecretEncrypted: encryptSecret(metaAppSecret),
+      webhookVerifyTokenEncrypted: encryptSecret(webhookVerifyToken),
+      connectionMethod: "manual_customer_meta_app",
       status: "connected",
-    });
-    const activeAccount = await db.collection("whatsappAccounts").findOne({
-      workspaceId,
-      status: "connected",
-      isActive: true,
-    });
-    const shouldBecomeActive = !activeAccount || Boolean(existingNumber?.isActive);
-
-    // Save or update the selected number.
+      isActive: !activeAccount || Boolean(existingNumber?.isActive),
+      tokenSource: "manual",
+      tokenIssuedAt: now,
+      tokenExpiresAt: Number(tokenInfo.expires_at) > 0 ? new Date(Number(tokenInfo.expires_at) * 1000) : null,
+      tokenExpiryKnown: Number(tokenInfo.expires_at) > 0,
+      updatedAt: now,
+    };
     await db.collection("whatsappAccounts").updateOne(
-      {
-        workspaceId,
-        phoneNumberId: phoneNumberId.trim(),
-      },
-      {
-        $set: {
-          workspaceId,
-          wabaId: wabaId.trim(),
-          phoneNumberId: phoneNumberId.trim(),
-          displayPhoneNumber: displayPhoneNumber.trim(),
-          businessName: businessName.trim(),
-          accessTokenEncrypted: encryptSecret(accessToken.trim()),
-          status: "connected",
-          isActive: shouldBecomeActive,
-          updatedAt: now,
-        },
-        $setOnInsert: {
-          createdAt: now,
-        },
-        $unset: {
-          tokenIssuedAt: "",
-          tokenExpiresAt: "",
-          dataAccessExpiresAt: "",
-          tokenExpiryKnown: "",
-        },
-      },
+      { workspaceId, phoneNumberId },
+      { $set: account, $setOnInsert: { createdAt: now } },
       { upsert: true },
     );
 
     return NextResponse.json({
       success: true,
-      message: "WhatsApp account saved successfully.",
+      message: "WhatsApp account connected. Now configure this Meta App's webhook callback URL and verify token using the instructions below.",
+      account: { businessName: account.businessName, displayPhoneNumber: account.displayPhoneNumber, phoneNumberId, wabaId },
+      webhook: { callbackUrl: new URL("/api/whatsapp/webhook", request.url).toString(), verifyTokenConfigured: true },
     });
   } catch (error) {
-    console.error("WhatsApp account save error:", error);
-    if (error?.code === 11000) {
-      return NextResponse.json(
-        { success: false, code: "WHATSAPP_ACCOUNT_CONFLICT", message: "This WhatsApp number is already connected elsewhere, or another administrator changed the active number. Refresh and try again." },
-        { status: 409 },
-      );
-    }
-    return NextResponse.json(
-      { success: false, message: "Could not save WhatsApp account. Check ENCRYPTION_KEY and verify there are no duplicate connected WhatsApp numbers." },
-      { status: 500 },
-    );
+    console.error("Customer Meta WhatsApp connection error:", error);
+    return NextResponse.json({ success: false, message: "Could not connect this WhatsApp account. Check the supplied credentials and try again." }, { status: 500 });
   }
 }
