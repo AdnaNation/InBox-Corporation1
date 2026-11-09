@@ -145,7 +145,7 @@ export default function CampaignDeliveryProgress({ campaignId, initialStatus, in
       {pauseReason && status === "paused" && <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">Paused: {pauseReason}</p>}
       {status === "completed_with_issues" && <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">Campaign finished, but some recipients failed, were skipped, or need manual review.</p>}
       {error && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-      {!isActive && !error && <p className="mt-4 flex items-center gap-2 text-xs text-slate-500"><CheckCircle2 size={14} />Live refresh stops when the campaign is not queued or sending.</p>}
+      {!isActive && !error && <p className="mt-4 flex items-center gap-2 text-xs text-slate-500"><CheckCircle2 size={14} />Live refresh checks for late delivery updates for 10 minutes after sending finishes.</p>}
     </section>
   );
 }
