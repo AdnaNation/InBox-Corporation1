@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { showConfirm } from "@/lib/swal";
 
-export default function CampaignControls({ campaignId, initialStatus }) {
+export default function CampaignControls({ campaignId, initialStatus, canManage = false }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -39,7 +39,7 @@ export default function CampaignControls({ campaignId, initialStatus }) {
     }
   }
 
-  if (!canPause && !canResume) return null;
+  if (!canManage || (!canPause && !canResume)) return null;
 
   return (
     <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">

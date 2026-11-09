@@ -62,6 +62,7 @@ export default async function CampaignReviewPage({ params, searchParams }) {
   const db = await getDatabase();
   const workspaceId = new ObjectId(session.workspace.id);
   const campaignId = new ObjectId(id);
+  const canManageCampaigns = ["owner", "admin"].includes(session.membership?.role);
 
   const campaign = await db.collection("campaigns").findOne({
     _id: campaignId,
@@ -211,10 +212,12 @@ export default async function CampaignReviewPage({ params, searchParams }) {
           initialStatus={campaign.status}
           recipientCount={totalRecipients}
           initialScheduledAt={campaign.scheduledAt?.toISOString?.() || null}
+          canManage={canManageCampaigns}
         />
         <CampaignControls
           campaignId={campaign._id.toString()}
           initialStatus={campaign.status}
+          canManage={canManageCampaigns}
         />
         {campaign.status === "completed_with_issues" && counts.failed > 0 && ["owner", "admin"].includes(session.membership?.role) && (
           <CampaignRetryAction
@@ -319,11 +322,13 @@ export default async function CampaignReviewPage({ params, searchParams }) {
                     {displayText(recipient.error || recipient.manualReview?.note)}
                   </td>
                   <td className="px-4 py-3">
-                    {recipient.status === "unknown" ? (
+                    {recipient.status === "unknown" && canManageCampaigns ? (
                       <CampaignRecipientReview
                         campaignId={campaign._id.toString()}
                         recipientId={recipient._id.toString()}
                       />
+                    ) : recipient.status === "unknown" ? (
+                      <span className="text-xs text-slate-500">Owner/admin review required</span>
                     ) : recipient.manualReview ? (
                       <div className="text-xs text-slate-600">
                         <p className="font-medium">Manually marked {displayText(recipient.manualReview.outcome)}</p>
