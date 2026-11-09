@@ -55,7 +55,7 @@ export async function refreshCampaignProgress(db, workspaceId, campaignId) {
       workspaceId,
       status: { $in: ["sending", "completed", "completed_with_issues"] },
     },
-    { projection: { status: 1, recipientCount: 1 } },
+    { projection: { status: 1, recipientCount: 1, completedAt: 1 } },
   );
 
   if (!campaign) return null;
