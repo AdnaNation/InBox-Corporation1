@@ -106,7 +106,7 @@ export async function GET(request) {
     );
     url.searchParams.set(
       "fields",
-      "id,display_phone_number,verified_name,quality_rating,code_verification_status,platform_type",
+      "id,display_phone_number,verified_name,quality_rating,code_verification_status,platform_type,webhook_configuration",
     );
 
     const response = await fetch(url, {
@@ -170,20 +170,20 @@ export async function GET(request) {
               )
             : null;
           const callbackMatches = !account.webhookCallbackUrl
-            || String(matchingApp?.override_callback_uri || "") === account.webhookCallbackUrl;
+            || String(result.webhook_configuration?.phone_number || "") === account.webhookCallbackUrl;
           webhookSubscription = {
             status: configuredAppId
               ? matchingApp ? callbackMatches ? "subscribed" : "callback_mismatch" : "not_subscribed"
               : subscribedApps.length ? "subscription_present_app_unverified" : "not_subscribed",
             appName: matchingApp?.whatsapp_business_api_data?.name || "",
             subscribedAppCount: subscribedApps.length,
-            callbackUrl: matchingApp?.override_callback_uri || "",
+            callbackUrl: result.webhook_configuration?.phone_number || "",
             message: configuredAppId
               ? !matchingApp
                 ? "Meta does not list this customer's Meta App as subscribed to this WhatsApp Business Account."
                 : callbackMatches
-                  ? "The customer's Meta App is subscribed and its WABA callback override points to Wavo."
-                  : "The customer's Meta App is subscribed, but its WABA callback override no longer matches the Wavo webhook URL saved for this account."
+                  ? "The customer's Meta App is subscribed and this phone number's callback override points to Wavo."
+                  : "The customer's Meta App is subscribed, but this phone number's callback override no longer matches the Wavo webhook URL saved for this account."
               : subscribedApps.length
                 ? "Meta reports an app subscription, but no customer Meta App ID is saved, so Wavo cannot confirm which app is subscribed."
                 : "Meta reports no subscribed app for this WhatsApp Business Account.",
