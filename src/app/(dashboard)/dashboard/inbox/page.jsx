@@ -206,7 +206,7 @@ export default function InboxPage() {
         loadedConversationIdRef.current = conversationId;
         pendingScrollAdjustmentRef.current = null;
         setMessages(data.messages || []);
-        hasLoadedAllOlderMessagesRef.current = false;
+        hasLoadedAllOlderMessagesRef.current = data.hasMoreMessages !== true;
         setHasOlderMessages(data.hasMoreMessages === true);
       } else {
         if (!hasLoadedAllOlderMessagesRef.current) {
