@@ -10,7 +10,7 @@ export const CAMPAIGN_RECIPIENT_STATUSES = [
   "skipped",
 ];
 
-export function summarizeCampaignRecipientStatuses(rows, recipientCount = 0) {
+export function summarizeCampaignRecipientStatuses(rows, recipientCount) {
   const counts = Object.fromEntries(
     CAMPAIGN_RECIPIENT_STATUSES.map((status) => [status, 0]),
   );
