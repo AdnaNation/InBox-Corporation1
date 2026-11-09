@@ -311,6 +311,8 @@ export default function InboxPage() {
     ) return;
 
     const conversationId = selectedId;
+    // Prevent an in-flight poll from racing the older-page prepend.
+    messagesRequestIdRef.current += 1;
     const oldestMessage = messages[0];
     const beforeTimestamp = new Date(oldestMessage.timestamp);
     if (
