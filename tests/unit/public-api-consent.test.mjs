@@ -27,7 +27,7 @@ test("requires explicit fresh evidence and confirmation for opt-in", () => {
     { action: "opt_in", source: "website_form", evidence: "Checked the WhatsApp consent box on 2026-11-09." },
   );
   assert.ok(validatePublicApiConsentRequest({ action: "opt_in", source: "website_form", evidence: "Fresh consent." }).error);
-  assert.ok(validatePublicApiConsentRequest({ action: "opt_in", source: "website_form", evidence: "Fresh consent.", confirmed: true }).error);
+  assert.ok(validatePublicApiConsentRequest({ action: "opt_in", source: "website_form", evidence: "OK", confirmed: true }).error);
 });
 
 test("rejects unsupported sources, malformed evidence, and unknown actions", () => {
