@@ -19,11 +19,12 @@ function percentage(value, total) {
   return total ? Math.round((value / total) * 100) : 0;
 }
 
-export default function CampaignDeliveryProgress({ campaignId, initialStatus, initialCounts, initialTotal, initialPauseReason }) {
+export default function CampaignDeliveryProgress({ campaignId, initialStatus, initialCompletedAt, initialCounts, initialTotal, initialPauseReason }) {
   const [status, setStatus] = useState(initialStatus);
   const [counts, setCounts] = useState(initialCounts);
   const [total, setTotal] = useState(initialTotal);
   const [pauseReason, setPauseReason] = useState(initialPauseReason || "");
+  const [completedAt, setCompletedAt] = useState(initialCompletedAt || null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -45,6 +46,7 @@ export default function CampaignDeliveryProgress({ campaignId, initialStatus, in
         setCounts(data.counts);
         setTotal(data.campaign.total);
         setPauseReason(data.campaign.pauseReason || "");
+        setCompletedAt(data.campaign.completedAt || null);
         setLastUpdated(new Date());
         setError("");
       } catch (err) {
@@ -55,9 +57,16 @@ export default function CampaignDeliveryProgress({ campaignId, initialStatus, in
       }
     }
 
-    if (["queued", "sending"].includes(status)) {
+    const isActive = ["queued", "sending"].includes(status);
+    const completionTime = completedAt ? new Date(completedAt).getTime() : Number.NaN;
+    const watchRecentCompletion = ["completed", "completed_with_issues"].includes(status)
+      && Number.isFinite(completionTime)
+      && Date.now() - completionTime < 10 * 60 * 1000;
+    const pollInterval = isActive ? 5000 : watchRecentCompletion ? 15000 : null;
+
+    if (pollInterval) {
       refresh();
-      const timer = setInterval(refresh, 5000);
+      const timer = setInterval(refresh, pollInterval);
       return () => {
         active = false;
         clearInterval(timer);
@@ -67,7 +76,7 @@ export default function CampaignDeliveryProgress({ campaignId, initialStatus, in
     return () => {
       active = false;
     };
-  }, [campaignId, status]);
+  }, [campaignId, status, completedAt]);
 
   const completed = total - (counts.pending || 0) - (counts.processing || 0);
   const delivered = (counts.delivered || 0) + (counts.read || 0);
@@ -83,7 +92,16 @@ export default function CampaignDeliveryProgress({ campaignId, initialStatus, in
         <div className="flex items-center gap-2">
           <Activity className="text-green-600" size={20} />
           <h2 className="font-semibold">Live delivery progress</h2>
+          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+            status === "completed" ? "bg-green-50 text-green-700"
+              : status === "completed_with_issues" ? "bg-amber-50 text-amber-800"
+                : status === "paused" ? "bg-amber-50 text-amber-800"
+                  : "bg-blue-50 text-blue-700"
+          }`}>{(status || "unknown").replaceAll("_", " ")}</span>
           {isActive && <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">Auto-refreshing</span>}
+          {!isActive && ["completed", "completed_with_issues"].includes(status) && completedAt && Date.now() - new Date(completedAt).getTime() < 10 * 60 * 1000 && (
+            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">Checking late delivery updates</span>
+          )}
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
@@ -127,7 +145,7 @@ export default function CampaignDeliveryProgress({ campaignId, initialStatus, in
       {pauseReason && status === "paused" && <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">Paused: {pauseReason}</p>}
       {status === "completed_with_issues" && <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">Campaign finished, but some recipients failed, were skipped, or need manual review.</p>}
       {error && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-      {!isActive && !error && <p className="mt-4 flex items-center gap-2 text-xs text-slate-500"><CheckCircle2 size={14} />Live refresh stops when the campaign is not queued or sending.</p>}
+      {!isActive && !error && <p className="mt-4 flex items-center gap-2 text-xs text-slate-500"><CheckCircle2 size={14} />Live refresh checks for late delivery updates for 10 minutes after sending finishes.</p>}
     </section>
   );
 }

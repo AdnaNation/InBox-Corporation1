@@ -6,6 +6,7 @@ import { enqueueWebhookEvent } from "@/lib/public-webhooks.mjs";
 import { isWhatsAppOptOutMessage } from "@/lib/whatsapp-opt-out.mjs";
 import { ensureWhatsAppWebhookIndexes } from "@/lib/whatsapp-webhook-indexes.mjs";
 import { extractWhatsAppMessageContent } from "@/lib/whatsapp-message-content.mjs";
+import { refreshCampaignProgress } from "@/lib/campaign-progress.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -406,7 +407,13 @@ async function processStatus(db, account, status) {
               $ifNull: ["$" + statusTimestampField, statusDate],
             },
           } : {}),
-          ...(updateData.error ? { error: updateData.error } : {}),
+          error: {
+            $cond: [
+              { $gt: [incomingRank, { $ifNull: ["$statusRank", 0] }] },
+              updateData.error || "$REMOVE",
+              "$error",
+            ],
+          },
           ...(status.pricing ? { pricing: { $literal: status.pricing } } : {}),
         },
       },
@@ -421,10 +428,15 @@ async function processStatus(db, account, status) {
     });
   }
 
-  // Keep campaign recipient progress in sync with Meta delivery webhooks.
-  // If this event arrived before the worker saved waMessageId, the worker
-  // reconciles it after inserting the outbound message.
+  // Keep campaign recipient and campaign-level progress in sync with Meta.
+  // Campaign sending can finish before delivery callbacks arrive, so a later
+  // failed callback must still move a completed campaign to completed_with_issues.
   if (result.matchedCount > 0) {
+    const campaignRecipient = await db.collection("campaignRecipients").findOne(
+      { workspaceId, waMessageId: status.id },
+      { projection: { campaignId: 1 } },
+    );
+
     await db.collection("campaignRecipients").updateOne(
       {
         workspaceId,
@@ -443,8 +455,17 @@ async function processStatus(db, account, status) {
           updatedAt: new Date(),
           ...(updateData.error ? { error: updateData.error } : {}),
         },
+        ...(status.status !== "failed" ? { $unset: { error: "", metaErrorCode: "" } } : {}),
       },
     );
+
+    // Refresh even when this particular event did not advance the recipient
+    // rank: Meta may be retrying a webhook after a previous reconciliation
+    // failed between saving the recipient and updating the campaign summary.
+    if (campaignRecipient?.campaignId) {
+      await refreshCampaignProgress(db, workspaceId, campaignRecipient.campaignId);
+    }
+
     await enqueueWebhookEvent(db, workspaceId, "message.status_updated", {
       messageId: status.id,
       status: status.status,
