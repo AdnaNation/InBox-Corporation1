@@ -93,18 +93,18 @@ Each workspace owner/admin enters the following in **Dashboard → WhatsApp**:
 - WABA ID and Phone Number ID.
 - A public HTTPS Wavo webhook callback URL (maximum 200 characters).
 
-Wavo validates the token with that customer's App ID/App Secret, verifies that the Phone Number ID belongs to the WABA, encrypts all credentials at rest, subscribes the customer's Meta App to the WABA, and applies a WABA-level callback override to Wavo. Incoming webhooks are verified with that workspace's encrypted App Secret and routed by WABA ID plus Phone Number ID. Outbound messages use that workspace's encrypted WhatsApp access token.
+Wavo validates the token with that customer's App ID/App Secret, verifies that the Phone Number ID belongs to the WABA, encrypts all credentials at rest, subscribes the customer's Meta App to the WABA, and applies a phone-number-level callback override to Wavo. Incoming webhooks are verified with that workspace's encrypted App Secret and routed by WABA ID plus Phone Number ID. Outbound messages use that workspace's encrypted WhatsApp access token.
 
 ### Configure the customer's Meta App
 
 1. In the customer's Meta App dashboard, enable the WhatsApp product and make sure the app has the `messages` webhook field subscribed.
 2. In Wavo → Dashboard → WhatsApp, copy the public HTTPS callback URL and the webhook verify token entered for that workspace.
-3. Complete the manual connection. Wavo subscribes the customer's App to its WABA and sets a WABA-level callback override to the Wavo URL.
+3. Complete the manual connection. Wavo subscribes the customer's App to its WABA and sets a phone-number-level callback override to the Wavo URL.
 4. Send a controlled inbound message and verify that it appears in the correct Wavo workspace. Test an outbound reply from the Wavo inbox.
 
-The WABA-level override does not change the customer's Meta App default callback URL. However, while the override is active, supported message webhooks for that WABA go to Wavo instead of the default callback. If the customer's website also needs those same events while Wavo is connected, an authenticated webhook relay must be implemented and tested; Meta does not automatically duplicate them to both callback URLs.
+The phone-number-level override does not change the customer's Meta App default callback URL and affects only the selected phone number. While the override is active, supported message webhooks for that number go to Wavo instead of the previous callback. Other numbers under the same WABA keep their existing routing. If the customer's website also needs those same events while Wavo is connected, an authenticated webhook relay must be implemented and tested; Meta does not automatically duplicate them to both callback URLs.
 
-When Wavo disconnects the number, it removes only its WABA-level override and restores the customer's previous WABA subscription state. If the customer's App was already subscribed before Wavo, the app subscription remains and Meta falls back to the customer's original app-level callback URL. If Wavo created the subscription, it removes that subscription to restore the prior state. Wavo fails closed if someone changes the callback override outside Wavo.
+When Wavo disconnects the number, it removes only that phone-number-level override. Meta then falls back to the previous WABA-level or app-level callback routing. Other phone-number overrides remain untouched. If Wavo created the WABA subscription, it removes that subscription only after the last Wavo-connected number in that WABA is disconnected. Wavo fails closed if someone changes the phone-number callback override outside Wavo.
 
 Use a public development tunnel for local testing. Meta cannot reach `localhost`. Never commit customer Meta App Secrets, webhook verify tokens, WhatsApp access tokens, or `.env.local` to source control.
 
