@@ -106,8 +106,8 @@ export async function GET(request) {
       await db
         .collection("conversations")
         .updateOne(
-          { _id: conversation._id, workspaceId },
-          { $set: { unreadCount: 0, updatedAt: new Date() } },
+          { _id: conversation._id, workspaceId, unreadCount: { $gt: 0 } },
+          { $set: { unreadCount: 0 } },
         );
 
       return NextResponse.json({
