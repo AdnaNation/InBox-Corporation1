@@ -72,6 +72,14 @@ test("recognizes opt-out requests from WhatsApp quick-reply and list buttons", (
   }), true);
   assert.equal(isWhatsAppOptOutMessage({
     type: "interactive",
+    interactive: { button_reply: { title: "More details", id: "unsubscribe" } },
+  }), true);
+  assert.equal(isWhatsAppOptOutMessage({
+    type: "button",
+    button: { text: "More details", payload: "OPT_OUT" },
+  }), true);
+  assert.equal(isWhatsAppOptOutMessage({
+    type: "interactive",
     interactive: { button_reply: { title: "আনসাবস্ক্রাইব", id: "unsubscribe" } },
   }), true);
   assert.equal(isWhatsAppOptOutMessage({
