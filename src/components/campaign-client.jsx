@@ -162,7 +162,9 @@ export default function CampaignClient({ contactCount, connected, campaigns }) {
       try {
         const [groupsResponse, contactsResponse] = await Promise.all([
           fetch("/api/groups"),
-          fetch("/api/contacts?limit=5000"),
+          // The API returns workspace-wide availableTags separately, so one
+          // contact is enough as a fallback without downloading a full page.
+          fetch("/api/contacts?limit=1"),
         ]);
 
         const groupsData = await groupsResponse.json();
