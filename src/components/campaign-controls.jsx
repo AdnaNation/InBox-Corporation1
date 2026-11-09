@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { showConfirm } from "@/lib/swal";
 
-export default function CampaignControls({ campaignId, initialStatus }) {
+export default function CampaignControls({ campaignId, initialStatus, canManage = false }) {
+  if (!canManage) return null;
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
