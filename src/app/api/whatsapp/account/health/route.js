@@ -42,6 +42,8 @@ export async function GET(request) {
           displayPhoneNumber: 1,
           phoneNumberId: 1,
           wabaId: 1,
+          metaAppIdEncrypted: 1,
+          webhookCallbackUrl: 1,
           accessTokenEncrypted: 1,
           updatedAt: 1,
           tokenExpiresAt: 1,
@@ -104,7 +106,7 @@ export async function GET(request) {
     );
     url.searchParams.set(
       "fields",
-      "id,display_phone_number,verified_name,quality_rating,code_verification_status,platform_type",
+      "id,display_phone_number,verified_name,quality_rating,code_verification_status,platform_type,webhook_configuration",
     );
 
     const response = await fetch(url, {
@@ -161,24 +163,29 @@ export async function GET(request) {
         const subscriptionResult = await subscriptionResponse.json();
         if (subscriptionResponse.ok && Array.isArray(subscriptionResult.data)) {
           const subscribedApps = subscriptionResult.data;
-          const configuredAppId = process.env.META_APP_ID;
+          const configuredAppId = account.metaAppIdEncrypted ? decryptSecret(account.metaAppIdEncrypted) : process.env.META_APP_ID;
           const matchingApp = isMetaAppSubscribed({ data: subscribedApps }, configuredAppId)
             ? subscribedApps.find((item) =>
                 String(item.whatsapp_business_api_data?.id || item.id || "") === String(configuredAppId),
               )
             : null;
+          const callbackMatches = !account.webhookCallbackUrl
+            || String(result.webhook_configuration?.phone_number || "") === account.webhookCallbackUrl;
           webhookSubscription = {
             status: configuredAppId
-              ? matchingApp ? "subscribed" : "not_subscribed"
+              ? matchingApp ? callbackMatches ? "subscribed" : "callback_mismatch" : "not_subscribed"
               : subscribedApps.length ? "subscription_present_app_unverified" : "not_subscribed",
             appName: matchingApp?.whatsapp_business_api_data?.name || "",
             subscribedAppCount: subscribedApps.length,
+            callbackUrl: result.webhook_configuration?.phone_number || "",
             message: configuredAppId
-              ? matchingApp
-                ? "Wavo is subscribed to receive WhatsApp webhook events for this business account."
-                : "Meta does not list this Wavo app as subscribed to this WhatsApp Business Account."
+              ? !matchingApp
+                ? "Meta does not list this customer's Meta App as subscribed to this WhatsApp Business Account."
+                : callbackMatches
+                  ? "The customer's Meta App is subscribed and this phone number's callback override points to Wavo."
+                  : "The customer's Meta App is subscribed, but this phone number's callback override no longer matches the Wavo webhook URL saved for this account."
               : subscribedApps.length
-                ? "Meta reports an app subscription, but META_APP_ID is not configured so Wavo cannot confirm it is the correct app."
+                ? "Meta reports an app subscription, but no customer Meta App ID is saved, so Wavo cannot confirm which app is subscribed."
                 : "Meta reports no subscribed app for this WhatsApp Business Account.",
             checkedAt: new Date().toISOString(),
           };
@@ -198,7 +205,7 @@ export async function GET(request) {
         };
       }
     } else {
-      webhookSubscription.message = "This connection has no saved WhatsApp Business Account ID. Reconnect it through Meta Embedded Signup.";
+      webhookSubscription.message = "This connection has no saved WhatsApp Business Account ID. Reconnect it with the customer's Meta App credentials.";
     }
 
     return NextResponse.json({

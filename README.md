@@ -74,32 +74,39 @@ Before onboarding pilot customers, follow the [production launch runbook](docs/p
 
 The v1 Contacts API supports scoped API keys, contact reads/creates/updates, consent safeguards, and per-key rate limiting. See the [Public API guide](docs/public-api.md) for authentication, permissions, endpoints, examples, and error handling.
 
-## Meta Embedded Signup v4
+## Manual customer-owned Meta App connection
 
-The WhatsApp settings page includes the v4 Embedded Signup flow. Configure these environment variables in Vercel (and locally in `.env.local`):
+Wavo's WhatsApp connection flow uses each customer's own Meta App. Customers do not need to authorize the Wavo Meta App for this manual connection path.
+
+Configure these shared server environment variables locally and in the deployment:
 
 ```env
-META_APP_ID=your_meta_app_id
-META_APP_SECRET=your_meta_app_secret
-META_EMBEDDED_SIGNUP_CONFIG_ID=your_v4_configuration_id
 META_GRAPH_API_VERSION=v26.0
-META_WEBHOOK_VERIFY_TOKEN=your_webhook_verify_token
 ENCRYPTION_KEY=64_character_hex_key
 ```
 
-Keep `META_APP_SECRET` and all other secrets server-side. Do not prefix them with `NEXT_PUBLIC_`. The app ID and configuration ID are returned by an authenticated server endpoint to initialize the Meta JavaScript SDK; neither is a secret.
+Each workspace owner/admin enters the following in **Dashboard → WhatsApp**:
 
-In Meta for Developers:
+- Their Meta App ID and matching App Secret.
+- A webhook verify token they create (at least 8 characters).
+- A WhatsApp access token issued by that same Meta App, with `whatsapp_business_management` and `whatsapp_business_messaging`.
+- WABA ID and Phone Number ID.
+- A public HTTPS Wavo webhook callback URL (maximum 200 characters).
 
-1. Enable Facebook Login for Business and create a **WhatsApp Embedded Signup v4** configuration (do not reuse a retired v2/v3 configuration).
-2. Select WhatsApp Cloud API, WhatsApp accounts, and the permissions your product needs: `whatsapp_business_management` and `whatsapp_business_messaging`. Complete Meta App Review / Advanced Access requirements before onboarding real customers.
-3. Add your production domain to the Facebook Login for Business allowed JavaScript SDK domains and OAuth settings. Use HTTPS.
-4. Configure the WhatsApp webhook callback as `https://YOUR_DOMAIN/api/whatsapp/webhook`, subscribe to the `messages` field, and use the same `META_WEBHOOK_VERIFY_TOKEN` in Meta and Vercel.
-5. Set the app to Live when Meta has approved the required access and your business/provider setup is eligible.
+Wavo validates the token with that customer's App ID/App Secret, verifies that the Phone Number ID belongs to the WABA, encrypts all credentials at rest, subscribes the customer's Meta App to the WABA, and applies a phone-number-level callback override to Wavo. Incoming webhooks are verified with that workspace's encrypted App Secret and routed by WABA ID plus Phone Number ID. Outbound messages use that workspace's encrypted WhatsApp access token.
 
-After a customer finishes signup, the browser sends the short-lived authorization code and WABA/phone identifiers to the authenticated server route. The server exchanges the code immediately, verifies that the selected phone belongs to the granted WABA, subscribes the app to WABA webhooks, and stores the token encrypted. The raw token and app secret are never returned to the browser.
+### Configure the customer's Meta App
 
-The current implementation supports the standard Cloud API signup path. It does not yet implement WhatsApp Business App coexistence onboarding, multi-number selection, partner credit-line sharing, billing, or automated token-expiry notifications. A different existing number is only replaced after the workspace admin explicitly checks the replacement confirmation; active campaigns block replacement.
+1. In the customer's Meta App dashboard, enable the WhatsApp product and make sure the app has the `messages` webhook field subscribed.
+2. In Wavo → Dashboard → WhatsApp, copy the public HTTPS callback URL and the webhook verify token entered for that workspace.
+3. Complete the manual connection. Wavo subscribes the customer's App to its WABA and sets a phone-number-level callback override to the Wavo URL.
+4. Send a controlled inbound message and verify that it appears in the correct Wavo workspace. Test an outbound reply from the Wavo inbox.
+
+The phone-number-level override does not change the customer's Meta App default callback URL and affects only the selected phone number. While the override is active, supported message webhooks for that number go to Wavo instead of the previous callback. Other numbers under the same WABA keep their existing routing. If the customer's website also needs those same events while Wavo is connected, an authenticated webhook relay must be implemented and tested; Meta does not automatically duplicate them to both callback URLs.
+
+When Wavo disconnects the number, it removes only that phone-number-level override. Meta then falls back to the previous WABA-level or app-level callback routing. Other phone-number overrides remain untouched. If Wavo created the WABA subscription, it removes that subscription only after the last Wavo-connected number in that WABA is disconnected. Wavo fails closed if someone changes the phone-number callback override outside Wavo.
+
+Use a public development tunnel for local testing. Meta cannot reach `localhost`. Never commit customer Meta App Secrets, webhook verify tokens, WhatsApp access tokens, or `.env.local` to source control.
 
 ## Google and Facebook social sign-in
 
@@ -147,7 +154,7 @@ This is a runnable MVP foundation, not a finished, audited commercial SaaS. Befo
 - Bot protection, account recovery and support workflows
 - CSRF/origin policy appropriate for custom domains and preview deployments
 - Admin provisioning and audited role management
-- Meta Tech Provider eligibility, App Review / Advanced Access, token-lifecycle handling and customer offboarding automation. Scheduled Meta account-health checks and owner email alerts are implemented, but only run after the always-on background worker is deployed and configured (the webhook endpoint verifies Meta's `X-Hub-Signature-256` POST signatures using `META_APP_SECRET`).
+- Customer Meta App permissions, token-lifecycle handling and customer offboarding automation. Scheduled Meta account-health checks and owner email alerts are implemented, but only run after the always-on background worker is deployed and configured (incoming webhook signatures use each connected workspace's encrypted Meta App Secret; the global `META_APP_SECRET` is only a legacy-connection fallback).
 - Production queue scheduling, configurable per-number pacing, lease recovery, operator review tools and monitoring for the campaign worker
 - Subscription billing, usage metering and payment webhook verification
 - Consent evidence, suppression lists, opt-out handling, template approval checks and policy enforcement
@@ -172,8 +179,7 @@ Add this variable in Vercel Project Settings → Environment Variables, then red
 3. Add the environment variables from `.env.example` in Vercel Project Settings.
 4. Add your production domain to `NEXT_PUBLIC_APP_URL`.
 5. Deploy.
-6. Configure the Meta webhook URL as `https://YOUR_DOMAIN/api/whatsapp/webhook`.
-7. Set the same `META_WEBHOOK_VERIFY_TOKEN` in Meta and Vercel.
+6. Configure each customer Meta App with the callback URL and verify token shown in Dashboard → WhatsApp. Wavo applies the phone-number-level callback override during connection; no global `META_WEBHOOK_VERIFY_TOKEN` is required for new customer connections.
 
 Do not commit `.env.local` or store Meta access tokens in client-side code.
 
