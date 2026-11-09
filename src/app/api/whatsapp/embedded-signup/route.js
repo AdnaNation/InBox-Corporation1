@@ -121,6 +121,20 @@ export async function POST(request) {
     const subscribeUrl = `https://graph.facebook.com/${apiVersion}/${wabaId}/subscribed_apps`;
     await metaRequest(subscribeUrl, { method: "POST", headers: authHeaders });
 
+    // Confirm the Wavo app is actually listed on this WABA before persisting
+    // the connection. This prevents a false-positive Connected state.
+    const subscriptionData = await metaRequest(subscribeUrl, { headers: authHeaders });
+    const wavoSubscribed = (subscriptionData.data || []).some((item) =>
+      String(item.whatsapp_business_api_data?.id || item.id || "") === String(appId),
+    );
+    if (!wavoSubscribed) {
+      return NextResponse.json({
+        success: false,
+        code: "WAVO_APP_NOT_SUBSCRIBED",
+        message: "Meta did not list Wavo's app as subscribed to this WhatsApp Business Account. The account was not saved as connected.",
+      }, { status: 422 });
+    }
+
     const now = new Date();
     const expiresInSeconds = Number(tokenData.expires_in);
     const tokenExpiresAt = Number.isFinite(expiresInSeconds) && expiresInSeconds > 0
