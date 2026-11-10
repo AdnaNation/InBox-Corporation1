@@ -190,7 +190,7 @@ async function createSocialAccount(db, profile, provider) {
   const now = new Date();
   const slugBase = profile.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 35) || "business";
   const slug = `${slugBase}-${workspaceId.toString().slice(-8)}`;
-  const client = await clientPromise;
+  const client = await clientPromise();
   const session = client.startSession();
   try {
     await session.withTransaction(async () => {
