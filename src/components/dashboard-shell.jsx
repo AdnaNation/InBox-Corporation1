@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Activity, BarChart3, CreditCard, KeyRound, LayoutDashboard, LogOut,
   Menu, MessageCircle, MessageSquare, Plug, Send, Settings, ShieldCheck,
-  Users, X, ChevronDown, Command,
+  Users, X, ChevronDown,
 } from "lucide-react";
 
 const primaryLinks = [
@@ -110,11 +110,10 @@ export default function DashboardShell({ session, children }) {
 
       <div className="shrink-0 px-4 pb-4 pt-5">
         <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[.16em] text-slate-400">Workspace</p>
-        <button type="button" className="flex w-full items-center gap-3 rounded-xl border border-slate-200/80 bg-[#fafcfb] p-3 text-left transition hover:border-slate-300 hover:bg-white">
+        <div className="flex w-full items-center gap-3 rounded-xl border border-slate-200/80 bg-[#fafcfb] p-3 text-left">
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#e8f3ed] text-xs font-semibold text-emerald-800">{(session.workspace.name || "W").slice(0,1).toUpperCase()}</span>
           <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-slate-800">{session.workspace.name}</span><span className="mt-0.5 block text-[10px] capitalize text-slate-500">{session.membership.role} workspace</span></span>
-          <ChevronDown size={14} className="text-slate-400" />
-        </button>
+        </div>
       </div>
 
       <nav aria-label="Dashboard navigation" className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4">
