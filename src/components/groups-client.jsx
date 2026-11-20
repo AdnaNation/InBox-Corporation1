@@ -204,7 +204,7 @@ export default function GroupsClient() {
       )}
 
       {notice && (
-        <div className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
           {notice}
         </div>
       )}
@@ -212,12 +212,12 @@ export default function GroupsClient() {
       {/* Create / Edit group */}
       <form
         onSubmit={saveGroup}
-        className="rounded-2xl border border-slate-200 bg-white p-5"
+        className="rounded-xl border border-slate-200 bg-white p-5"
       >
         <div className="mb-5 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <UsersRound className="text-green-600" size={20} />
+              <UsersRound className="text-emerald-700" size={20} />
               <h2 className="font-semibold">
                 {editingId ? "Edit group" : "Create a group"}
               </h2>
@@ -249,7 +249,7 @@ export default function GroupsClient() {
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="VIP Customers"
-              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-green-500"
+              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-emerald-700"
             />
           </label>
 
@@ -260,7 +260,7 @@ export default function GroupsClient() {
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               placeholder="Our most valuable customers"
-              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-green-500"
+              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-emerald-700"
             />
           </label>
         </div>
@@ -280,7 +280,7 @@ export default function GroupsClient() {
               <button
                 type="button"
                 onClick={selectFilteredContacts}
-                className="rounded-lg bg-green-50 px-3 py-2 text-xs font-medium text-green-700 hover:bg-green-100"
+                className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800 hover:bg-green-100"
               >
                 Select visible
               </button>
@@ -305,7 +305,7 @@ export default function GroupsClient() {
               value={contactSearch}
               onChange={(event) => setContactSearch(event.target.value)}
               placeholder="Search contacts by name or phone..."
-              className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-green-500"
+              className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-emerald-700"
             />
           </div>
 
@@ -337,7 +337,7 @@ export default function GroupsClient() {
                     </span>
 
                     {contact.optedIn ? (
-                      <span className="rounded-full bg-green-50 px-2 py-1 text-[10px] text-green-700">
+                      <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] text-emerald-800">
                         Opted in
                       </span>
                     ) : (
@@ -364,7 +364,7 @@ export default function GroupsClient() {
         <button
           type="submit"
           disabled={saving || loading}
-          className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50 sm:w-auto sm:px-8"
+          className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#087f5b] py-3 text-sm font-semibold text-white hover:bg-[#066447] disabled:opacity-50 sm:w-auto sm:px-8"
         >
           {saving ? (
             <Loader2 size={17} className="animate-spin" />
@@ -379,7 +379,7 @@ export default function GroupsClient() {
       </form>
 
       {/* Existing groups */}
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-5">
           <div>
             <h2 className="font-semibold">Your groups</h2>
@@ -398,7 +398,7 @@ export default function GroupsClient() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search groups..."
-              className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-green-500 sm:w-52"
+              className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-emerald-700 sm:w-52"
             />
           </div>
         </div>
@@ -417,7 +417,7 @@ export default function GroupsClient() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
-                    <div className="rounded-xl bg-green-50 p-3 text-green-600">
+                    <div className="rounded-xl bg-emerald-50 p-3 text-emerald-700">
                       <Users size={20} />
                     </div>
 
@@ -430,7 +430,7 @@ export default function GroupsClient() {
                     </div>
                   </div>
 
-                  <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800">
                     Group
                   </span>
                 </div>
