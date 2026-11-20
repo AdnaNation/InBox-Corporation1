@@ -2,7 +2,33 @@
 
 :root {
   color-scheme: light;
+  --wavo-ink: #17251f;
+  --wavo-muted: #68756f;
+  --wavo-line: #e5ebe7;
+  --wavo-paper: #f7f9f7;
+  --wavo-green: #087f5b;
+  --wavo-green-dark: #066447;
+  --wavo-green-soft: #eaf5ef;
+  --wavo-radius: 14px;
 }
+
 * { box-sizing: border-box; }
-body { margin: 0; background: #f8fafc; color: #0f172a; }
-button, input { font: inherit; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--wavo-paper);
+  color: var(--wavo-ink);
+  font-feature-settings: "ss01" on, "cv11" on;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+button, input, textarea, select { font: inherit; }
+button, a { -webkit-tap-highlight-color: transparent; }
+::selection { background: #ccebd9; color: #123b2b; }
+:focus-visible { outline: 2px solid #15966e; outline-offset: 2px; }
+* { scrollbar-width: thin; scrollbar-color: #cbd5cf transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #cbd5cf; border-radius: 999px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
