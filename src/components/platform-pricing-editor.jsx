@@ -93,7 +93,7 @@ export default function PlatformPricingEditor() {
   }
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-slate-900">Plan pricing</h2>
