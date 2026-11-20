@@ -713,8 +713,8 @@ export default function InboxPage() {
   ].filter(Boolean).length;
 
   return (
-    <main className="mx-auto flex h-[calc(100dvh-168px)] min-h-[560px] max-w-[1600px] flex-col gap-4 p-3 sm:p-5">
-      <header className="flex shrink-0 items-end justify-between gap-4">
+    <main className="flex h-[calc(100dvh-60px)] min-h-0 w-full flex-col overflow-hidden lg:h-[calc(100dvh-54px)]">
+      <header className="flex min-h-[68px] shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
         <div>
           <p className="mb-1 text-xs font-medium text-slate-500">Customer support</p>
           <h1 className="text-[26px] font-medium leading-tight tracking-[-0.03em] text-slate-950">Inbox</h1>
@@ -727,14 +727,14 @@ export default function InboxPage() {
       </header>
 
       {error && (
-        <div role="alert" className="flex shrink-0 items-start justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800">
+        <div role="alert" className="mx-3 mt-3 flex shrink-0 items-start justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800 sm:mx-4">
           <span>{error}</span>
           <button type="button" onClick={() => setError("")} className="rounded px-1 text-lg leading-none text-red-700 hover:bg-red-100" aria-label="Dismiss error">×</button>
         </div>
       )}
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:grid-cols-[340px_minmax(0,1fr)]">
-        <aside className={"min-h-0 flex-col border-r border-slate-200 bg-white " + (selectedId ? "hidden md:flex" : "flex")}>
+      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-hidden bg-white md:grid-cols-[minmax(300px,360px)_minmax(0,1fr)]">
+        <aside className={"min-h-0 min-w-0 flex-col border-r border-slate-200 bg-white " + (selectedId ? "hidden md:flex" : "flex")}>
           <div className="shrink-0 border-b border-slate-200 p-4">
             <div className="mb-3 flex items-center justify-between">
               <div>
@@ -954,7 +954,7 @@ export default function InboxPage() {
                     <p className="mt-1 text-xs text-slate-500">Messages from this customer will appear here</p>
                   </div>
                 ) : (
-                  <div className="mx-auto flex max-w-3xl flex-col gap-2.5">
+                  <div className="mx-auto flex w-full max-w-5xl flex-col gap-2.5">
                     {hasOlderMessages && (
                       <div className="flex justify-center pb-2">
                         <button type="button" onClick={loadOlderMessages} disabled={loadingOlderMessages} className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50">
@@ -999,7 +999,7 @@ export default function InboxPage() {
               </div>
 
               <form onSubmit={handleSend} className="shrink-0 border-t border-slate-200 bg-white px-3 py-3 sm:px-5">
-                <div className="mx-auto flex max-w-3xl items-end gap-2">
+                <div className="mx-auto flex w-full max-w-5xl items-end gap-2">
                   <button type="button" onClick={openTemplateModal} className="flex h-10 shrink-0 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50">
                     <MessageSquareText size={15} strokeWidth={1.7} />
                     <span className="hidden sm:inline">Template</span>
@@ -1025,7 +1025,7 @@ export default function InboxPage() {
                     <span>{sending ? "Sending…" : "Send"}</span>
                   </button>
                 </div>
-                <p className="mx-auto mt-2 max-w-3xl pl-1 text-[10px] text-slate-400">Enter to send · Shift + Enter for a new line</p>
+                <p className="mx-auto mt-2 w-full max-w-5xl pl-1 text-[10px] text-slate-400">Enter to send · Shift + Enter for a new line</p>
               </form>
             </>
           )}
