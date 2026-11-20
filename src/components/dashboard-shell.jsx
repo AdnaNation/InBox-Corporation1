@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Activity, BarChart3, CreditCard, KeyRound, LayoutDashboard, LogOut,
   Menu, MessageCircle, MessageSquare, Plug, Send, Settings, ShieldCheck,
-  Users, X, ChevronDown,
+  Users, X,
 } from "lucide-react";
 
 const primaryLinks = [
