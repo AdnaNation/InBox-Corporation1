@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MessageCircle, Loader2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, Eye, EyeOff, Loader2, LockKeyhole, MessageCircle } from "lucide-react";
 import SocialAuthButtons from "@/components/social-auth-buttons";
 
 export default function LoginPage() {
   const router = useRouter();
   const [form, setForm] = useState({ email: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [verificationNotice, setVerificationNotice] = useState("");
@@ -30,10 +31,7 @@ export default function LoginPage() {
       oauth_failed: "Social sign-in failed. Please try again.",
     };
     if (params.has("oauthError")) setError(oauthErrors[params.get("oauthError")] || oauthErrors.oauth_failed);
-    if (passwordReset === "success") {
-      setVerificationNotice("Your password has been updated. Sign in with your new password.");
-      return;
-    }
+    if (passwordReset === "success") { setVerificationNotice("Your password has been updated. Sign in with your new password."); return; }
     const messages = {
       success: "Your email address is verified. You can now sign in.",
       expired: "This verification link has expired. Sign in and request a new one from your dashboard.",
@@ -48,36 +46,41 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form)
-      });
+      const response = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
       const data = await response.json();
-      if (!response.ok) return setError(data.message || "Login failed.");
+      if (!response.ok) { setError(data.message || "Login failed."); return; }
       router.replace("/dashboard");
       router.refresh();
-    } catch {
-      setError("Unable to sign in. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    } catch { setError("Unable to sign in. Please try again."); }
+    finally { setLoading(false); }
   }
 
-  return <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12"><div className="w-full max-w-md">
-    <Link href="/" className="mb-8 flex items-center justify-center gap-2 text-xl font-bold"><span className="rounded-xl bg-green-600 p-2 text-white"><MessageCircle/></span>InBox Corporation</Link>
-    <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-      <h1 className="text-2xl font-bold">Welcome back</h1><p className="mb-7 mt-2 text-sm text-slate-500">Sign in to your business workspace.</p>
-      {verificationNotice && <p role="status" className="mb-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{verificationNotice}</p>}
-      {error && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <label className="block text-sm font-medium">Email address<input type="email" required value={form.email} onChange={e=>setForm({...form,email:e.target.value})} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100" placeholder="you@example.com"/></label>
-        <label className="block text-sm font-medium">Password<input type="password" required value={form.password} onChange={e=>setForm({...form,password:e.target.value})} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100" placeholder="Your password"/></label>
-        <p className="-mt-3 text-right text-sm"><Link href="/forgot-password" className="font-semibold text-green-700 hover:text-green-800">Forgot password?</Link></p>
-        <button disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3.5 font-semibold text-white hover:bg-green-700 disabled:opacity-60">{loading?<><Loader2 className="animate-spin" size={18}/>Signing in...</>:"Sign in"}</button>
-      </form>
-      <div className="mt-5"><SocialAuthButtons /></div>
-      <p className="mt-5 text-center text-sm text-slate-500">New here? <Link href="/register" className="font-semibold text-green-700">Create an account</Link></p>
-    </div>
-  </div></main>;
+  return (
+    <main className="grid min-h-screen bg-white lg:grid-cols-[minmax(0,1fr)_minmax(420px,.9fr)]">
+      <section className="relative hidden overflow-hidden bg-[#10251d] px-12 py-12 text-white lg:flex lg:flex-col lg:justify-between xl:px-20">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_15%_15%,rgba(16,185,129,.22),transparent_42%),linear-gradient(145deg,transparent_45%,rgba(5,80,55,.5))]"/>
+        <Link href="/" className="relative flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-500 text-white"><MessageCircle size={20}/></span><span className="text-lg font-semibold tracking-tight">Wavo<span className="text-emerald-400">.</span></span></Link>
+        <div className="relative max-w-xl pb-10"><p className="text-[11px] font-semibold uppercase tracking-[.2em] text-emerald-300">One workspace. Better conversations.</p><h1 className="mt-5 text-5xl font-semibold leading-[1.08] tracking-[-.055em] xl:text-6xl">Make every customer conversation count.</h1><p className="mt-6 max-w-md text-sm leading-7 text-emerald-50/70">Bring your WhatsApp inbox, contacts and team workflows together. Pick up where your customers left off.</p><div className="mt-10 flex flex-wrap gap-5 text-xs text-emerald-50/75"><span className="inline-flex items-center gap-2"><CheckCircle2 size={15} className="text-emerald-300"/> Shared team inbox</span><span className="inline-flex items-center gap-2"><CheckCircle2 size={15} className="text-emerald-300"/> Consent-aware campaigns</span></div></div>
+        <p className="relative text-[11px] text-emerald-100/45">Wavo by InBox Corporation</p>
+      </section>
+
+      <section className="flex min-h-screen items-center justify-center px-5 py-12 sm:px-10">
+        <div className="w-full max-w-[390px]">
+          <Link href="/" className="mb-12 inline-flex items-center gap-2.5 text-sm font-semibold text-slate-900 lg:hidden"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[#087f5b] text-white"><MessageCircle size={17}/></span>Wavo<span className="text-emerald-700">.</span></Link>
+          <div className="mb-8"><div className="mb-5 grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600"><LockKeyhole size={18}/></div><p className="text-[11px] font-semibold uppercase tracking-[.16em] text-emerald-700">Welcome back</p><h2 className="mt-2 text-[30px] font-semibold tracking-[-.045em] text-slate-950">Sign in to Wavo</h2><p className="mt-2 text-sm text-slate-500">Use your business account to continue.</p></div>
+          {verificationNotice && <p role="status" className="mb-4 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2.5 text-xs leading-5 text-emerald-800">{verificationNotice}</p>}
+          {error && <p role="alert" className="mb-4 rounded-lg border border-red-100 bg-red-50 px-3 py-2.5 text-xs leading-5 text-red-700">{error}</p>}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <label className="block text-xs font-semibold text-slate-700">Email address<input type="email" autoComplete="email" required value={form.email} onChange={(e)=>setForm({...form,email:e.target.value})} className="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-white px-3.5 text-sm font-normal text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/10" placeholder="you@company.com"/></label>
+            <label className="block text-xs font-semibold text-slate-700">Password<span className="relative mt-2 block"><input type={showPassword?"text":"password"} autoComplete="current-password" required value={form.password} onChange={(e)=>setForm({...form,password:e.target.value})} className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3.5 pr-11 text-sm font-normal text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/10" placeholder="Enter your password"/><button type="button" onClick={()=>setShowPassword(!showPassword)} aria-label={showPassword?"Hide password":"Show password"} className="absolute inset-y-0 right-0 grid w-10 place-items-center text-slate-400 hover:text-slate-700">{showPassword?<EyeOff size={16}/>:<Eye size={16}/>}</button></span></label>
+            <div className="-mt-1 text-right"><Link href="/forgot-password" className="text-xs font-semibold text-emerald-800 hover:text-emerald-950">Forgot password?</Link></div>
+            <button disabled={loading} className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#087f5b] text-sm font-semibold text-white transition hover:bg-[#066447] disabled:cursor-not-allowed disabled:opacity-60">{loading?<><Loader2 className="animate-spin" size={17}/>Signing in…</>:<>Sign in <ArrowRight size={16}/></>}</button>
+          </form>
+          <div className="my-6"><SocialAuthButtons/></div>
+          <p className="text-center text-xs text-slate-500">New to Wavo? <Link href="/register" className="font-semibold text-emerald-800 hover:text-emerald-950">Create an account</Link></p>
+          <p className="mt-12 text-center text-[10px] text-slate-400">By continuing, you agree to use Wavo in accordance with our <Link href="/terms" className="underline underline-offset-2 hover:text-slate-600">terms</Link> and <Link href="/privacy-policy" className="underline underline-offset-2 hover:text-slate-600">privacy policy</Link>.</p>
+        </div>
+      </section>
+    </main>
+  );
 }
