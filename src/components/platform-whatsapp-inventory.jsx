@@ -40,7 +40,7 @@ export default function PlatformWhatsAppInventory({ accounts = [] }) {
   }
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
       <div className="border-b border-slate-100 p-5">
         <h2 className="font-bold text-slate-900">Customer WhatsApp numbers</h2>
         <p className="mt-1 text-sm text-slate-500">
