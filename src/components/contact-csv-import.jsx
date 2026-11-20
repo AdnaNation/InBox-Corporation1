@@ -84,10 +84,10 @@ export default function ContactCsvImport({ onImported }) {
   }
 
   return (
-    <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-5">
+    <section className="mb-5 rounded-xl border border-slate-200 bg-white p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="rounded-xl bg-green-50 p-3 text-green-600">
+          <div className="rounded-xl bg-emerald-50 p-3 text-emerald-700">
             <FileSpreadsheet size={21} />
           </div>
 
@@ -111,7 +111,7 @@ export default function ContactCsvImport({ onImported }) {
 
       <form onSubmit={importContacts}>
         <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center hover:border-green-400">
-          <Upload className="mb-3 text-green-600" size={25} />
+          <Upload className="mb-3 text-emerald-700" size={25} />
 
           <span className="text-sm font-semibold">
             {file ? file.name : "Choose a CSV file"}
@@ -155,7 +155,7 @@ export default function ContactCsvImport({ onImported }) {
         )}
 
         {result && (
-          <div className="mt-3 rounded-xl bg-green-50 p-4 text-sm text-green-800">
+          <div className="mt-3 rounded-xl bg-emerald-50 p-4 text-sm text-green-800">
             <div className="mb-2 flex items-center gap-2 font-semibold">
               <CheckCircle size={17} />
               Import completed
@@ -166,7 +166,7 @@ export default function ContactCsvImport({ onImported }) {
             <p>Invalid rows: {result.invalid?.length || 0}</p>
 
             {result.invalid?.length > 0 && (
-              <div className="mt-3 border-t border-green-200 pt-3">
+              <div className="mt-3 border-t border-emerald-200 pt-3">
                 <p className="mb-2 font-semibold">Rows that need attention</p>
 
                 <div className="max-h-32 space-y-1 overflow-y-auto">
@@ -184,7 +184,7 @@ export default function ContactCsvImport({ onImported }) {
         <button
           type="submit"
           disabled={loading || !file || !consentConfirmed}
-          className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-[#087f5b] px-5 py-3 text-sm font-semibold text-white hover:bg-[#066447] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? (
             <Loader2 size={17} className="animate-spin" />

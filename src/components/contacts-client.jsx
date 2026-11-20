@@ -381,10 +381,10 @@ export default function ContactsClient({
         {/* Add Contacts */}
         <form
           onSubmit={addContact}
-          className="h-fit rounded-2xl border border-slate-200 bg-white p-5"
+          className="h-fit rounded-xl border border-slate-200 bg-white p-5"
         >
           <div className="mb-5 flex items-center gap-2">
-            <Plus className="text-green-600" size={19} />
+            <Plus className="text-emerald-700" size={19} />
             <h2 className="font-semibold">Add contacts</h2>
           </div>
 
@@ -395,7 +395,7 @@ export default function ContactsClient({
           )}
 
           {notice && (
-            <p className="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">
+            <p className="mb-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
               {notice}
             </p>
           )}
@@ -413,7 +413,7 @@ export default function ContactsClient({
                 })
               }
               placeholder="Customer"
-              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-green-500"
+              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-emerald-700"
             />
             <span className="mt-1 block text-xs font-normal text-slate-400">
               Multiple numbers will be named Customer 1, Customer 2, etc.
@@ -434,7 +434,7 @@ export default function ContactsClient({
               }
               placeholder={`+8801712345678
 +8801812345678`}
-              className="mt-2 w-full resize-y rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-green-500"
+              className="mt-2 w-full resize-y rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-emerald-700"
             />
             <span className="mt-1 block text-xs font-normal text-slate-400">
               Separate numbers with commas or new lines. Use international
@@ -454,7 +454,7 @@ export default function ContactsClient({
                 })
               }
               placeholder="vip, customer, new-lead"
-              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-green-500"
+              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-emerald-700"
             />
             <span className="mt-1 block text-xs font-normal text-slate-400">
               Separate tags with commas. Maximum 10 tags.
@@ -484,7 +484,7 @@ export default function ContactsClient({
           <button
             type="submit"
             disabled={loading || !form.optedIn}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#087f5b] py-3 text-sm font-semibold text-white hover:bg-[#066447] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? (
               <Loader2 className="animate-spin" size={17} />
@@ -497,7 +497,7 @@ export default function ContactsClient({
         </form>
 
         {/* Contact List */}
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
           {/* Header */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-5">
             <div>
@@ -518,7 +518,7 @@ export default function ContactsClient({
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search contacts..."
-                className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-green-500 sm:w-56"
+                className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-emerald-700 sm:w-56"
               />
             </div>
             {canExport && (
@@ -543,7 +543,7 @@ export default function ContactsClient({
               onClick={() => setTagFilter("all")}
               className={`rounded-full px-3 py-1.5 text-xs font-medium ${
                 tagFilter === "all"
-                  ? "bg-green-600 text-white"
+                  ? "bg-[#087f5b] text-white"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
@@ -557,7 +557,7 @@ export default function ContactsClient({
                 onClick={() => setTagFilter(tag)}
                 className={`rounded-full px-3 py-1.5 text-xs font-medium ${
                   tagFilter === tag
-                    ? "bg-green-600 text-white"
+                    ? "bg-[#087f5b] text-white"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
               >
@@ -601,7 +601,7 @@ export default function ContactsClient({
                             {tagDraft.map((tag) => (
                               <span
                                 key={tag}
-                                className="flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs text-green-700"
+                                className="flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs text-emerald-800"
                               >
                                 {tag}
 
@@ -634,7 +634,7 @@ export default function ContactsClient({
                               }}
                               placeholder="Add a tag"
                               maxLength={30}
-                              className="w-28 rounded-lg border border-slate-200 px-2 py-1.5 text-xs outline-none focus:border-green-500"
+                              className="w-28 rounded-lg border border-slate-200 px-2 py-1.5 text-xs outline-none focus:border-emerald-700"
                             />
 
                             <button
@@ -651,7 +651,7 @@ export default function ContactsClient({
                               type="button"
                               disabled={savingTags}
                               onClick={() => saveTags(contact.id)}
-                              className="flex items-center gap-1 rounded-lg bg-green-600 px-2.5 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                              className="flex items-center gap-1 rounded-lg bg-[#087f5b] px-2.5 py-1.5 text-xs font-medium text-white disabled:opacity-50"
                             >
                               {savingTags ? (
                                 <Loader2 size={12} className="animate-spin" />
@@ -675,7 +675,7 @@ export default function ContactsClient({
                           {(contact.tags || []).map((tag) => (
                             <span
                               key={tag}
-                              className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700"
+                              className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800"
                             >
                               {tag}
                             </span>
@@ -695,7 +695,7 @@ export default function ContactsClient({
                       {contact.suppressed ? (
                         <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700">Opted out — blocked</span>
                       ) : contact.optedIn ? (
-                        <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">Opted in</span>
+                        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800">Opted in</span>
                       ) : (
                         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">Not confirmed</span>
                       )}
@@ -709,7 +709,7 @@ export default function ContactsClient({
                             type="button"
                             onClick={() => startEditTags(contact)}
                             title="Edit tags"
-                            className="text-slate-500 hover:text-green-600"
+                            className="text-slate-500 hover:text-emerald-700"
                           >
                             <Pencil size={15} />
                           </button>
@@ -725,7 +725,7 @@ export default function ContactsClient({
                               setConsentConfirmed(false);
                             }}
                             title="Record fresh consent"
-                            className="flex items-center gap-1 text-xs font-medium text-green-700 hover:underline"
+                            className="flex items-center gap-1 text-xs font-medium text-emerald-800 hover:underline"
                           >
                             <ShieldCheck size={14} />
                             Record consent
@@ -774,10 +774,10 @@ export default function ContactsClient({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
           <form
             onSubmit={(event) => { event.preventDefault(); recordRenewedConsent(); }}
-            className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"
+            className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl"
           >
             <div className="mb-4 flex items-center gap-3">
-              <ShieldCheck className="text-green-600" size={22} />
+              <ShieldCheck className="text-emerald-700" size={22} />
               <div>
                 <h3 className="font-semibold text-slate-900">Record fresh WhatsApp consent</h3>
                 <p className="text-xs text-slate-500">{consentContact.name} · {consentContact.phone}</p>
@@ -825,7 +825,7 @@ export default function ContactsClient({
             </label>
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setConsentContact(null)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-600">Cancel</button>
-              <button type="submit" disabled={savingConsent || !consentConfirmed || consentEvidence.trim().length < 8} className="flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+              <button type="submit" disabled={savingConsent || !consentConfirmed || consentEvidence.trim().length < 8} className="flex items-center gap-2 rounded-xl bg-[#087f5b] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
                 {savingConsent && <Loader2 size={15} className="animate-spin" />}
                 {savingConsent ? "Saving..." : "Record fresh consent"}
               </button>

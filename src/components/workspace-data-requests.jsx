@@ -64,7 +64,7 @@ export default function WorkspaceDataRequests() {
   }
 
   return (
-    <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+    <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
       <div className="flex items-start gap-3">
         <span className="rounded-xl bg-emerald-50 p-3 text-emerald-700"><ShieldAlert size={20} /></span>
         <div>
