@@ -151,7 +151,7 @@ export default function TemplateCreateForm({ onCreated }) {
     }
   }
 
-  const field = "w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-green-500";
+  const field = "w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-emerald-700";
   const buttonsValid = form.buttons.every((button) => {
     if (!button.text?.trim() || button.text.trim().length > 25) return false;
     if (button.type === "URL") {
@@ -172,19 +172,19 @@ export default function TemplateCreateForm({ onCreated }) {
     (form.templateType === "STANDARD" ? form.buttons.length <= buttonLimit && buttonsValid : form.templateType === "LIMITED_TIME_OFFER" ? buttonsValid : true);
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5">
+    <section className="rounded-xl border border-slate-200 bg-white p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-semibold text-slate-900">Create a template</h2>
           <p className="mt-1 text-xs text-slate-500">Build a text or media template with a live WhatsApp preview, then submit it to Meta for approval.</p>
         </div>
-        <button type="button" onClick={() => setOpen((value) => !value)} className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700">
+        <button type="button" onClick={() => setOpen((value) => !value)} className="inline-flex items-center gap-2 rounded-xl bg-[#087f5b] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#066447]">
           {open ? <X size={16} /> : <Plus size={16} />}
           {open ? "Close" : "New template"}
         </button>
       </div>
 
-      {notice && <p role="status" className="mt-4 rounded-lg bg-green-50 p-3 text-sm text-green-800">{notice}</p>}
+      {notice && <p role="status" className="mt-4 rounded-lg bg-emerald-50 p-3 text-sm text-green-800">{notice}</p>}
       {open && (
         <form onSubmit={submit} className="mt-5 border-t border-slate-100 pt-5"><div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]"><div className="min-w-0 space-y-4">
           <label className="block text-sm font-medium text-slate-700">Template type
@@ -234,8 +234,8 @@ export default function TemplateCreateForm({ onCreated }) {
               <div className="mt-3">
                 <input type="file" accept={form.headerFormat === "IMAGE" ? "image/jpeg,image/png" : form.headerFormat === "VIDEO" ? "video/mp4" : "application/pdf"} onChange={(e) => uploadHeaderMedia(e.target.files?.[0])} className="block w-full text-sm text-slate-600" />
                 <p className="mt-1 text-xs text-slate-500">Upload a sample file for Meta template review. JPEG/PNG up to 5 MB, MP4 up to 16 MB, PDF up to 100 MB.</p>
-                {mediaBusy && <p className="mt-2 text-xs text-green-700">Uploading media to Meta…</p>}
-                {form.headerMediaHandle && <p className="mt-2 text-xs text-green-700">Uploaded: {form.headerMediaName}</p>}
+                {mediaBusy && <p className="mt-2 text-xs text-emerald-800">Uploading media to Meta…</p>}
+                {form.headerMediaHandle && <p className="mt-2 text-xs text-emerald-800">Uploaded: {form.headerMediaName}</p>}
               </div>
             )}
           </section>
@@ -338,7 +338,7 @@ export default function TemplateCreateForm({ onCreated }) {
               ))}
             </div>
             {form.templateType === "LIMITED_TIME_OFFER" ? null : form.buttons.length < buttonLimit && (
-              <button type="button" onClick={addButton} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-green-200 px-3 py-2 text-xs font-semibold text-green-700 hover:bg-green-50">
+              <button type="button" onClick={addButton} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">
                 <Plus size={14} /> Add {form.buttonGroup === "QUICK_REPLY" ? "quick reply" : "call-to-action"} button
               </button>
             )}
@@ -347,7 +347,7 @@ export default function TemplateCreateForm({ onCreated }) {
 
           </div>
           <aside className="xl:sticky xl:top-5 xl:self-start">
-            <div className="rounded-2xl border border-slate-200 bg-[#efeae2] p-4">
+            <div className="rounded-xl border border-slate-200 bg-[#efeae2] p-4">
               <h3 className="mb-3 text-sm font-semibold text-slate-800">Live WhatsApp preview</h3>
               <div className="rounded-xl bg-white p-3 shadow-sm">
                 {form.headerFormat === "TEXT" && form.header && <p className="mb-2 text-sm font-bold text-slate-900">{form.header}</p>}
@@ -378,7 +378,7 @@ export default function TemplateCreateForm({ onCreated }) {
           {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-slate-500">Meta reviews submitted templates. Approval is not guaranteed.</p>
-            <button type="submit" disabled={busy || !canSubmit} className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50">
+            <button type="submit" disabled={busy || !canSubmit} className="inline-flex items-center gap-2 rounded-xl bg-[#087f5b] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#066447] disabled:opacity-50">
               {busy && <Loader2 size={16} className="animate-spin" />}
               Submit for approval
             </button>
