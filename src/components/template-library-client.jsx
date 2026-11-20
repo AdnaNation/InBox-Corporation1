@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 
 const statusStyles = {
-  APPROVED: "bg-green-50 text-green-700",
+  APPROVED: "bg-emerald-50 text-emerald-800",
   PENDING: "bg-amber-50 text-amber-700",
   REJECTED: "bg-red-50 text-red-700",
   PAUSED: "bg-orange-50 text-orange-700",
@@ -91,11 +91,11 @@ function TemplateCard({ template, onEdit, onDelete, deleting }) {
   }
 
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-5">
+    <article className="rounded-xl border border-slate-200 bg-white p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <FileText size={18} className="text-green-600" />
+            <FileText size={18} className="text-emerald-700" />
 
             <h3 className="break-all font-semibold text-slate-900">
               {template.name}
@@ -159,7 +159,7 @@ function TemplateCard({ template, onEdit, onDelete, deleting }) {
             {buttons.buttons.map((button, index) => (
               <p
                 key={index}
-                className="rounded-lg bg-white px-3 py-2 text-center text-xs font-medium text-green-700"
+                className="rounded-lg bg-white px-3 py-2 text-center text-xs font-medium text-emerald-800"
               >
                 {button.text || (String(button.type).toUpperCase() === "COPY_CODE" ? "Copy code" : button.type)}
               </p>
@@ -182,7 +182,7 @@ function TemplateCard({ template, onEdit, onDelete, deleting }) {
 
         <div className="flex flex-wrap gap-2">
           {["APPROVED", "REJECTED", "PAUSED"].includes(template.status) && (
-            <button type="button" onClick={() => onEdit(template)} className="inline-flex items-center gap-2 rounded-lg border border-green-200 px-3 py-2 text-xs font-semibold text-green-700 hover:bg-green-50">
+            <button type="button" onClick={() => onEdit(template)} className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">
               <Pencil size={14} /> Edit template
             </button>
           )}
@@ -353,8 +353,8 @@ export default function TemplateLibraryClient() {
   return (
     <div className="space-y-6">
       {account && (
-        <section className="rounded-2xl border border-green-200 bg-green-50 p-5">
-          <p className="text-xs font-medium uppercase tracking-wide text-green-700">
+        <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+          <p className="text-xs font-medium uppercase tracking-wide text-emerald-800">
             Connected WhatsApp Business Account
           </p>
 
@@ -377,7 +377,7 @@ export default function TemplateLibraryClient() {
       )}
 
       {editingTemplate && (
-        <section className="rounded-2xl border border-green-200 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-emerald-200 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="font-semibold text-slate-900">Edit {editingTemplate.name}</h2>
@@ -390,30 +390,30 @@ export default function TemplateLibraryClient() {
           </div>
           <form onSubmit={saveTemplateEdit} className="mt-4 space-y-3">
             <label className="block text-sm font-medium text-slate-700">Complete template components (JSON)
-              <textarea required spellCheck={false} rows={16} value={componentsDraft} onChange={(event) => setComponentsDraft(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-950 p-3 font-mono text-xs leading-5 text-slate-100 outline-none focus:border-green-500" />
+              <textarea required spellCheck={false} rows={16} value={componentsDraft} onChange={(event) => setComponentsDraft(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-950 p-3 font-mono text-xs leading-5 text-slate-100 outline-none focus:border-emerald-700" />
             </label>
             <p className="text-xs text-slate-500">Advanced components are preserved in this editor, including quick replies, phone buttons, dynamic URL buttons, and Meta-specific structures.</p>
             {editError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{editError}</p>}
             <div className="flex flex-wrap justify-end gap-2">
               <button type="button" onClick={() => setEditingTemplate(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600">Cancel</button>
-              <button type="submit" disabled={savingEdit} className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"><Save size={15} /> {savingEdit ? "Submitting…" : "Submit update to Meta"}</button>
+              <button type="submit" disabled={savingEdit} className="inline-flex items-center gap-2 rounded-xl bg-[#087f5b] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"><Save size={15} /> {savingEdit ? "Submitting…" : "Submit update to Meta"}</button>
             </div>
           </form>
         </section>
       )}
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
           <p className="text-sm text-slate-500">Total templates</p>
           <p className="mt-2 text-3xl font-bold">{templates.length}</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
           <p className="text-sm text-slate-500">Approved</p>
-          <p className="mt-2 text-3xl font-bold text-green-600">{approved}</p>
+          <p className="mt-2 text-3xl font-bold text-emerald-700">{approved}</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
           <p className="text-sm text-slate-500">Pending review</p>
           <p className="mt-2 text-3xl font-bold text-amber-600">{pending}</p>
         </div>
@@ -425,7 +425,7 @@ export default function TemplateLibraryClient() {
         </p>
       )}
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <h2 className="font-semibold text-slate-900">Template library</h2>
@@ -439,7 +439,7 @@ export default function TemplateLibraryClient() {
             type="button"
             onClick={loadTemplates}
             disabled={loading}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#087f5b] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#066447] disabled:opacity-50"
           >
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
             Refresh templates
@@ -457,14 +457,14 @@ export default function TemplateLibraryClient() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search templates..."
-              className="w-full rounded-xl border border-slate-200 py-3 pl-9 pr-3 text-sm outline-none focus:border-green-500"
+              className="w-full rounded-xl border border-slate-200 py-3 pl-9 pr-3 text-sm outline-none focus:border-emerald-700"
             />
           </div>
 
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-green-500"
+            className="rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-emerald-700"
           >
             <option value="ALL">All statuses</option>
             <option value="APPROVED">Approved</option>
@@ -477,7 +477,7 @@ export default function TemplateLibraryClient() {
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-green-500"
+            className="rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-emerald-700"
           >
             <option value="ALL">All categories</option>
             <option value="MARKETING">Marketing</option>
