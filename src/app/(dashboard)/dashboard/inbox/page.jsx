@@ -1,6 +1,7 @@
 "use client";
 
 import ConversationNotes from "@/components/conversation-notes";
+import { ArrowLeft, Check, ChevronDown, Filter, MessageSquareText, MoreHorizontal, Search, Send, Star, UserRound } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 function formatTime(value) {
@@ -704,203 +705,169 @@ export default function InboxPage() {
     }
   }
 
+  const activeFilterCount = [
+    assignmentFilter !== "all",
+    unreadFilter !== "all",
+    priorityFilter !== "all",
+    phoneNumberFilter !== "all",
+  ].filter(Boolean).length;
+
   return (
-    <div className="mx-auto max-w-[1600px] p-4 sm:p-6">
-      <div className="mb-5">
-        <h1 className="text-2xl font-bold text-slate-900">Inbox</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Manage your WhatsApp customer conversations.
-        </p>
-      </div>
+    <main className="mx-auto flex h-[calc(100dvh-168px)] min-h-[560px] max-w-[1600px] flex-col gap-4 p-3 sm:p-5">
+      <header className="flex shrink-0 items-end justify-between gap-4">
+        <div>
+          <p className="mb-1 text-xs font-medium text-slate-500">Customer support</p>
+          <h1 className="text-[26px] font-medium leading-tight tracking-[-0.03em] text-slate-950">Inbox</h1>
+          <p className="mt-1 text-sm text-slate-500">WhatsApp conversations and team replies</p>
+        </div>
+        <div className="hidden items-center gap-2 text-xs text-slate-500 sm:flex">
+          <span className="h-2 w-2 rounded-full bg-emerald-600" />
+          <span>Updates automatically</span>
+        </div>
+      </header>
 
       {error && (
-        <div className="mb-4 flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div role="alert" className="flex shrink-0 items-start justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800">
           <span>{error}</span>
-          <button
-            type="button"
-            onClick={() => setError("")}
-            className="font-bold"
-          >
-            ×
-          </button>
+          <button type="button" onClick={() => setError("")} className="rounded px-1 text-lg leading-none text-red-700 hover:bg-red-100" aria-label="Dismiss error">×</button>
         </div>
       )}
 
-      <div className="grid h-[calc(100dvh-190px)] min-h-135 grid-cols-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:grid-cols-[320px_minmax(0,1fr)]">
-        {/* Conversation list */}
-        <aside
-          className={`min-h-0 flex-col border-r border-slate-200 ${
-            selectedId ? "hidden md:flex" : "flex"
-          }`}
-        >
-          <div className="border-b border-slate-200 p-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-slate-900">Conversations</h2>
-              <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">
-                {conversations.length}
-              </span>
+      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:grid-cols-[340px_minmax(0,1fr)]">
+        <aside className={"min-h-0 flex-col border-r border-slate-200 bg-white " + (selectedId ? "hidden md:flex" : "flex")}>
+          <div className="shrink-0 border-b border-slate-200 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-medium text-slate-900">Conversations</h2>
+                <p className="mt-0.5 text-xs text-slate-500">{filteredConversations.length} shown · {conversations.length} total</p>
+              </div>
+              <span className="rounded-md bg-slate-100 px-2 py-1 text-xs tabular-nums text-slate-600">{conversations.length}</span>
             </div>
 
-            <div className="mt-4 grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1">
+            <div className="grid grid-cols-3 gap-1 rounded-lg bg-slate-100 p-1">
               {[
-                { value: "all", label: "All" },
-                { value: "open", label: "Open" },
-                { value: "closed", label: "Closed" },
+                { value: "all", label: "All", count: conversations.length },
+                { value: "open", label: "Open", count: conversations.filter((item) => (item.status || "open") === "open").length },
+                { value: "closed", label: "Closed", count: conversations.filter((item) => (item.status || "open") === "closed").length },
               ].map((filter) => (
                 <button
                   key={filter.value}
                   type="button"
                   onClick={() => setStatusFilter(filter.value)}
-                  className={`rounded-lg px-2 py-2 text-xs font-semibold transition ${
-                    statusFilter === filter.value
-                      ? "bg-white text-green-700 shadow-sm"
-                      : "text-slate-500 hover:text-slate-800"
-                  }`}
+                  aria-pressed={statusFilter === filter.value}
+                  className={"flex h-8 items-center justify-center gap-1.5 rounded-md px-2 text-xs transition-colors duration-150 " + (statusFilter === filter.value ? "bg-white font-medium text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800")}
                 >
                   {filter.label}
-                  {filter.value === "all"
-                    ? ` (${conversations.length})`
-                    : ` (${conversations.filter((item) => (item.status || "open") === filter.value).length})`}
+                  <span className="text-[11px] tabular-nums text-slate-400">{filter.count}</span>
                 </button>
               ))}
             </div>
 
-            <select
-              value={assignmentFilter}
-              onChange={(event) => setAssignmentFilter(event.target.value)}
-              aria-label="Filter by assignment"
-              className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100"
-            >
-              <option value="all">All assignments</option>
-              <option value="assigned">Assigned</option>
-              <option value="unassigned">Unassigned</option>
-              <option value="mine">Assigned to me</option>
-            </select>
+            <label className="mt-3 flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-slate-400 transition-colors focus-within:border-emerald-700">
+              <Search size={16} strokeWidth={1.7} />
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search conversations"
+                aria-label="Search conversations"
+                className="min-w-0 flex-1 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
+              />
+              {search && <button type="button" onClick={() => setSearch("")} className="text-xs text-slate-500 hover:text-slate-900">Clear</button>}
+            </label>
 
-            {businessLines.length > 1 && (
-              <select
-                value={phoneNumberFilter}
-                onChange={(event) => setPhoneNumberFilter(event.target.value)}
-                aria-label="Filter by WhatsApp business number"
-                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100"
-              >
-                <option value="all">All business numbers</option>
-                {businessLines.map((line) => (
-                  <option key={line.phoneNumberId} value={line.phoneNumberId}>
-                    {line.label} ({conversations.filter((item) => item.phoneNumberId === line.phoneNumberId).length})
-                  </option>
-                ))}
-              </select>
-            )}
-
-            <select
-              value={unreadFilter}
-              onChange={(event) => setUnreadFilter(event.target.value)}
-              aria-label="Filter by unread status"
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100"
-            >
-              <option value="all">All messages</option>
-              <option value="unread">Unread only</option>
-            </select>
-
-            <select
-              value={priorityFilter}
-              onChange={(event) => setPriorityFilter(event.target.value)}
-              aria-label="Filter by priority"
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100"
-            >
-              <option value="all">All priorities</option>
-              <option value="high">High priority</option>
-              <option value="normal">Normal priority</option>
-            </select>
-
-            <input
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search conversations..."
-              className="mt-4 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100"
-            />
+            <details className="group mt-3">
+              <summary className="flex h-9 cursor-pointer list-none items-center justify-between rounded-lg px-2 text-xs text-slate-600 transition-colors hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center gap-2">
+                  <Filter size={15} strokeWidth={1.7} />
+                  Filters
+                  {activeFilterCount > 0 && <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-800">{activeFilterCount} active</span>}
+                </span>
+                <ChevronDown size={15} className="transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="grid grid-cols-2 gap-2 border-t border-slate-100 px-1 pb-1 pt-3">
+                <label className="min-w-0 text-[11px] text-slate-500">
+                  Assignment
+                  <select value={assignmentFilter} onChange={(event) => setAssignmentFilter(event.target.value)} aria-label="Filter by assignment" className="mt-1 h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-emerald-700">
+                    <option value="all">Everyone</option>
+                    <option value="assigned">Assigned</option>
+                    <option value="unassigned">Unassigned</option>
+                    <option value="mine">Assigned to me</option>
+                  </select>
+                </label>
+                <label className="min-w-0 text-[11px] text-slate-500">
+                  Messages
+                  <select value={unreadFilter} onChange={(event) => setUnreadFilter(event.target.value)} aria-label="Filter by unread status" className="mt-1 h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-emerald-700">
+                    <option value="all">All messages</option>
+                    <option value="unread">Unread only</option>
+                  </select>
+                </label>
+                <label className="min-w-0 text-[11px] text-slate-500">
+                  Priority
+                  <select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)} aria-label="Filter by priority" className="mt-1 h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-emerald-700">
+                    <option value="all">All priorities</option>
+                    <option value="high">High priority</option>
+                    <option value="normal">Normal priority</option>
+                  </select>
+                </label>
+                {businessLines.length > 1 && (
+                  <label className="min-w-0 text-[11px] text-slate-500">
+                    WhatsApp line
+                    <select value={phoneNumberFilter} onChange={(event) => setPhoneNumberFilter(event.target.value)} aria-label="Filter by WhatsApp business number" className="mt-1 h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-emerald-700">
+                      <option value="all">All lines</option>
+                      {businessLines.map((line) => (
+                        <option key={line.phoneNumberId} value={line.phoneNumberId}>{line.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                {activeFilterCount > 0 && (
+                  <button type="button" onClick={() => { setAssignmentFilter("all"); setUnreadFilter("all"); setPriorityFilter("all"); setPhoneNumberFilter("all"); }} className="col-span-2 mt-1 h-8 text-left text-xs font-medium text-emerald-800 hover:text-emerald-950">Clear filters</button>
+                )}
+              </div>
+            </details>
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto">
             {loading ? (
-              <div className="p-6 text-center text-sm text-slate-500">
-                Loading conversations...
-              </div>
+              <div className="p-6 text-center text-sm text-slate-500">Loading conversations…</div>
             ) : filteredConversations.length === 0 ? (
-              <div className="px-5 py-12 text-center">
-                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-xl">
-                  <span>💬</span>
+              <div className="px-6 py-14 text-center">
+                <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                  <MessageSquareText size={18} strokeWidth={1.6} />
                 </div>
-                <p className="font-medium text-slate-700">
-                  No conversations yet
-                </p>
-                <p className="mt-1 text-xs leading-5 text-slate-500">
-                  When someone sends a WhatsApp message to your connected
-                  number, the conversation will appear here.
-                </p>
+                <p className="text-sm font-medium text-slate-800">No conversations found</p>
+                <p className="mx-auto mt-1 max-w-[220px] text-xs leading-5 text-slate-500">New WhatsApp messages will appear here. Try changing your filters.</p>
               </div>
             ) : (
               filteredConversations.map((conversation) => {
                 const active = selectedId === conversation._id;
-
                 return (
                   <button
                     key={conversation._id}
                     type="button"
-                    onClick={() => {
-                      setError("");
-                      setSelectedId(conversation._id);
-                    }}
-                    className={`flex w-full items-start gap-3 border-b border-slate-100 p-4 text-left transition hover:bg-slate-50 ${
-                      active ? "bg-green-50" : "bg-white"
-                    }`}
+                    onClick={() => { setError(""); setSelectedId(conversation._id); }}
+                    aria-current={active ? "true" : undefined}
+                    className={"relative flex min-h-[76px] w-full items-start gap-3 border-b border-slate-100 px-4 py-3 text-left transition-colors duration-150 hover:bg-slate-50 " + (active ? "bg-emerald-50/60" : "bg-white")}
                   >
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-green-100 font-semibold text-green-700">
-                      {(conversation.customerName || "?")
-                        .trim()
-                        .charAt(0)
-                        .toUpperCase()}
+                    {active && <span className="absolute inset-y-0 left-0 w-[3px] bg-emerald-700" />}
+                    <div className={"flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-medium " + (active ? "bg-emerald-100 text-emerald-900" : "bg-slate-100 text-slate-600")}>
+                      {(conversation.customerName || "?").trim().charAt(0).toUpperCase()}
                     </div>
-
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="truncate text-sm font-semibold text-slate-900">
-                          {conversation.customerName || conversation.waId}
-                        </p>
-                        <span className="shrink-0 text-[11px] text-slate-400">
-                          {formatConversationDate(conversation.lastMessageAt)}
-                        </span>
+                        <p className="truncate text-[13px] font-medium text-slate-900">{conversation.customerName || conversation.waId}</p>
+                        <span className="shrink-0 text-[11px] tabular-nums text-slate-400">{formatConversationDate(conversation.lastMessageAt)}</span>
                       </div>
-
                       <div className="mt-1 flex items-center justify-between gap-2">
-                        <div className="flex min-w-0 items-center gap-1.5">
-                          {conversation.priority === "high" && (
-                            <span className="shrink-0 rounded bg-rose-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-rose-700">Priority</span>
-                          )}
-                          <p className="truncate text-xs text-slate-500">
-                          {conversation.lastMessagePreview || "No messages"}
-                          </p>
-                        </div>
-
-                        {conversation.unreadCount > 0 && (
-                          <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-green-600 px-1.5 text-[10px] font-bold text-white">
-                            {conversation.unreadCount}
-                          </span>
-                        )}
+                        <p className="min-w-0 truncate text-xs text-slate-500">{conversation.lastMessagePreview || "No messages yet"}</p>
+                        {conversation.unreadCount > 0 && <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-medium tabular-nums text-white">{conversation.unreadCount}</span>}
                       </div>
-
-                      <p className={`mt-1 truncate text-[10px] font-medium ${conversation.assigneeName ? "text-indigo-600" : "text-slate-400"}`}>
-                        {conversation.assigneeName
-                          ? `Assigned to ${conversation.assigneeName}`
-                          : "Unassigned"}
-                      </p>
-                      {conversation.businessPhoneNumber && (
-                        <p className="mt-1 truncate text-[10px] text-slate-400">
-                          Business line · {conversation.businessPhoneNumber}
-                        </p>
-                      )}
+                      <div className="mt-1.5 flex min-w-0 items-center gap-2 text-[10px] text-slate-400">
+                        {conversation.priority === "high" && <span className="font-medium text-amber-700">Priority</span>}
+                        <span className="truncate">{conversation.assigneeName ? "Assigned to " + conversation.assigneeName : "Unassigned"}</span>
+                        {conversation.businessPhoneNumber && <span className="truncate">· {conversation.businessPhoneNumber}</span>}
+                      </div>
                     </div>
                   </button>
                 );
@@ -909,249 +876,116 @@ export default function InboxPage() {
           </div>
         </aside>
 
-        {/* Chat panel */}
-        <section
-          className={`min-h-0 min-w-0 flex-col ${
-            selectedId ? "flex" : "hidden md:flex"
-          }`}
-        >
+        <section className={"min-h-0 min-w-0 flex-col bg-[#f5f6f4] " + (selectedId ? "flex" : "hidden md:flex")}>
           {!selectedId ? (
-            <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-3xl">
-                💬
+            <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500">
+                <MessageSquareText size={21} strokeWidth={1.5} />
               </div>
-              <h3 className="text-lg font-semibold text-slate-800">
-                Your WhatsApp inbox
-              </h3>
-              <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">
-                Select a conversation to read messages and reply to your
-                customers.
-              </p>
+              <h3 className="text-base font-medium text-slate-900">Your conversations, in one place</h3>
+              <p className="mt-2 max-w-xs text-sm leading-6 text-slate-500">Choose a customer on the left to read the conversation and reply from your WhatsApp number.</p>
             </div>
           ) : (
             <>
-              {/* Chat header */}
-              <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
-                <button
-                  type="button"
-                  onClick={() => setSelectedId("")}
-                  className="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100 md:hidden"
-                  aria-label="Back to conversations"
-                >
-                  ←
+              <div className="flex min-h-[68px] shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-3 py-3 sm:px-5">
+                <button type="button" onClick={() => setSelectedId("")} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 md:hidden" aria-label="Back to conversations">
+                  <ArrowLeft size={17} />
                 </button>
-
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100 font-semibold text-green-700">
-                  {(selectedConversation?.customerName || "?")
-                    .trim()
-                    .charAt(0)
-                    .toUpperCase()}
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-medium text-emerald-900">
+                  {(selectedConversation?.customerName || "?").trim().charAt(0).toUpperCase()}
                 </div>
-
-                <div className="min-w-0">
-                  <h2 className="truncate text-sm font-semibold text-slate-900">
-                    {selectedConversation?.customerName || "WhatsApp customer"}
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    {selectedConversation?.waId || ""}
-                  </p>
-                  <p className="text-[11px] text-slate-400">
-                    Business line · {selectedConversation?.businessPhoneNumber || selectedConversation?.phoneNumberId || "Unknown"}
-                  </p>
+                <div className="min-w-0 flex-1">
+                  <h2 className="truncate text-sm font-medium text-slate-900">{selectedConversation?.customerName || "WhatsApp customer"}</h2>
+                  <p className="mt-0.5 truncate text-xs text-slate-500">{selectedConversation?.waId || ""}{selectedConversation?.businessPhoneNumber ? " · " + selectedConversation.businessPhoneNumber : ""}</p>
                 </div>
-
-                <div className="ml-auto flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={toggleConversationPriority}
-                    disabled={!selectedConversation}
-                    className={`rounded-lg border px-3 py-2 text-xs font-semibold transition disabled:opacity-50 ${selectedConversation?.priority === "high" ? "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
-                  >
-                    {selectedConversation?.priority === "high" ? "★ High priority" : "☆ Mark priority"}
-                  </button>
-                  {currentUserId && selectedConversation && !selectedConversation.assigneeUserId && (
-                    <button
-                      type="button"
-                      onClick={() => handleAssignConversation(currentUserId)}
-                      disabled={assignmentUpdating}
-                      className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50"
-                    >
-                      {assignmentUpdating ? "Assigning..." : "Assign to me"}
-                    </button>
-                  )}
-                  {teamMembers.length > 0 && (
-                    <label className="hidden items-center gap-2 text-xs text-slate-500 lg:flex">
-                      <span>Assigned to</span>
-                      <select
-                        value={selectedConversation?.assigneeUserId?.toString?.() || ""}
-                        onChange={(event) => handleAssignConversation(event.target.value)}
-                        disabled={assignmentUpdating}
-                        className="max-w-40 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-medium text-slate-700 outline-none focus:border-green-500 disabled:opacity-60"
-                        aria-label="Assign conversation to team member"
-                      >
-                        <option value="">Unassigned</option>
-                        {teamMembers.map((member) => (
-                          <option key={member.userId} value={member.userId}>
-                            {member.name} · {member.role}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  )}
-                  <span className={`hidden rounded-full px-2.5 py-1 text-[11px] font-semibold sm:inline-flex ${
-                    (selectedConversation?.status || "open") === "closed"
-                      ? "bg-slate-100 text-slate-600"
-                      : "bg-green-50 text-green-700"
-                  }`}>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className={"hidden items-center gap-1.5 text-xs sm:inline-flex " + ((selectedConversation?.status || "open") === "closed" ? "text-slate-500" : "text-emerald-800")}>
+                    <span className={"h-1.5 w-1.5 rounded-full " + ((selectedConversation?.status || "open") === "closed" ? "bg-slate-400" : "bg-emerald-600")} />
                     {(selectedConversation?.status || "open") === "closed" ? "Closed" : "Open"}
                   </span>
-                  <button
-                    type="button"
-                    onClick={toggleConversationStatus}
-                    disabled={statusUpdating || !selectedConversation}
-                    className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
-                  >
-                    {statusUpdating
-                      ? "Saving..."
-                      : (selectedConversation?.status || "open") === "closed"
-                        ? "Reopen"
-                        : "Close"}
+                  <details className="group relative">
+                    <summary className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 [&::-webkit-details-marker]:hidden" aria-label="Conversation actions">
+                      <MoreHorizontal size={18} />
+                    </summary>
+                    <div className="absolute right-0 top-10 z-20 w-64 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
+                      <button type="button" onClick={toggleConversationPriority} className="flex h-9 w-full items-center gap-2 rounded-md px-2 text-left text-xs text-slate-700 hover:bg-slate-50">
+                        <Star size={15} className="text-slate-500" />
+                        {selectedConversation?.priority === "high" ? "Remove priority" : "Mark as priority"}
+                      </button>
+                      {currentUserId && selectedConversation && !selectedConversation.assigneeUserId && (
+                        <button type="button" onClick={() => handleAssignConversation(currentUserId)} disabled={assignmentUpdating} className="flex h-9 w-full items-center gap-2 rounded-md px-2 text-left text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                          <UserRound size={15} className="text-slate-500" />
+                          {assignmentUpdating ? "Assigning…" : "Assign to me"}
+                        </button>
+                      )}
+                      {teamMembers.length > 0 && (
+                        <label className="block border-t border-slate-100 px-2 pb-1 pt-3 text-[11px] text-slate-500">
+                          Assign conversation
+                          <select value={selectedConversation?.assigneeUserId?.toString?.() || ""} onChange={(event) => handleAssignConversation(event.target.value)} disabled={assignmentUpdating} className="mt-1.5 h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-emerald-700">
+                            <option value="">Unassigned</option>
+                            {teamMembers.map((member) => <option key={member.userId} value={member.userId}>{member.name} · {member.role}</option>)}
+                          </select>
+                        </label>
+                      )}
+                    </div>
+                  </details>
+                  <button type="button" onClick={toggleConversationStatus} disabled={statusUpdating || !selectedConversation} className="h-8 rounded-md border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50">
+                    {statusUpdating ? "Saving…" : (selectedConversation?.status || "open") === "closed" ? "Reopen" : "Close"}
                   </button>
                 </div>
               </div>
 
               <ConversationNotes conversationId={selectedId} />
 
-              {/* Messages */}
               <div
                 ref={messagesContainerRef}
                 onScroll={(event) => {
                   const element = event.currentTarget;
-                  shouldAutoScrollRef.current =
-                    element.scrollHeight - element.scrollTop - element.clientHeight <= 120;
+                  shouldAutoScrollRef.current = element.scrollHeight - element.scrollTop - element.clientHeight <= 120;
                 }}
-                className="min-h-0 flex-1 overflow-y-auto bg-[#f7f8f5] px-3 py-5 sm:px-6"
+                className="min-h-0 flex-1 overflow-y-auto px-3 py-5 sm:px-6"
               >
                 {messagesLoading && messages.length === 0 ? (
-                  <div className="py-10 text-center text-sm text-slate-500">
-                    Loading messages...
-                  </div>
+                  <div className="py-10 text-center text-sm text-slate-500">Loading messages…</div>
                 ) : messages.length === 0 ? (
-                  <div className="py-10 text-center text-sm text-slate-500">
-                    No messages in this conversation.
+                  <div className="flex h-full min-h-48 flex-col items-center justify-center text-center">
+                    <MessageSquareText size={22} className="mb-3 text-slate-400" strokeWidth={1.5} />
+                    <p className="text-sm font-medium text-slate-700">No messages yet</p>
+                    <p className="mt-1 text-xs text-slate-500">Messages from this customer will appear here</p>
                   </div>
                 ) : (
-                  <div className="mx-auto flex max-w-3xl flex-col gap-3">
+                  <div className="mx-auto flex max-w-3xl flex-col gap-2.5">
                     {hasOlderMessages && (
                       <div className="flex justify-center pb-2">
-                        <button
-                          type="button"
-                          onClick={loadOlderMessages}
-                          disabled={loadingOlderMessages}
-                          className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
-                        >
-                          {loadingOlderMessages ? "Loading older messages..." : "Load older messages"}
+                        <button type="button" onClick={loadOlderMessages} disabled={loadingOlderMessages} className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50">
+                          {loadingOlderMessages ? "Loading older messages…" : "Load older messages"}
                         </button>
                       </div>
                     )}
                     {messages.map((message) => {
                       const outbound = message.direction === "outbound";
                       const isTemplate = message.type === "template";
-
-                      const templateName = message.templateName
-                        ? message.templateName.replaceAll("_", " ")
-                        : "WhatsApp Template";
-
+                      const templateName = message.templateName ? message.templateName.replaceAll("_", " ") : "WhatsApp Template";
                       const status = message.status;
-
                       return (
-                        <div
-                          key={message._id}
-                          className={`flex ${
-                            outbound ? "justify-end" : "justify-start"
-                          }`}
-                        >
-                          <div
-                            className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 shadow-sm sm:max-w-[75%] ${
-                              outbound
-                                ? "rounded-br-md bg-[#dcf8c6] text-slate-800"
-                                : "rounded-bl-md border border-slate-100 bg-white text-slate-800"
-                            }`}
-                          >
-                            {/* Template information */}
+                        <div key={message._id} className={"flex " + (outbound ? "justify-end" : "justify-start")}>
+                          <div className={"max-w-[88%] rounded-xl px-3.5 py-2.5 sm:max-w-[76%] " + (outbound ? "rounded-br-sm bg-[#dcefe0] text-slate-900" : "rounded-bl-sm border border-slate-200/80 bg-white text-slate-800")}>
                             {isTemplate && (
-                              <div className="mb-2 flex flex-wrap items-center gap-2 border-b border-slate-300/50 pb-2">
-                                <span className="rounded-md bg-blue-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-blue-700">
-                                  Template
-                                </span>
-
-                                <span className="text-xs font-semibold capitalize text-slate-600">
-                                  {templateName}
-                                </span>
-
-                                {message.templateLanguage && (
-                                  <span className="text-[10px] text-slate-400">
-                                    {message.templateLanguage}
-                                  </span>
-                                )}
+                              <div className="mb-2 flex flex-wrap items-center gap-2 border-b border-slate-300/60 pb-2">
+                                <span className="text-[10px] font-medium text-emerald-800">Template</span>
+                                <span className="text-xs font-medium capitalize text-slate-600">{templateName}</span>
+                                {message.templateLanguage && <span className="text-[10px] text-slate-400">{message.templateLanguage}</span>}
                               </div>
                             )}
-
-                            {/* Other media/message types */}
-                            {!isTemplate && message.type !== "text" && (
-                              <p className="mb-1 text-xs font-semibold capitalize text-slate-500">
-                                {message.type || "Message"}
-                              </p>
-                            )}
-
-                            {/* Message content */}
-                            <p className="whitespace-pre-wrap wrap-break-words text-sm leading-6">
-                              {message.text ||
-                                (message.type === "image"
-                                  ? "📷 Image"
-                                  : message.type === "audio"
-                                    ? "🎵 Audio"
-                                    : message.type === "video"
-                                      ? "🎬 Video"
-                                      : message.type === "document"
-                                        ? "📎 Document"
-                                        : isTemplate
-                                          ? "WhatsApp template message"
-                                          : `[${message.type || "Message"}]`)}
+                            {!isTemplate && message.type !== "text" && <p className="mb-1 text-[11px] font-medium capitalize text-slate-500">{message.type || "Message"}</p>}
+                            <p className="whitespace-pre-wrap break-words text-[13px] leading-[1.65]">
+                              {message.text || (message.type === "image" ? "Image" : message.type === "audio" ? "Audio" : message.type === "video" ? "Video" : message.type === "document" ? "Document" : isTemplate ? "WhatsApp template message" : "[" + (message.type || "Message") + "]")}
                             </p>
-
-                            {/* Timestamp and delivery status */}
-                            <div className="mt-1 flex items-center justify-end gap-1.5">
-                              <span className="text-[10px] text-slate-500">
-                                {formatTime(message.timestamp)}
-                              </span>
-
+                            <div className="mt-1.5 flex items-center justify-end gap-1.5">
+                              <span className="text-[10px] tabular-nums text-slate-500">{formatTime(message.timestamp)}</span>
                               {outbound && (
-                                <span
-                                  className={`text-[10px] font-medium ${
-                                    status === "read"
-                                      ? "text-blue-500"
-                                      : status === "failed"
-                                        ? "text-red-500"
-                                        : "text-slate-500"
-                                  }`}
-                                  title={
-                                    status === "read"
-                                      ? "Read"
-                                      : status === "delivered"
-                                        ? "Delivered"
-                                        : status === "failed"
-                                          ? "Failed"
-                                          : "Sent"
-                                  }
-                                >
-                                  {status === "read"
-                                    ? "✓✓"
-                                    : status === "delivered"
-                                      ? "✓✓"
-                                      : status === "failed"
-                                        ? "Failed"
-                                        : "✓"}
+                                <span className={"text-[10px] font-medium " + (status === "read" ? "text-emerald-800" : status === "failed" ? "text-red-600" : "text-slate-500")} title={status === "read" ? "Read" : status === "delivered" ? "Delivered" : status === "failed" ? "Failed" : "Sent"}>
+                                  {status === "read" || status === "delivered" ? <Check size={13} strokeWidth={2} /> : status === "failed" ? "Failed" : "✓"}
                                 </span>
                               )}
                             </div>
@@ -1159,58 +993,39 @@ export default function InboxPage() {
                         </div>
                       );
                     })}
-
                     <div ref={bottomRef} />
                   </div>
                 )}
               </div>
 
-              {/* Composer */}
-              <form
-                onSubmit={handleSend}
-                className="border-t border-slate-200 bg-white p-3 sm:p-4"
-              >
-                <div className="mx-auto flex max-w-3xl flex-wrap items-end gap-2">
-                  <button
-                    type="button"
-                    onClick={openTemplateModal}
-                    className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-green-200 bg-green-50 px-3 text-sm font-semibold text-green-700 transition hover:bg-green-100"
-                  >
-                    <span>▤</span>
-                    Template
+              <form onSubmit={handleSend} className="shrink-0 border-t border-slate-200 bg-white px-3 py-3 sm:px-5">
+                <div className="mx-auto flex max-w-3xl items-end gap-2">
+                  <button type="button" onClick={openTemplateModal} className="flex h-10 shrink-0 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50">
+                    <MessageSquareText size={15} strokeWidth={1.7} />
+                    <span className="hidden sm:inline">Template</span>
                   </button>
                   <textarea
                     ref={textareaRef}
                     value={messageText}
                     onChange={(event) => setMessageText(event.target.value)}
                     onKeyDown={(event) => {
-                      if (
-                        event.key === "Enter" &&
-                        !event.shiftKey &&
-                        !event.nativeEvent.isComposing
-                      ) {
+                      if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
                         event.preventDefault();
                         event.currentTarget.form?.requestSubmit();
                       }
                     }}
                     rows={1}
                     maxLength={4096}
-                    placeholder="Type a message..."
-                    className="max-h-32 min-h-11 flex-1 resize-y rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-green-500 focus:bg-white focus:ring-2 focus:ring-green-100"
+                    placeholder="Write a message"
+                    aria-label="Write a message"
+                    className="max-h-32 min-h-10 min-w-0 flex-1 resize-y rounded-md border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition-colors focus:border-emerald-700 placeholder:text-slate-400"
                   />
-
-                  <button
-                    type="submit"
-                    disabled={!messageText.trim() || sending}
-                    className="flex h-11 shrink-0 items-center justify-center rounded-xl bg-green-600 px-5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {sending ? "Sending..." : "Send"}
+                  <button type="submit" disabled={!messageText.trim() || sending} className="flex h-10 shrink-0 items-center gap-2 rounded-md bg-emerald-800 px-4 text-xs font-medium text-white transition-colors hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-50">
+                    <Send size={14} />
+                    <span>{sending ? "Sending…" : "Send"}</span>
                   </button>
                 </div>
-
-                <p className="mx-auto mt-2 max-w-3xl text-[11px] text-slate-400">
-                  Press Enter to send · Shift + Enter for a new line
-                </p>
+                <p className="mx-auto mt-2 max-w-3xl pl-1 text-[10px] text-slate-400">Enter to send · Shift + Enter for a new line</p>
               </form>
             </>
           )}
@@ -1433,6 +1248,6 @@ export default function InboxPage() {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }
