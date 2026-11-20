@@ -101,7 +101,7 @@ export default function BillingClient() {
   return (
     <div className="space-y-7">
       {notice && <div role="status" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">{notice}</div>}
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm font-medium text-slate-500">Current plan</p>
@@ -133,7 +133,7 @@ export default function BillingClient() {
           {plans.map((plan) => {
             const isCurrent = currentPlan === plan.id;
             const price = pricing.plans?.[plan.id]?.[cycle + "Minor"];
-            return <article key={plan.id} className={`flex flex-col rounded-2xl border bg-white p-5 shadow-sm ${isCurrent ? "border-slate-900 ring-1 ring-slate-900" : "border-slate-200"}`}>
+            return <article key={plan.id} className={`flex flex-col rounded-xl border bg-white p-5 shadow-sm ${isCurrent ? "border-slate-900 ring-1 ring-slate-900" : "border-slate-200"}`}>
               <div className="flex items-center justify-between gap-2">
                 <h3 className="text-lg font-bold text-slate-900">{plan.name}</h3>
                 {isCurrent && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">Current plan</span>}
@@ -151,7 +151,7 @@ export default function BillingClient() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold text-slate-900">Plan request history</h2>
@@ -191,7 +191,7 @@ export default function BillingClient() {
         )}
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Meta WhatsApp usage</p>
@@ -262,7 +262,7 @@ export default function BillingClient() {
         )}
       </section>
 
-      <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
+      <section className="rounded-xl border border-blue-200 bg-blue-50 p-5">
         <h2 className="font-semibold text-blue-950">Meta charges are separate from your Wavo subscription</h2>
         <p className="mt-2 text-sm leading-6 text-blue-900">
           Meta bills your connected WhatsApp Business Account for eligible delivered messages. Wavo displays Meta's reported usage analytics; Meta continues to manage the actual invoice and payment. Open Meta Billing &amp; Payments to review your WhatsApp account balance, invoices, payment methods, and any available Pay now action. You may need a Business Portfolio admin or finance role.
