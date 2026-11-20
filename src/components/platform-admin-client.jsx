@@ -63,7 +63,7 @@ export default function PlatformAdminClient() {
         <Stat label="Pending plan requests" value={data?.stats?.pendingRequests} />
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="border-b border-slate-100 p-5">
           <h2 className="font-bold text-slate-900">Plan requests</h2>
           <p className="mt-1 text-sm text-slate-500">Approving a request immediately activates the requested plan. Payment collection is not connected.</p>
@@ -86,7 +86,7 @@ export default function PlatformAdminClient() {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="border-b border-slate-100 p-5">
           <h2 className="font-bold text-slate-900">Customer data requests</h2>
           <p className="mt-1 text-sm text-slate-500">Review export and deletion requests. Completing a deletion request means the approved offboarding work has actually been completed; this console does not delete records automatically.</p>
@@ -114,7 +114,7 @@ export default function PlatformAdminClient() {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="border-b border-slate-100 p-5"><h2 className="font-bold text-slate-900">Customer workspaces</h2><p className="mt-1 text-sm text-slate-500">Change plans or suspend and reactivate customer workspaces.</p></div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[850px] text-left text-sm">
@@ -135,7 +135,7 @@ export default function PlatformAdminClient() {
       </section>
       <PlatformWhatsAppInventory accounts={data?.whatsappAccounts || []} />
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="border-b border-slate-100 p-5">
           <h2 className="font-bold text-slate-900">Platform audit history</h2>
           <p className="mt-1 text-sm text-slate-500">Latest 50 administrative actions, including pricing changes, plan approvals, and workspace changes.</p>
@@ -161,5 +161,5 @@ export default function PlatformAdminClient() {
 }
 
 function Stat({ label, value }) {
-  return <div className="rounded-2xl border border-slate-200 bg-white p-5"><p className="text-sm text-slate-500">{label}</p><p className="mt-2 text-3xl font-bold tabular-nums text-slate-900">{number(value)}</p></div>;
+  return <div className="rounded-xl border border-slate-200 bg-white p-5"><p className="text-sm text-slate-500">{label}</p><p className="mt-2 text-3xl font-bold tabular-nums text-slate-900">{number(value)}</p></div>;
 }
