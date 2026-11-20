@@ -126,9 +126,9 @@ curl -X PATCH "https://inbox-corporation-new.vercel.app/api/v1/contacts/CONTACT_
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+      <section className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
         <div className="flex items-center gap-3">
-          <span className="rounded-xl bg-green-50 p-3 text-green-700"><KeyRound size={20} /></span>
+          <span className="rounded-xl bg-emerald-50 p-3 text-emerald-800"><KeyRound size={20} /></span>
           <div>
             <h2 className="font-semibold text-slate-900">Create an API key</h2>
             <p className="text-sm text-slate-500">Give an external application only the permissions it needs.</p>
@@ -160,14 +160,14 @@ curl -X PATCH "https://inbox-corporation-new.vercel.app/api/v1/contacts/CONTACT_
               ))}
             </div>
           </div>
-          <button disabled={busy || !name.trim() || !scopes.length} className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50">
+          <button disabled={busy || !name.trim() || !scopes.length} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#087f5b] px-5 py-3 text-sm font-semibold text-white hover:bg-[#066447] disabled:opacity-50">
             <Plus size={17} /> Generate API key
           </button>
         </form>
       </section>
 
       {secret && (
-        <section className="rounded-2xl border border-amber-300 bg-amber-50 p-5">
+        <section className="rounded-xl border border-amber-300 bg-amber-50 p-5">
           <p className="font-semibold text-amber-900">Copy your new API key now</p>
           <p className="mt-1 text-sm text-amber-800">For security, the full key is shown only once. Store it in a server-side environment variable. Never expose it in browser code.</p>
           <div className="mt-3 flex flex-col gap-2 sm:flex-row">
@@ -178,11 +178,11 @@ curl -X PATCH "https://inbox-corporation-new.vercel.app/api/v1/contacts/CONTACT_
         </section>
       )}
 
-      {(error || notice) && <p role="status" className={`rounded-xl px-4 py-3 text-sm ${error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>{error || notice}</p>}
+      {(error || notice) && <p role="status" className={`rounded-xl px-4 py-3 text-sm ${error ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-800"}`}>{error || notice}</p>}
 
       <WebhookManager />
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+      <section className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
         <div className="flex items-center justify-between gap-3">
           <div><h2 className="font-semibold text-slate-900">Your API keys</h2><p className="mt-1 text-sm text-slate-500">Keys are isolated to this workspace.</p></div>
           <button type="button" onClick={loadKeys} disabled={loading} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-50" aria-label="Refresh API keys"><RefreshCw size={17} /></button>
@@ -198,7 +198,7 @@ curl -X PATCH "https://inbox-corporation-new.vercel.app/api/v1/contacts/CONTACT_
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-medium text-slate-900">{key.name}</p>
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${key.status === "active" && (!key.expiresAt || new Date(key.expiresAt) > new Date()) ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-500"}`}>{key.status === "active" && key.expiresAt && new Date(key.expiresAt) <= new Date() ? "expired" : key.status}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${key.status === "active" && (!key.expiresAt || new Date(key.expiresAt) > new Date()) ? "bg-emerald-50 text-emerald-800" : "bg-slate-100 text-slate-500"}`}>{key.status === "active" && key.expiresAt && new Date(key.expiresAt) <= new Date() ? "expired" : key.status}</span>
                   </div>
                   <code className="mt-1 block text-xs text-slate-500">{key.prefix}••••••••</code>
                   <p className="mt-1 text-xs text-slate-400">Created {new Date(key.createdAt).toLocaleString()} · Last used {key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleString() : "Never"} · Expires {key.expiresAt ? new Date(key.expiresAt).toLocaleDateString() : "Never"}</p>
@@ -211,7 +211,7 @@ curl -X PATCH "https://inbox-corporation-new.vercel.app/api/v1/contacts/CONTACT_
         )}
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+      <section className="rounded-xl border border-slate-200 bg-slate-50 p-5">
         <h3 className="text-sm font-semibold text-slate-800">API quick start</h3>
         <p className="mt-1 text-xs leading-5 text-slate-500">Make requests from your server. Include the Bearer key in the Authorization header. Contact creation does not grant marketing consent; to mark a contact as opted in, the request must include documented consent evidence.</p>
         <pre className="mt-3 overflow-x-auto rounded-xl bg-slate-950 p-4 text-xs leading-6 text-green-300">{quickStart}</pre>
