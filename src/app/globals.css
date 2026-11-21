@@ -2,22 +2,22 @@
 
 :root {
   color-scheme: light;
-  --wavo-ink: #17251f;
-  --wavo-muted: #68756f;
-  --wavo-line: #e5ebe7;
-  --wavo-paper: #f7f9f7;
-  --wavo-green: #087f5b;
-  --wavo-green-dark: #066447;
-  --wavo-green-soft: #eaf5ef;
-  --wavo-radius: 14px;
+  --InBox Corporation-ink: #17251f;
+  --InBox Corporation-muted: #68756f;
+  --InBox Corporation-line: #e5ebe7;
+  --InBox Corporation-paper: #f7f9f7;
+  --InBox Corporation-green: #087f5b;
+  --InBox Corporation-green-dark: #066447;
+  --InBox Corporation-green-soft: #eaf5ef;
+  --InBox Corporation-radius: 14px;
 }
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body {
   margin: 0;
-  background: var(--wavo-paper);
-  color: var(--wavo-ink);
+  background: var(--InBox Corporation-paper);
+  color: var(--InBox Corporation-ink);
   font-feature-settings: "ss01" on, "cv11" on;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
