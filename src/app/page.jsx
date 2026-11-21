@@ -69,8 +69,8 @@ export default async function HomePage() {
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8" aria-label="Main navigation">
           <Link href="/" className="flex items-center gap-3" aria-label="InBox Corporation home">
             <img src="/logo.png" alt="" className="h-10 w-10 rounded-xl object-cover" />
-            <span className="text-xl font-extrabold tracking-tight">InBox Corporation<span className="text-emerald-600">.</span></span>
-            <span className="hidden border-l border-slate-200 pl-3 text-xs font-medium text-slate-500 sm:inline">by InBox Corporation</span>
+            <span className="text-xl font-extrabold tracking-tight">InBox Corporation</span>
+            <span className="hidden border-l border-slate-200 pl-3 text-xs font-medium text-slate-500 sm:inline">
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
             <Link href="/#pricing-transparency" className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 md:inline-flex">Pricing &amp; Meta fees</Link>
@@ -192,7 +192,7 @@ export default async function HomePage() {
           <div className="max-w-3xl">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Pricing transparency</p>
             <h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">Know the full messaging cost before you choose a plan.</h2>
-            <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">Your InBox Corporation subscription covers use of the InBox Corporation platform. Meta WhatsApp Business Platform message fees are separate and are billed by Meta to your connected WhatsApp Business Account. Meta rates vary by recipient country and message category, so review the official rates before purchasing a InBox Corporation plan.</p>
+            <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">Your InBox Corporation subscription covers use of the InBox Corporation platform. Meta WhatsApp Business Platform message fees are separate and are billed by Meta to your connected WhatsApp Business Account. Meta rates vary by recipient country and message category, so review the official rates before purchasing an InBox Corporation plan.</p>
           </div>
           <div className="mt-8 grid gap-4 md:grid-cols-2">
             <a href="https://whatsappbusiness.com/products/platform-pricing/" target="_blank" rel="noopener noreferrer" className="group flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-emerald-300 hover:shadow-md">
@@ -217,7 +217,7 @@ export default async function HomePage() {
 
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-8 text-sm text-slate-500 sm:px-8 md:flex-row md:items-center md:justify-between">
-          <p>© {new Date().getFullYear()} InBox Corporation. InBox Corporation business messaging workspace.</p>
+          <p>© {new Date().getFullYear()} InBox Corporation. Business messaging workspace.</p>
           <div className="flex flex-wrap gap-5"><Link href="/terms" className="hover:text-slate-900">Terms of Service</Link><Link href="/privacy-policy" className="hover:text-slate-900">Privacy Policy</Link><Link href="/login" className="hover:text-slate-900">Sign in</Link></div>
         </div>
       </footer>
