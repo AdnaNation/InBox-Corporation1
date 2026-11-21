@@ -10,10 +10,10 @@ export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "InBox Corporation — WhatsApp conversations, campaigns and customer care",
-  description: "Bring WhatsApp customer conversations, opted-in contacts, compliant campaigns and team workflows together with InBox Corporation by InBox Corporation.",
+  description: "Bring WhatsApp customer conversations, opted-in contacts, compliant campaigns and team workflows together with InBox Corporation.",
   alternates: { canonical: "/" },
   openGraph: {
-    title: "InBox Corporation by InBox Corporation",
+    title: "InBox Corporation",
     description: "One workspace for WhatsApp customer conversations, contacts and campaigns.",
     images: ["/logo.png"],
   },
