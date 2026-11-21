@@ -60,7 +60,7 @@ Password reset uses the same server-side `RESEND_API_KEY` and `EMAIL_FROM` confi
 
 ## Background worker
 
-Vercel Hobby does not provide the frequent schedule needed for campaigns and webhook retries. Run the standalone Node.js worker on an always-on background-worker host. See [background worker deployment](docs/background-worker.md). Start command: `npm run worker`. The worker requires `InBox Corporation_APP_URL` and the same 32+ character `CRON_SECRET` configured on the app. Keep one worker instance running and monitor its logs; queued campaigns and webhook deliveries do not progress while the worker is stopped.
+Vercel Hobby does not provide the frequent schedule needed for campaigns and webhook retries. Run the standalone Node.js worker on an always-on background-worker host. See [background worker deployment](docs/background-worker.md). Start command: `npm run worker`. The worker requires `WAVO_APP_URL` and the same 32+ character `CRON_SECRET` configured on the app. Keep one worker instance running and monitor its logs; queued campaigns and webhook deliveries do not progress while the worker is stopped.
 
 Before onboarding pilot customers, follow the [production launch runbook](docs/production-launch-runbook.md) for worker setup, end-to-end smoke tests, data protection, incident response, and go/no-go gates.
 
