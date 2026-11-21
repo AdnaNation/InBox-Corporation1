@@ -105,7 +105,7 @@ export default function DashboardShell({ session, children }) {
     <aside className="flex h-full min-h-0 flex-col border-r border-[#e7ece8] bg-white">
       <Link href="/dashboard" className="flex h-[68px] shrink-0 items-center gap-3 border-b border-slate-100 px-5">
         <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#087f5b] text-white shadow-sm shadow-emerald-900/15"><MessageCircle size={19} strokeWidth={2} /></span>
-        <span className="min-w-0"><span className="block text-[15px] font-semibold tracking-[-.03em] text-slate-950">Wavo<span className="text-emerald-700">.</span></span><span className="block text-[10px] text-slate-400">by InBox Corporation</span></span>
+        <span className="min-w-0"><span className="block text-[15px] font-semibold tracking-[-.03em] text-slate-950">InBox Corporation</span><span className="block text-[10px] text-slate-400">by InBox Corporation</span></span>
       </Link>
 
       <div className="shrink-0 px-4 pb-4 pt-5">
@@ -137,7 +137,7 @@ export default function DashboardShell({ session, children }) {
     <div className="min-h-screen bg-[#f7f9f7] lg:flex">
       <div className="fixed inset-y-0 left-0 z-30 hidden w-[252px] lg:block">{sidebar}</div>
       <div className="fixed inset-x-0 top-0 z-30 flex h-[60px] items-center justify-between border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur lg:hidden">
-        <Link href="/dashboard" className="flex items-center gap-2.5"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[#087f5b] text-white"><MessageCircle size={17}/></span><span className="text-sm font-semibold tracking-tight">Wavo<span className="text-emerald-700">.</span></span></Link>
+        <Link href="/dashboard" className="flex items-center gap-2.5"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[#087f5b] text-white"><MessageCircle size={17}/></span><span className="text-sm font-semibold tracking-tight">InBox Corporation</span></Link>
         <button type="button" ref={menuButtonRef} aria-label={open ? "Close navigation menu" : "Open navigation menu"} aria-expanded={open} aria-controls="mobile-dashboard-navigation" onClick={() => setOpen(!open)} className="grid h-9 w-9 place-items-center rounded-lg text-slate-600 hover:bg-slate-100">{open ? <X size={19}/> : <Menu size={19}/>}</button>
       </div>
       {open && <div className="fixed inset-0 z-40 lg:hidden"><button aria-label="Close navigation" onClick={() => setOpen(false)} className="absolute inset-0 bg-slate-950/30"/><div id="mobile-dashboard-navigation" ref={mobileNavigationRef} role="dialog" aria-modal="true" aria-label="Dashboard navigation" tabIndex={-1} className="relative h-full w-[min(270px,calc(100vw-48px))] overflow-hidden shadow-2xl">{sidebar}</div></div>}

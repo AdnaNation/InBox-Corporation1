@@ -9,11 +9,11 @@ import { getSession } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Wavo — WhatsApp conversations, campaigns and customer care",
-  description: "Bring WhatsApp customer conversations, opted-in contacts, compliant campaigns and team workflows together with Wavo by InBox Corporation.",
+  title: "InBox Corporation — WhatsApp conversations, campaigns and customer care",
+  description: "Bring WhatsApp customer conversations, opted-in contacts, compliant campaigns and team workflows together with InBox Corporation.",
   alternates: { canonical: "/" },
   openGraph: {
-    title: "Wavo by InBox Corporation",
+    title: "InBox Corporation",
     description: "One workspace for WhatsApp customer conversations, contacts and campaigns.",
     images: ["/logo.png"],
   },
@@ -67,10 +67,9 @@ export default async function HomePage() {
     <main className="min-h-screen overflow-hidden bg-white text-slate-900">
       <header className="relative z-10 border-b border-slate-200/80 bg-white/95">
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8" aria-label="Main navigation">
-          <Link href="/" className="flex items-center gap-3" aria-label="Wavo home">
+          <Link href="/" className="flex items-center gap-3" aria-label="InBox Corporation home">
             <img src="/logo.png" alt="" className="h-10 w-10 rounded-xl object-cover" />
-            <span className="text-xl font-extrabold tracking-tight">Wavo<span className="text-emerald-600">.</span></span>
-            <span className="hidden border-l border-slate-200 pl-3 text-xs font-medium text-slate-500 sm:inline">by InBox Corporation</span>
+            <span className="text-xl font-extrabold tracking-tight">InBox Corporation</span>
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
             <Link href="/#pricing-transparency" className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 md:inline-flex">Pricing &amp; Meta fees</Link>
@@ -93,14 +92,14 @@ export default async function HomePage() {
               Every WhatsApp conversation. <span className="text-emerald-400">One clearer workflow.</span>
             </h1>
             <p className="mt-6 max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">
-              Wavo helps your business organise customer contacts, manage team conversations and run carefully reviewed WhatsApp campaigns from one workspace.
+              InBox Corporation helps your business organise customer contacts, manage team conversations and run carefully reviewed WhatsApp campaigns from one workspace.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Link href="/register" className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-3.5 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-400">
                 Create your workspace <ArrowRight size={17} />
               </Link>
               <Link href="/login" className="inline-flex items-center justify-center rounded-xl border border-white/20 px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-white/10">
-                Sign in to Wavo
+                Sign in to InBox Corporation
               </Link>
             </div>
             <p className="mt-5 text-xs leading-6 text-slate-400">WhatsApp Business Platform access and Meta approvals are required for connected messaging features.</p>
@@ -176,7 +175,7 @@ export default async function HomePage() {
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Responsible messaging</p>
             <h2 className="mt-3 text-3xl font-extrabold tracking-tight">Built around permission and control.</h2>
-            <p className="mt-4 text-sm leading-7 text-slate-600">Wavo includes consent-aware contact and campaign workflows. Your business remains responsible for obtaining permission, respecting opt-outs and following WhatsApp and applicable legal requirements.</p>
+            <p className="mt-4 text-sm leading-7 text-slate-600">InBox Corporation includes consent-aware contact and campaign workflows. Your business remains responsible for obtaining permission, respecting opt-outs and following WhatsApp and applicable legal requirements.</p>
             <Link href="/terms" className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-emerald-700 hover:text-emerald-800">Read our service terms <ChevronRight size={16} /></Link>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -192,7 +191,7 @@ export default async function HomePage() {
           <div className="max-w-3xl">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Pricing transparency</p>
             <h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">Know the full messaging cost before you choose a plan.</h2>
-            <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">Your Wavo subscription covers use of the Wavo platform. Meta WhatsApp Business Platform message fees are separate and are billed by Meta to your connected WhatsApp Business Account. Meta rates vary by recipient country and message category, so review the official rates before purchasing a Wavo plan.</p>
+            <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">Your InBox Corporation subscription covers use of the InBox Corporation platform. Meta WhatsApp Business Platform message fees are separate and are billed by Meta to your connected WhatsApp Business Account. Meta rates vary by recipient country and message category, so review the official rates before purchasing an InBox Corporation plan.</p>
           </div>
           <div className="mt-8 grid gap-4 md:grid-cols-2">
             <a href="https://whatsappbusiness.com/products/platform-pricing/" target="_blank" rel="noopener noreferrer" className="group flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-emerald-300 hover:shadow-md">
@@ -204,20 +203,20 @@ export default async function HomePage() {
               <ArrowRight size={19} className="shrink-0 text-emerald-700 transition group-hover:translate-x-1" />
             </a>
           </div>
-          <p className="mt-5 text-xs leading-5 text-slate-500">Wavo plan prices and Meta messaging fees are separate. Traditional SMS, if used through a separate provider, is also not included.</p>
+          <p className="mt-5 text-xs leading-5 text-slate-500">InBox Corporation plan prices and Meta messaging fees are separate. Traditional SMS, if used through a separate provider, is also not included.</p>
         </div>
       </section>
 
       <section className="bg-emerald-700">
         <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 px-5 py-14 text-white sm:px-8 md:flex-row md:items-center">
-          <div><h2 className="text-2xl font-extrabold sm:text-3xl">Bring your customer messaging into focus.</h2><p className="mt-2 text-sm leading-6 text-emerald-50">Create a workspace and explore Wavo's tools for your business.</p></div>
+          <div><h2 className="text-2xl font-extrabold sm:text-3xl">Bring your customer messaging into focus.</h2><p className="mt-2 text-sm leading-6 text-emerald-50">Create a workspace and explore InBox Corporation's tools for your business.</p></div>
           <Link href="/register" className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-emerald-800 transition hover:bg-emerald-50">Create an account <ArrowRight size={16} /></Link>
         </div>
       </section>
 
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-8 text-sm text-slate-500 sm:px-8 md:flex-row md:items-center md:justify-between">
-          <p>© {new Date().getFullYear()} InBox Corporation. Wavo business messaging workspace.</p>
+          <p>© {new Date().getFullYear()} InBox Corporation. Business messaging workspace.</p>
           <div className="flex flex-wrap gap-5"><Link href="/terms" className="hover:text-slate-900">Terms of Service</Link><Link href="/privacy-policy" className="hover:text-slate-900">Privacy Policy</Link><Link href="/login" className="hover:text-slate-900">Sign in</Link></div>
         </div>
       </footer>

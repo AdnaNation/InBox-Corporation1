@@ -36,14 +36,14 @@ export default function RegisterPage() {
     <main className="grid min-h-screen bg-white lg:grid-cols-[minmax(0,1fr)_minmax(420px,.9fr)]">
       <section className="relative hidden overflow-hidden bg-[#10251d] px-12 py-12 text-white lg:flex lg:flex-col lg:justify-between xl:px-20">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_15%_15%,rgba(16,185,129,.22),transparent_42%),linear-gradient(145deg,transparent_45%,rgba(5,80,55,.5))]"/>
-        <Link href="/" className="relative flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-500 text-white"><MessageCircle size={20}/></span><span className="text-lg font-semibold tracking-tight">Wavo<span className="text-emerald-400">.</span></span></Link>
+        <Link href="/" className="relative flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-500 text-white"><MessageCircle size={20}/></span><span className="text-lg font-semibold tracking-tight">InBox Corporation</span></Link>
         <div className="relative max-w-xl pb-10"><p className="text-[11px] font-semibold uppercase tracking-[.2em] text-emerald-300">A calmer way to connect</p><h1 className="mt-5 text-5xl font-semibold leading-[1.08] tracking-[-.055em] xl:text-6xl">Build better customer relationships, together.</h1><p className="mt-6 max-w-md text-sm leading-7 text-emerald-50/70">Start with one shared workspace for WhatsApp conversations, customer contacts and thoughtful campaigns.</p><div className="mt-10 space-y-4 text-xs text-emerald-50/75">{["Bring your customer context together","Give your team a shared place to respond","Keep consent and campaign controls in view"].map((item)=><p key={item} className="flex items-center gap-3"><CheckCircle2 size={16} className="text-emerald-300"/>{item}</p>)}</div></div>
-        <p className="relative text-[11px] text-emerald-100/45">Wavo by InBox Corporation</p>
+        <p className="relative text-[11px] text-emerald-100/45">InBox Corporation</p>
       </section>
 
       <section className="flex min-h-screen items-center justify-center px-5 py-12 sm:px-10">
         <div className="w-full max-w-[390px]">
-          <Link href="/" className="mb-10 inline-flex items-center gap-2.5 text-sm font-semibold text-slate-900 lg:hidden"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[#087f5b] text-white"><MessageCircle size={17}/></span>Wavo<span className="text-emerald-700">.</span></Link>
+          <Link href="/" className="mb-10 inline-flex items-center gap-2.5 text-sm font-semibold text-slate-900 lg:hidden"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[#087f5b] text-white"><MessageCircle size={17}/></span>InBox Corporation</Link>
           <div className="mb-8"><div className="mb-5 grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600"><UserPlus size={18}/></div><p className="text-[11px] font-semibold uppercase tracking-[.16em] text-emerald-700">Get started</p><h2 className="mt-2 text-[30px] font-semibold tracking-[-.045em] text-slate-950">Create your workspace</h2><p className="mt-2 text-sm text-slate-500">Set up your account. You can invite your team later.</p></div>
           {error && <p role="alert" className="mb-4 rounded-lg border border-red-100 bg-red-50 px-3 py-2.5 text-xs leading-5 text-red-700">{error}</p>}
           <form onSubmit={handleSubmit} className="space-y-4">

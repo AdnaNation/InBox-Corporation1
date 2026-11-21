@@ -59,15 +59,15 @@ export default function LoginPage() {
     <main className="grid min-h-screen bg-white lg:grid-cols-[minmax(0,1fr)_minmax(420px,.9fr)]">
       <section className="relative hidden overflow-hidden bg-[#10251d] px-12 py-12 text-white lg:flex lg:flex-col lg:justify-between xl:px-20">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_15%_15%,rgba(16,185,129,.22),transparent_42%),linear-gradient(145deg,transparent_45%,rgba(5,80,55,.5))]"/>
-        <Link href="/" className="relative flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-500 text-white"><MessageCircle size={20}/></span><span className="text-lg font-semibold tracking-tight">Wavo<span className="text-emerald-400">.</span></span></Link>
+        <Link href="/" className="relative flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-500 text-white"><MessageCircle size={20}/></span><span className="text-lg font-semibold tracking-tight">InBox Corporation</span></Link>
         <div className="relative max-w-xl pb-10"><p className="text-[11px] font-semibold uppercase tracking-[.2em] text-emerald-300">One workspace. Better conversations.</p><h1 className="mt-5 text-5xl font-semibold leading-[1.08] tracking-[-.055em] xl:text-6xl">Make every customer conversation count.</h1><p className="mt-6 max-w-md text-sm leading-7 text-emerald-50/70">Bring your WhatsApp inbox, contacts and team workflows together. Pick up where your customers left off.</p><div className="mt-10 flex flex-wrap gap-5 text-xs text-emerald-50/75"><span className="inline-flex items-center gap-2"><CheckCircle2 size={15} className="text-emerald-300"/> Shared team inbox</span><span className="inline-flex items-center gap-2"><CheckCircle2 size={15} className="text-emerald-300"/> Consent-aware campaigns</span></div></div>
-        <p className="relative text-[11px] text-emerald-100/45">Wavo by InBox Corporation</p>
+        <p className="relative text-[11px] text-emerald-100/45">InBox Corporation</p>
       </section>
 
       <section className="flex min-h-screen items-center justify-center px-5 py-12 sm:px-10">
         <div className="w-full max-w-[390px]">
-          <Link href="/" className="mb-12 inline-flex items-center gap-2.5 text-sm font-semibold text-slate-900 lg:hidden"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[#087f5b] text-white"><MessageCircle size={17}/></span>Wavo<span className="text-emerald-700">.</span></Link>
-          <div className="mb-8"><div className="mb-5 grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600"><LockKeyhole size={18}/></div><p className="text-[11px] font-semibold uppercase tracking-[.16em] text-emerald-700">Welcome back</p><h2 className="mt-2 text-[30px] font-semibold tracking-[-.045em] text-slate-950">Sign in to Wavo</h2><p className="mt-2 text-sm text-slate-500">Use your business account to continue.</p></div>
+          <Link href="/" className="mb-12 inline-flex items-center gap-2.5 text-sm font-semibold text-slate-900 lg:hidden"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[#087f5b] text-white"><MessageCircle size={17}/></span>InBox Corporation</Link>
+          <div className="mb-8"><div className="mb-5 grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600"><LockKeyhole size={18}/></div><p className="text-[11px] font-semibold uppercase tracking-[.16em] text-emerald-700">Welcome back</p><h2 className="mt-2 text-[30px] font-semibold tracking-[-.045em] text-slate-950">Sign in to InBox Corporation</h2><p className="mt-2 text-sm text-slate-500">Use your business account to continue.</p></div>
           {verificationNotice && <p role="status" className="mb-4 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2.5 text-xs leading-5 text-emerald-800">{verificationNotice}</p>}
           {error && <p role="alert" className="mb-4 rounded-lg border border-red-100 bg-red-50 px-3 py-2.5 text-xs leading-5 text-red-700">{error}</p>}
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -77,8 +77,8 @@ export default function LoginPage() {
             <button disabled={loading} className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#087f5b] text-sm font-semibold text-white transition hover:bg-[#066447] disabled:cursor-not-allowed disabled:opacity-60">{loading?<><Loader2 className="animate-spin" size={17}/>Signing in…</>:<>Sign in <ArrowRight size={16}/></>}</button>
           </form>
           <div className="my-6"><SocialAuthButtons/></div>
-          <p className="text-center text-xs text-slate-500">New to Wavo? <Link href="/register" className="font-semibold text-emerald-800 hover:text-emerald-950">Create an account</Link></p>
-          <p className="mt-12 text-center text-[10px] text-slate-400">By continuing, you agree to use Wavo in accordance with our <Link href="/terms" className="underline underline-offset-2 hover:text-slate-600">terms</Link> and <Link href="/privacy-policy" className="underline underline-offset-2 hover:text-slate-600">privacy policy</Link>.</p>
+          <p className="text-center text-xs text-slate-500">New to InBox Corporation? <Link href="/register" className="font-semibold text-emerald-800 hover:text-emerald-950">Create an account</Link></p>
+          <p className="mt-12 text-center text-[10px] text-slate-400">By continuing, you agree to use InBox Corporation in accordance with our <Link href="/terms" className="underline underline-offset-2 hover:text-slate-600">terms</Link> and <Link href="/privacy-policy" className="underline underline-offset-2 hover:text-slate-600">privacy policy</Link>.</p>
         </div>
       </section>
     </main>

@@ -2,22 +2,22 @@
 
 :root {
   color-scheme: light;
-  --wavo-ink: #17251f;
-  --wavo-muted: #68756f;
-  --wavo-line: #e5ebe7;
-  --wavo-paper: #f7f9f7;
-  --wavo-green: #087f5b;
-  --wavo-green-dark: #066447;
-  --wavo-green-soft: #eaf5ef;
-  --wavo-radius: 14px;
+  --inbox-ink: #17251f;
+  --inbox-muted: #68756f;
+  --inbox-line: #e5ebe7;
+  --inbox-paper: #f7f9f7;
+  --inbox-green: #087f5b;
+  --inbox-green-dark: #066447;
+  --inbox-green-soft: #eaf5ef;
+  --inbox-radius: 14px;
 }
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body {
   margin: 0;
-  background: var(--wavo-paper);
-  color: var(--wavo-ink);
+  background: var(--inbox-paper);
+  color: var(--inbox-ink);
   font-feature-settings: "ss01" on, "cv11" on;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;

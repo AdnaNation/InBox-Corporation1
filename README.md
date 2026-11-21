@@ -76,7 +76,7 @@ The v1 Contacts API supports scoped API keys, contact reads/creates/updates, con
 
 ## Manual customer-owned Meta App connection
 
-Wavo's WhatsApp connection flow uses each customer's own Meta App. Customers do not need to authorize the Wavo Meta App for this manual connection path.
+InBox Corporation's WhatsApp connection flow uses each customer's own Meta App. Customers do not need to authorize the InBox Corporation Meta App for this manual connection path.
 
 Configure these shared server environment variables locally and in the deployment:
 
@@ -91,20 +91,20 @@ Each workspace owner/admin enters the following in **Dashboard → WhatsApp**:
 - A webhook verify token they create (at least 8 characters).
 - A WhatsApp access token issued by that same Meta App, with `whatsapp_business_management` and `whatsapp_business_messaging`.
 - WABA ID and Phone Number ID.
-- A public HTTPS Wavo webhook callback URL (maximum 200 characters).
+- A public HTTPS InBox Corporation webhook callback URL (maximum 200 characters).
 
-Wavo validates the token with that customer's App ID/App Secret, verifies that the Phone Number ID belongs to the WABA, encrypts all credentials at rest, subscribes the customer's Meta App to the WABA, and applies a phone-number-level callback override to Wavo. Incoming webhooks are verified with that workspace's encrypted App Secret and routed by WABA ID plus Phone Number ID. Outbound messages use that workspace's encrypted WhatsApp access token.
+InBox Corporation validates the token with that customer's App ID/App Secret, verifies that the Phone Number ID belongs to the WABA, encrypts all credentials at rest, subscribes the customer's Meta App to the WABA, and applies a phone-number-level callback override to InBox Corporation. Incoming webhooks are verified with that workspace's encrypted App Secret and routed by WABA ID plus Phone Number ID. Outbound messages use that workspace's encrypted WhatsApp access token.
 
 ### Configure the customer's Meta App
 
 1. In the customer's Meta App dashboard, enable the WhatsApp product and make sure the app has the `messages` webhook field subscribed.
-2. In Wavo → Dashboard → WhatsApp, copy the public HTTPS callback URL and the webhook verify token entered for that workspace.
-3. Complete the manual connection. Wavo subscribes the customer's App to its WABA and sets a phone-number-level callback override to the Wavo URL.
-4. Send a controlled inbound message and verify that it appears in the correct Wavo workspace. Test an outbound reply from the Wavo inbox.
+2. In InBox Corporation → Dashboard → WhatsApp, copy the public HTTPS callback URL and the webhook verify token entered for that workspace.
+3. Complete the manual connection. InBox Corporation subscribes the customer's App to its WABA and sets a phone-number-level callback override to the InBox Corporation URL.
+4. Send a controlled inbound message and verify that it appears in the correct InBox Corporation workspace. Test an outbound reply from the InBox Corporation inbox.
 
-The phone-number-level override does not change the customer's Meta App default callback URL and affects only the selected phone number. While the override is active, supported message webhooks for that number go to Wavo instead of the previous callback. Other numbers under the same WABA keep their existing routing. If the customer's website also needs those same events while Wavo is connected, an authenticated webhook relay must be implemented and tested; Meta does not automatically duplicate them to both callback URLs.
+The phone-number-level override does not change the customer's Meta App default callback URL and affects only the selected phone number. While the override is active, supported message webhooks for that number go to InBox Corporation instead of the previous callback. Other numbers under the same WABA keep their existing routing. If the customer's website also needs those same events while InBox Corporation is connected, an authenticated webhook relay must be implemented and tested; Meta does not automatically duplicate them to both callback URLs.
 
-When Wavo disconnects the number, it removes only that phone-number-level override. Meta then falls back to the previous WABA-level or app-level callback routing. Other phone-number overrides remain untouched. If Wavo created the WABA subscription, it removes that subscription only after the last Wavo-connected number in that WABA is disconnected. Wavo fails closed if someone changes the phone-number callback override outside Wavo.
+When InBox Corporation disconnects the number, it removes only that phone-number-level override. Meta then falls back to the previous WABA-level or app-level callback routing. Other phone-number overrides remain untouched. If InBox Corporation created the WABA subscription, it removes that subscription only after the last InBox Corporation-connected number in that WABA is disconnected. InBox Corporation fails closed if someone changes the phone-number callback override outside InBox Corporation.
 
 Use a public development tunnel for local testing. Meta cannot reach `localhost`. Never commit customer Meta App Secrets, webhook verify tokens, WhatsApp access tokens, or `.env.local` to source control.
 
@@ -128,7 +128,7 @@ Register these exact HTTPS callback URLs with the providers:
 
 For Google, configure the production origin as an authorized JavaScript origin and the callback URL as an authorized redirect URI. For Facebook Login, enable Client OAuth Login, Web OAuth Login, Enforce HTTPS and Strict Mode, then add both Facebook callback URLs to Valid OAuth Redirect URIs and request the `email` permission.
 
-OAuth state is checked with short-lived HttpOnly cookies. Google uses PKCE and validates the ID token signature, issuer, audience, nonce and verified email. Provider identities are stored separately with a unique provider/user ID index. If an email already belongs to a password account, Wavo deliberately refuses automatic linking; the user must first sign in with the existing method. Signed-in users can link Facebook from Dashboard → Settings → Connected sign-in methods; the callback requires the same active Wavo session and refuses an identity already linked to another user. A new social account receives its own Free workspace and owner membership. Keep all client secrets server-side and never expose them with a `NEXT_PUBLIC_` prefix.
+OAuth state is checked with short-lived HttpOnly cookies. Google uses PKCE and validates the ID token signature, issuer, audience, nonce and verified email. Provider identities are stored separately with a unique provider/user ID index. If an email already belongs to a password account, InBox Corporation deliberately refuses automatic linking; the user must first sign in with the existing method. Signed-in users can link Facebook from Dashboard → Settings → Connected sign-in methods; the callback requires the same active InBox Corporation session and refuses an identity already linked to another user. A new social account receives its own Free workspace and owner membership. Keep all client secrets server-side and never expose them with a `NEXT_PUBLIC_` prefix.
 
 ## Included
 
@@ -179,7 +179,7 @@ Add this variable in Vercel Project Settings → Environment Variables, then red
 3. Add the environment variables from `.env.example` in Vercel Project Settings.
 4. Add your production domain to `NEXT_PUBLIC_APP_URL`.
 5. Deploy.
-6. Configure each customer Meta App with the callback URL and verify token shown in Dashboard → WhatsApp. Wavo applies the phone-number-level callback override during connection; no global `META_WEBHOOK_VERIFY_TOKEN` is required for new customer connections.
+6. Configure each customer Meta App with the callback URL and verify token shown in Dashboard → WhatsApp. InBox Corporation applies the phone-number-level callback override during connection; no global `META_WEBHOOK_VERIFY_TOKEN` is required for new customer connections.
 
 Do not commit `.env.local` or store Meta access tokens in client-side code.
 
@@ -196,4 +196,4 @@ The Campaigns screen displays an indicative Bangladesh WhatsApp Business Platfor
 
 These estimates assume all recipients have Bangladesh (+880) numbers and all messages are delivered. Meta pricing depends on the recipient's country, message category, eligibility for free-entry-point windows, applicable volume tiers, and rate-card changes. Service replies have a separate monthly free allowance (first 1,000 eligible service messages per WhatsApp Business phone number); the campaign estimator covers template messages only. Verify current rates with Meta before budgeting or sending.
 
-Wavo subscription fees do not include Meta WhatsApp messaging charges. Under the current customer-owned billing model, Meta charges the customer's connected WhatsApp Business Account directly. Traditional SMS is a separate channel and is not included in this WhatsApp estimate.
+InBox Corporation subscription fees do not include Meta WhatsApp messaging charges. Under the current customer-owned billing model, Meta charges the customer's connected WhatsApp Business Account directly. Traditional SMS is a separate channel and is not included in this WhatsApp estimate.
